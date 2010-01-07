@@ -281,7 +281,6 @@ if __name__ == '__main__':
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
-    # CherryPy always starts with app.root when trying to map request URIs
-    # to objects, so we need to mount a request handler root. A request
-    # to '/' will be mapped to HelloWorld().index().
-    cherrypy.quickstart(RootPage(dm), config="cherryred.conf")
+    root = RootPage(dm)
+    root._cp_config = {'tools.staticdir.root': current_dir}
+    cherrypy.quickstart(root, config="cherryred.conf")
