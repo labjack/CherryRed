@@ -11,7 +11,26 @@ from cherrypy.lib.static import serve_file
 
 import os.path
 
+import json
+
 import LabJackPython, u3, u6, ue9
+
+
+# Function dictionaries:
+def buildLowerDict(aClass):
+    d = {}
+    for key in aClass.__dict__:
+        if not key.startswith('_'):
+            d[key.lower()] = key
+    for key in LabJackPython.Device.__dict__:
+        if not key.startswith('_'):
+            d[key.lower()] = key
+    return d
+
+# Map all the functions to lower case.
+u3Dict = buildLowerDict(u3.U3)
+u6Dict = buildLowerDict(u6.U6)
+ue9Dict = buildLowerDict(ue9.UE9)
 
 # Class Definitions
 class DeviceManager(object):
@@ -52,7 +71,6 @@ class DeviceManager(object):
         
         # Remove the disconnected devices
         for serial in self.devices.keys():
-            print "serial: %s" % serial
             if serial not in serials:
                 self.devices[str(serial)].close()
                 self.devices.pop(str(serial))
@@ -74,11 +92,11 @@ class DeviceManager(object):
     def u3Scan(self, dev):
         fioAnalog = dev.readRegister(50590)
         
-        results = list()
+        results = dict()
         
         for i in range(8):
             if (( fioAnalog >> i) & 1):
-                results.append("<li>AIN%s: %0.5f</li>" % (i, dev.readRegister(i*2)))
+                results["AIN%s" % i] = "%0.5f" % dev.readRegister(i*2)
             else:
                 fioDir = dev.readRegister(6100 + i)
                 fioState = dev.readRegister(6000 + i)
@@ -93,19 +111,19 @@ class DeviceManager(object):
                 else:
                     fioState = "High"
                 
-                results.append("<li>FIO%s: %s %s</li>" % ( i, fioDir, fioState)) 
+                results["FIO%s" % i] = "%s %s" % (fioDir, fioState)
                 
-        results.append("<li>DAC0: %0.5f</li>" % dev.readRegister(5000))
-        results.append("<li>DAC1: %0.5f</li>" % dev.readRegister(5002))
-        results.append("<li>Internal Temp: %0.5f C</li>" % (dev.readRegister(60) - 273.15))
+        results["DAC0"] = "%0.5f" %  dev.readRegister(5000)
+        results["DAC1"] = "%0.5f" %  dev.readRegister(5002)
+        results["InternalTemp"] = "%0.5f" %  (dev.readRegister(28) - 273.15)
         
         return dev.serialNumber, results
 
     def u6Scan(self, dev):
-        results = list()
+        results = dict()
         
         for i in range(4):
-            results.append("<li>AIN%s: %0.5f</li>" % (i, dev.readRegister(i*2)))
+            results["AIN%s" % i] = "%0.5f" % dev.readRegister(i*2)
             
         for i in range(4):
             fioDir = dev.readRegister(6100 + i)
@@ -121,21 +139,27 @@ class DeviceManager(object):
             else:
                 fioState = "High"
             
-            results.append("<li>FIO%s: %s %s</li>" % ( i, fioDir, fioState)) 
+            results["FIO%s" % i] = "%s %s" % (fioDir, fioState)
         
-        results.append("<li>DAC0: %0.5f</li>" % dev.readRegister(5000))
-        results.append("<li>DAC1: %0.5f</li>" % dev.readRegister(5002))
-        results.append("<li>Internal Temp: %0.5f</li>" % (dev.readRegister(28) - 273.15))
+        results["DAC0"] = "%0.5f" %  dev.readRegister(5000)
+        results["DAC1"] = "%0.5f" %  dev.readRegister(5002)
+        results["InternalTemp"] = "%0.5f" %  (dev.readRegister(28) - 273.15)
         
         return dev.serialNumber, results
 
-    def listAll(self, devType):
-        devices = list()
+    def listAll(self):
+        devices = dict()
         for dev in self.devices.values():
-            if dev.devType == devType:
-                devices.append("%s : %s" % (dev.getName(), dev.serialNumber) )
+            name = dev.getName()
+            devices[str(dev.serialNumber)] = name
+            #devices.append({'devType' : devType, 'name' : name, 'serial' : dev.serialNumber, 'productName' : dev.deviceName})
         
-        return "%s" % devices
+        return json.dumps(devices)
+        
+    def details(self, serial):
+        dev = self.devices[serial]
+        name = dev.getName()
+        return json.dumps({'devType' : dev.devType, 'name' : name, 'serial' : dev.serialNumber, 'productName' : dev.deviceName})
         
     def setFioState(self, serial, fioNumber, state):
         if serial is None:
@@ -159,6 +183,22 @@ class DeviceManager(object):
         dev.setName(name)
         
         return dev.serialNumber, name
+        
+        
+    def callDeviceFunction(serial, funcName, kwargs):
+        if serial is None:
+            dev = self.devices.values()[0]
+        else:
+            dev = self.devices[serial]
+        
+        if dev.devType == 3:
+            classDict = u3Dict
+        elif dev.devType == 6:
+            classDict = u6Dict
+        elif dev.devType == 9:
+            classDict = ue9Dict
+        
+        return dev.serialNumber, dev.__getattribute__(classDict[funcName])(**kwargs)
 
 class DevicesPage:
     def __init__(self, dm):
@@ -171,22 +211,24 @@ class DevicesPage:
         return "</body></html>"
 
     def index(self):
-        yield self.header()
-        yield "<h2>Connected Devices:</h2>"
         self.dm.updateDeviceDict()
-        yield "<p>U3s: %s</p>" % self.dm.listAll(3)
-        yield "<p>U6s: %s</p>" % self.dm.listAll(6)
-        yield "<p>UE9s: %s</p>" % self.dm.listAll(9)
-        yield self.footer()
+        
+        cherrypy.response.headers['content-type'] = "application/json"
+        return self.dm.listAll()
+        
     index.exposed = True
     
     
     def default(self, serial, cmd = None, **kwargs):
-        yield self.header()
-        yield "<p>serial = %s, cmd = %s</p>" % (serial, cmd)
-        yield "<p>kwargs = %s</p>" % str(kwargs)
-        
-        yield self.footer()
+        if cmd is None:
+            cherrypy.response.headers['content-type'] = "application/json"
+            return self.dm.details(serial)
+        else:
+            pass
+            #yield self.header()
+            #yield "<p>serial = %s, cmd = %s</p>" % (serial, cmd)
+            #yield "<p>kwargs = %s</p>" % str(kwargs)
+            #yield self.footer()
     default.exposed = True
     
     def scan(self, serial = None):
@@ -197,8 +239,8 @@ class DevicesPage:
         yield "<h2>Scan of %s</h2>" % serialNumber
         yield "<ul>"
         
-        for line in results:
-            yield line
+        for key, value in results.items():
+            yield "<li>%s: %s</li>" % (key, value)
         
         yield "</ul>"
         yield self.footer()
