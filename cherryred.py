@@ -81,6 +81,7 @@ class DeviceManager(object):
         else:
             dev = self.devices[serial]
         
+        print "Scan: serial = %s, dev serial = %s, devType = %s" % (serial, dev.serialNumber, dev.devType)
         
         if dev.devType == 3:
             return self.u3Scan(dev)
@@ -115,7 +116,7 @@ class DeviceManager(object):
                 
         results["DAC0"] = "%0.5f" %  dev.readRegister(5000)
         results["DAC1"] = "%0.5f" %  dev.readRegister(5002)
-        results["InternalTemp"] = "%0.5f" %  (dev.readRegister(28) - 273.15)
+        #results["InternalTemp"] = "%0.5f" %  (dev.readRegister(28) - 273.15)
         
         return dev.serialNumber, results
 
@@ -185,7 +186,7 @@ class DeviceManager(object):
         return dev.serialNumber, name
         
         
-    def callDeviceFunction(serial, funcName, kwargs):
+    def callDeviceFunction(self, serial, funcName, pargs, kwargs):
         if serial is None:
             dev = self.devices.values()[0]
         else:
@@ -198,7 +199,7 @@ class DeviceManager(object):
         elif dev.devType == 9:
             classDict = ue9Dict
         
-        return dev.serialNumber, dev.__getattribute__(classDict[funcName])(**kwargs)
+        return dev.serialNumber, dev.__getattribute__(classDict[funcName])(*pargs, **kwargs)
 
 class DevicesPage:
     def __init__(self, dm):
@@ -219,31 +220,35 @@ class DevicesPage:
     index.exposed = True
     
     
-    def default(self, serial, cmd = None, **kwargs):
+    def default(self, serial, cmd = None, *pargs, **kwargs):
         if cmd is None:
             cherrypy.response.headers['content-type'] = "application/json"
-            return self.dm.details(serial)
+            yield self.dm.details(serial)
         else:
-            pass
-            #yield self.header()
-            #yield "<p>serial = %s, cmd = %s</p>" % (serial, cmd)
-            #yield "<p>kwargs = %s</p>" % str(kwargs)
-            #yield self.footer()
+            yield self.header()
+            yield "<p>serial = %s, cmd = %s</p>" % (serial, cmd)
+            yield "<p>kwargs = %s, pargs = %s</p>" % (str(kwargs), str(pargs))
+            #yield "<p>%s</p>" % self.dm.callDeviceFunction(serial, cmd, pargs, kwargs)[1]
+            yield self.footer()
     default.exposed = True
     
     def scan(self, serial = None):
-        yield self.header()
+        #yield self.header()
         
+        print "Scan: serial = %s" % serial
         serialNumber, results = self.dm.scan(serial)
         
-        yield "<h2>Scan of %s</h2>" % serialNumber
-        yield "<ul>"
+        cherrypy.response.headers['content-type'] = "application/json"
+        yield json.dumps(results)
         
-        for key, value in results.items():
-            yield "<li>%s: %s</li>" % (key, value)
+        #yield "<h2>Scan of %s</h2>" % serialNumber
+        #yield "<ul>"
         
-        yield "</ul>"
-        yield self.footer()
+        #for key, value in results.items():
+        #    yield "<li>%s: %s</li>" % (key, value)
+        
+        #yield "</ul>"
+        #yield self.footer()
             
     scan.exposed = True
 
