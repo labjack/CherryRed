@@ -1,160 +1,23 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
-   <title>LabJack</title>
+    <title>LabJack</title>
 
-  <link rel="stylesheet" href="css/reset.css" />
-  <link rel="stylesheet" href="css/text.css" />
-  <link rel="stylesheet" href="css/960_24_col.css" />
+    <link rel="stylesheet" href="css/reset.css" />
+    <link rel="stylesheet" href="css/text.css" />
+    <link rel="stylesheet" href="css/960_24_col.css" />
 
-<link type="text/css" href="css/blitzer/jquery-ui-1.7.2.custom.css" rel="Stylesheet" />
-<link rel="stylesheet" type="text/css" media="screen" href="css/ui.jqgrid.css" />
-
-<style type="text/css">
-	#device-name-list { font-size: 1.4em; }
-	#device-name-list .ui-selecting { background: #FECA40; }
-	#device-name-list .ui-selected { background: #CC0000; color: white; }
-	#device-name-list { list-style-type: none; margin: 0; padding: 0; width: 100%; }
-	#device-name-list li { margin: 0px; padding: 0.4em 5%; font-size: 1.4em; width: 95%;}
-	#tabs { display: none ; min-height: 550px; border: 2px solid #CC0000; }
-	
-	#more-info-pane { padding: 10px; }
-	#more-info-pane p { font-size: 110%; }
-	#more-info-pane .serial, #more-info-pane .product-name { padding-left: 10px; }
-	#more-info-pane .serial { font-style: italic; }
-	
-	.ui-jqgrid { font-size: 120%; }
-	.ui-jqgrid .ui-jqgrid-htable th div { height:27px; }
-	</style>
-
+    <link type="text/css" href="css/blitzer/jquery-ui-1.7.2.custom.css" rel="Stylesheet" />
+    <link rel="stylesheet" type="text/css" media="screen" href="css/ui.jqgrid.css" />
+    <link type="text/css" href="css/cherryred.css" rel="Stylesheet" />
 
     <script type="text/javascript" src="js/jquery-1.3.2.min.js"></script>
-    <script type="text/javascript" src="js/jquery-ui-1.7.2.custom.min.js"></script>
-    
+    <script type="text/javascript" src="js/jquery-ui-1.7.2.custom.min.js"></script>    
     <script type="text/javascript" src="js/jquery.jqote.min.js"></script>
     <script src="js/jquery.jqGrid.min.js" type="text/javascript"></script>
-    
-    <script type="text/javascript">
-    
-    var refreshId = null;
-    var currentSerialNumber = null;
+    <script src="js/jquery.sparkline.min.js" type="text/javascript"></script>
 
-    
-      $(document).ready(function() {
-        //alert("hello");
-        $("#tabs").tabs();
-        getDeviceList();
-      });
-      
-      
-      
-
-      function callScan() {
-        $.get("/devices/scan", {serial : currentSerialNumber}, handleScan, "json");
-      }
-
-      function handleScan(data) {
-        //console.log("handleScan");
-        //console.log(data);
-        
-        $("#control-panel-list2").empty();
-        
-        $("#control-panel-list2").jqGrid({
-          datatype: "local",
-          height: 450,
-             colNames:['Connection','State'],
-             colModel:[
-               {name:'connection',index:'connection', width:300,  sortable:false},
-               {name:'state',index:'state', width:300, sortable:false}
-             ],
-             multiselect: false,
-             caption: "Control Panel"
-        });
-  
-        var count = 0;
-        for (var d in data) {
-          var obj = { connection : d, state: data[d] };
-          $("#control-panel-list2").jqGrid('addRowData', count, obj);
-          count++;
-        }
-
-    if (refreshId != null) {
-        clearTimeout(refreshId);
-    }
-    refreshId = setTimeout(callScan, 500);
-
-
-
-      }
-
-      function handleMoreInfo(data) {
-        $("#more-info-pane").empty();
-        //console.log("handleMoreInfo");
-        //console.log(data);
-        $("#more-info-template").jqote(data).appendTo($("#more-info-pane"));
-
-        currentSerialNumber = data.serial;
-
-        callScan();
-      }
-
-      function handleSelectDevice(event, ui) {
-          //console.log("clicked device");
-          //console.log(event);
-          var serialNumber = ui.selected.id;
-          $.get("/devices/" + serialNumber, {}, handleMoreInfo, "json");
-          //console.log($(ui).id);
-          
-          $("#tabs").show();
-      
-      }
-      
-      function handleDeviceList(data) {
-           //console.log(data);
-            for (var d in data) {
-              //console.log(d);
-              //console.log(data[d]);
-              var obj = { name: data[d], serial : d };
-              $("#device-template").jqote(obj).appendTo($("#device-name-list"));
-            }
-            $("#device-name-list").selectable({
-              selected: function(event, ui) { 
-                handleSelectDevice(event, ui);
-              }
-         });
-      }
-      
-      
-      function getDeviceList() {
-        $.get("/devices/", {}, handleDeviceList, "json");
-      }
-      
-    </script>
-    <style type="text/css">
-    body {
-      min-width: 960px;
-    }
-    #header * {
-      background-color: #333;
-      color: white;
-    }
-    #content {
-      background-color: red;
-    }
-    #footer * {
-      background-color: #333;
-      color: white;
-    }
-    #list-pane {
-      background-color: #ccc;
-      min-height: 400px;
-      padding-left: 0.5em;
-    }
-    #more-info-pane {
-      background-color: #aaa;
-      min-height: 180px;
-    }
-    </style>
+    <script src="js/cherryred-devices.js" type="text/javascript"></script>
 
 </head>
 
@@ -175,6 +38,28 @@
 ]]>
 </script>
 
+
+
+<script type="text/html" id="u3-connection-dialog">
+<![CDATA[
+  <div id="u3-connection-dialog-tabs">
+    <ul>
+      <li><a href="#u3-connection-dialog-tabs-analog">Analog</a></li>
+      <li><a href="#u3-connection-dialog-tabs-digital">Digital</a></li>
+    </ul>
+    <div id="u3-connection-dialog-tabs-analog">
+      Single/Differential
+    </div>
+    <div id="u3-connection-dialog-tabs-digital">
+      <p>Direction:</p>
+      <p>State:</p>
+    </div>
+]]>
+</script>
+
+
+
+<div id="dialog" style="display:none"></div>
 
 
 <div id="header" class="container_24">
@@ -204,34 +89,23 @@
     <div id="" class="grid_19 ">
       <div id="tabs">
         <ul>
-          <li><a href="#control-panel-tab">Control Panel</a></li>
-          <li><a href="#tabs-2">Log</a></li>
-          <li><a href="#tabs-3">Scripts</a></li>
-          <li><a href="#tabs-4">Firmware</a></li>
-          <li><a href="#tabs-5">CloudDot</a></li>
+          <li><a href="#test-panel-tab">Test Panel</a></li>
+          <li><a href="#firmware-tab">Firmware</a></li>
+          <li><a href="#support-tab">Support</a></li>
         </ul>
-        <div id="control-panel-tab">
+        <div id="test-panel-tab">
 
-<table id="control-panel-list2"></table>
-<div id="control-panel-pager2"></div>
+<table id="test-panel-table"></table>
 
 
         </div>
-        <div id="tabs-2">
+        <div id="firmware-tab">
           <p>Morbi tincidunt, dui sit amet facilisis feugiat, odio metus gravida ante, ut pharetra massa metus id nunc. Duis scelerisque molestie turpis. Sed fringilla, massa eget luctus malesuada, metus eros molestie lectus, ut tempus eros massa ut dolor. Aenean aliquet fringilla sem. Suspendisse sed ligula in ligula suscipit aliquam. Praesent in eros vestibulum mi adipiscing adipiscing. Morbi facilisis. Curabitur ornare consequat nunc. Aenean vel metus. Ut posuere viverra nulla. Aliquam erat volutpat. Pellentesque convallis. Maecenas feugiat, tellus pellentesque pretium posuere, felis lorem euismod felis, eu ornare leo nisi vel felis. Mauris consectetur tortor et purus.</p>
         </div>
-        <div id="tabs-3">
-          <p>Mauris eleifend est et turpis. Duis id erat. Suspendisse potenti. Aliquam vulputate, pede vel vehicula accumsan, mi neque rutrum erat, eu congue orci lorem eget lorem. Vestibulum non ante. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Fusce sodales. Quisque eu urna vel enim commodo pellentesque. Praesent eu risus hendrerit ligula tempus pretium. Curabitur lorem enim, pretium nec, feugiat nec, luctus a, lacus.</p>
-          <p>Duis cursus. Maecenas ligula eros, blandit nec, pharetra at, semper at, magna. Nullam ac lacus. Nulla facilisi. Praesent viverra justo vitae neque. Praesent blandit adipiscing velit. Suspendisse potenti. Donec mattis, pede vel pharetra blandit, magna ligula faucibus eros, id euismod lacus dolor eget odio. Nam scelerisque. Donec non libero sed nulla mattis commodo. Ut sagittis. Donec nisi lectus, feugiat porttitor, tempor ac, tempor vitae, pede. Aenean vehicula velit eu tellus interdum rutrum. Maecenas commodo. Pellentesque nec elit. Fusce in lacus. Vivamus a libero vitae lectus hendrerit hendrerit.</p>
-        </div>
-        <div id="tabs-4">
-          <p>Duis cursus. Maecenas ligula eros, blandit nec, pharetra at, semper at, magna. Nullam ac lacus. Nulla facilisi. Praesent viverra justo vitae neque. Praesent blandit adipiscing velit. Suspendisse potenti. Donec mattis, pede vel pharetra blandit, magna ligula faucibus eros, id euismod lacus dolor eget odio. Nam scelerisque. Donec non libero sed nulla mattis commodo. Ut sagittis. Donec nisi lectus, feugiat porttitor, tempor ac, tempor vitae, pede. Aenean vehicula velit eu tellus interdum rutrum. Maecenas commodo. Pellentesque nec elit. Fusce in lacus. Vivamus a libero vitae lectus hendrerit hendrerit.</p>
-        </div>
-        <div id="tabs-5">
-                  <p>Proin elit arcu, rutrum commodo, vehicula tempus, commodo a, risus. Curabitur nec arcu. Donec sollicitudin mi sit amet mauris. Nam elementum quam ullamcorper ante. Etiam aliquet massa et lorem. Mauris dapibus lacus auctor risus. Aenean tempor ullamcorper leo. Vivamus sed magna quis ligula eleifend adipiscing. Duis orci. Aliquam sodales tortor vitae ipsum. Aliquam nulla. Duis aliquam molestie erat. Ut et mauris vel pede varius sollicitudin. Sed ut dolor nec orci tincidunt interdum. Phasellus ipsum. Nunc tristique tempus lectus.</p>
-
-          <p>Mauris eleifend est et turpis. Duis id erat. Suspendisse potenti. Aliquam vulputate, pede vel vehicula accumsan, mi neque rutrum erat, eu congue orci lorem eget lorem. Vestibulum non ante. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Fusce sodales. Quisque eu urna vel enim commodo pellentesque. Praesent eu risus hendrerit ligula tempus pretium. Curabitur lorem enim, pretium nec, feugiat nec, luctus a, lacus.</p>
-          <p>Duis cursus. Maecenas ligula eros, blandit nec, pharetra at, semper at, magna. Nullam ac lacus. Nulla facilisi. Praesent viverra justo vitae neque. Praesent blandit adipiscing velit. Suspendisse potenti. Donec mattis, pede vel pharetra blandit, magna ligula faucibus eros, id euismod lacus dolor eget odio. Nam scelerisque. Donec non libero sed nulla mattis commodo. Ut sagittis. Donec nisi lectus, feugiat porttitor, tempor ac, tempor vitae, pede. Aenean vehicula velit eu tellus interdum rutrum. Maecenas commodo. Pellentesque nec elit. Fusce in lacus. Vivamus a libero vitae lectus hendrerit hendrerit.</p>
+        <div id="support-tab">
+          <p>
+            <a href="http://labjack.com/support/u3">U3 Support homepage</a> 
+          </p>
         </div>
       </div>
 

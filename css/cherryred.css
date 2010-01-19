@@ -1,0 +1,62 @@
+#device-name-list { font-size: 1.4em; }
+#device-name-list .ui-selecting { background: #FECA40; }
+#device-name-list .ui-selected { background: #CC0000; color: white; }
+#device-name-list { list-style-type: none; margin: 0; padding: 0; width: 100%; }
+#device-name-list li { margin: 0px; padding: 0.4em 5%; font-size: 1.4em; width: 95%;}
+#tabs { display: none ; min-height: 850px; border: 2px solid #CC0000; }
+
+#more-info-pane { padding: 10px; }
+#more-info-pane p { font-size: 110%; }
+#more-info-pane .serial, #more-info-pane .product-name { padding-left: 10px; }
+#more-info-pane .serial { font-style: italic; }
+
+.ui-jqgrid { font-size: 120%; }
+.ui-jqgrid .ui-jqgrid-htable th div { height:27px; }
+.ui-jqgrid .ui-jqgrid-titlebar { display: none; }
+
+body {
+  min-width: 960px;
+}
+#header * {
+  background-color: #333;
+  color: white;
+}
+#content {
+  background-color: red;
+}
+#footer * {
+  background-color: #333;
+  color: white;
+}
+#list-pane {
+  background-color: #ccc;
+  min-height: 400px;
+  padding-left: 0.5em;
+}
+#more-info-pane {
+  background-color: #aaa;
+  min-height: 180px;
+}
+
+
+/* Devices */
+/*.test-panel-sparkline { width: 100px; }*/
+
+.ui-jqgrid tr.ui-row-ltr td:nth-child(1) {
+    text-align:center;
+}
+
+.ui-jqgrid tr.ui-row-ltr td .test-panel-sparkline { 
+position:absolute;
+text-align:right;
+width:80px;
+height: 5px;
+}
+
+.ui-jqgrid tr.ui-row-ltr td .test-panel-sparkline canvas { 
+margin-top:5px;
+}
+
+.ui-jqgrid tr.ui-row-ltr td .test-panel-state {
+    margin-left:90px;
+}
