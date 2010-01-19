@@ -14,7 +14,7 @@ import os.path
 import json
 
 import LabJackPython, u3, u6, ue9
-
+from Autoconvert import autoConvert
 
 # Function dictionaries:
 def buildLowerDict(aClass):
@@ -32,20 +32,126 @@ u3Dict = buildLowerDict(u3.U3)
 u6Dict = buildLowerDict(u6.U6)
 ue9Dict = buildLowerDict(ue9.UE9)
 
+LJSOCKET_ADDRESS = "localhost"
+LJSOCKET_PORT = "6000"
+
 # Class Definitions
+class FIO(object):
+    def __init__(self, fioNumber, label = None , chType = "analogIn", state = None):
+        self.fioNumber = fioNumber
+        self.chType = chType
+        self.label = None
+        self.negChannel = None
+        self.state = state
+        
+        if self.chType == "analogIn":
+            self.negChannel = 31
+            self.label = "AIN%s" % self.fioNumber
+        else:
+            self.label = "FIO%s" % self.fioNumber
+            
+        if label != None:
+            self.label = label
+    
+    def asDict(self):
+        return { "fioNumber" : self.fioNumber, "chType" : self.chType, "label" : self.label, "negChannel" : self.negChannel, "state": self.state }
+    
+    def readResult(self, dev):
+        if self.chType == "analogIn":
+            return self.readAin(dev)
+        else:
+            return self.readFio(dev)
+
+    def readAin(self, dev):
+        state = dev.readRegister(self.fioNumber*2)
+        infoDict = dict()
+        infoDict['connection'] = self.label
+        infoDict['state'] = "%0.5f" % state
+        infoDict['value'] = "%0.5f" % state # Use state for 'state' and 'value'
+        infoDict['chType'] = self.chType
+        
+        return infoDict
+
+    def readFio(self, dev):
+        fioDir = dev.readRegister(6100 + self.fioNumber)
+        fioState = dev.readRegister(6000 + self.fioNumber)
+        
+        if fioDir == 0:
+            fioDirText = "Input"
+        else:
+            fioDirText = "Output"
+            
+        if fioState == 0:
+            fioStateText = "Low"
+        else:
+            fioStateText = "High"
+        
+        infoDict = {'connection' : self.label, 'state' : "%s %s" % (fioDirText, fioStateText), 'value' : "%s" % fioState}
+        infoDict['chType'] = ("digitalIn" if fioDir == 0 else "digitalOut")
+        
+        return infoDict
+
 class DeviceManager(object):
     """
     The DeviceManager class will manage all the open connections to LJSocket
     """
     def __init__(self):
+        self.address = LJSOCKET_ADDRESS
+        self.port = LJSOCKET_PORT
+    
         self.devices = dict()
         
-        self.updateDeviceDict()
+        try:
+            self.updateDeviceDict()
+            self.connected = True
+        except Exception:
+            self.connected = False
         
         print self.devices
     
+    def getFioInfo(self, serial, inputNumber):
+        if serial is None:
+            dev = self.devices.values()[0]
+        else:
+            dev = self.devices[serial]
+        
+        return dev.fioList[inputNumber].asDict()
+    
+    def makeU3FioList(self, dev):
+        # Make a list to hold the state of all the fios
+        
+        fioAnalog = dev.readRegister(50590)
+        eioAnalog = dev.readRegister(50591)
+        
+        results = list()
+        
+        fios = list()
+        for i in range(20):
+            analog = ( fioAnalog if i < 8 else eioAnalog )
+            
+            label = "FIO%s"
+            labelOffset = 0
+            if i in range(8,16):
+                label = "EIO%s"
+                labelOffset = -8
+            elif i >= 16:
+                label = "CIO%s"
+                labelOffset = -16            
+        
+            if i < 16 and (( analog >> i) & 1):
+                fios.append( FIO(i) )
+            else:
+                fioDir = dev.readRegister(6100 + i)
+                fioState = dev.readRegister(6000 + i)
+                
+                fios.append( FIO(i, label % (i + labelOffset), ("digitalIn" if fioDir == 0 else "digitalOut"), fioState) )
+            
+        return fios
+        
+    
     def updateDeviceDict(self):
-        devs = LabJackPython.listAll("localhost:6000", 200)
+        ljsocketAddress = "%s:%s" % (self.address, self.port)
+        devs = LabJackPython.listAll(ljsocketAddress, 200)
         
         serials = list()
         
@@ -56,13 +162,15 @@ class DeviceManager(object):
             serials.append(str(dev['serial']))
             
             if dev['prodId'] == 3:
-                d = u3.U3(LJSocket = "localhost:6000", serial = dev['serial'])
+                d = u3.U3(LJSocket = ljsocketAddress, serial = dev['serial'])
                 d.configU3()
+                d.fioList = self.makeU3FioList(d)
+                
             elif dev['prodId'] == 6:
-                d = u6.U6(LJSocket = "localhost:6000", serial = dev['serial'])
+                d = u6.U6(LJSocket = ljsocketAddress, serial = dev['serial'])
                 d.configU6()
             elif dev['prodId'] == 9:
-                d = ue9.UE9(LJSocket = "localhost:6000", serial = dev['serial'])
+                d = ue9.UE9(LJSocket = ljsocketAddress, serial = dev['serial'])
                 d.controlConfig()
             else:
                 raise Exception("Unknown device type")
@@ -81,50 +189,63 @@ class DeviceManager(object):
         else:
             dev = self.devices[serial]
         
-        print "Scan: serial = %s, dev serial = %s, devType = %s" % (serial, dev.serialNumber, dev.devType)
-        
         if dev.devType == 3:
             return self.u3Scan(dev)
         elif dev.devType == 6:
             return self.u6Scan(dev)
         elif dev.devType == 9:
             return self.ue9Scan(dev)
+    
+
+    def readTimer(self, dev, timerNumber):
+        timer = dev.readRegister(7200 + (2 * timerNumber))
+        infoDict = {'connection' : "Timer %s" % timerNumber, 'state' : "%s" % timer, 'value' : "%s" % timer}
+        infoDict['chType'] = ("timer")
+        
+        return infoDict
+        
+    def readCounter(self, dev, counterNumber):
+        counter = dev.readRegister(7300 + (2 * counterNumber))
+        infoDict = {'connection' : "Counter %s" % counterNumber, 'state' : "%s" % counter, 'value' : "%s" % counter}
+        infoDict['chType'] = ("counter")
+        
+        return infoDict
 
     def u3Scan(self, dev):
         fioAnalog = dev.readRegister(50590)
+        eioAnalog = dev.readRegister(50591)
         
-        results = dict()
+        results = list()
         
-        for i in range(8):
-            if (( fioAnalog >> i) & 1):
-                results["AIN%s" % i] = "%0.5f" % dev.readRegister(i*2)
-            else:
-                fioDir = dev.readRegister(6100 + i)
-                fioState = dev.readRegister(6000 + i)
-                
-                if fioDir == 0:
-                    fioDir = "Input"
-                else:
-                    fioDir = "Output"
-                    
-                if fioState == 0:
-                    fioState = "Low"
-                else:
-                    fioState = "High"
-                
-                results["FIO%s" % i] = "%s %s" % (fioDir, fioState)
-                
-        results["DAC0"] = "%0.5f" %  dev.readRegister(5000)
-        results["DAC1"] = "%0.5f" %  dev.readRegister(5002)
-        #results["InternalTemp"] = "%0.5f" %  (dev.readRegister(28) - 273.15)
+        for fio in dev.fioList:
+            results.append( fio.readResult(dev) )
+        
+        
+        ioResults = dev.configIO()
+        for i in range(ioResults['NumberOfTimersEnabled']):
+            results.append( self.readTimer(dev, i) )
+            
+        if ioResults['EnableCounter0']:
+            results.append( self.readCounter(dev, 0) )
+            
+        if ioResults['EnableCounter1']:
+            results.append( self.readCounter(dev, 1) )
+        
+        dac0State = dev.readRegister(5000)
+        dac1State = dev.readRegister(5002)
+        results.append({'connection' : "DAC0", 'state' : "%0.5f" % dac0State, 'value' : "%0.5f" % dac0State})
+        results.append({'connection' : "DAC1", 'state' : "%0.5f" % dac1State, 'value' : "%0.5f" % dac1State})
+        
+        internalTemp = dev.readRegister(60) - 273.15
+        results.append({'connection' : "InternalTemp", 'state' : "%0.5f" % internalTemp, 'value' : "%0.5f" % internalTemp, 'chType' : "internalTemp"}) 
         
         return dev.serialNumber, results
 
     def u6Scan(self, dev):
-        results = dict()
+        results = list()
         
         for i in range(4):
-            results["AIN%s" % i] = "%0.5f" % dev.readRegister(i*2)
+            results.append({'connection' : "AIN%s" % i, 'state' : "%0.5f" % dev.readRegister(i*2)})
             
         for i in range(4):
             fioDir = dev.readRegister(6100 + i)
@@ -140,11 +261,13 @@ class DeviceManager(object):
             else:
                 fioState = "High"
             
-            results["FIO%s" % i] = "%s %s" % (fioDir, fioState)
+            results.append({'connection' : "FIO%s" % i, 'state' : "%s %s" % (fioDir, fioState) })
         
-        results["DAC0"] = "%0.5f" %  dev.readRegister(5000)
-        results["DAC1"] = "%0.5f" %  dev.readRegister(5002)
-        results["InternalTemp"] = "%0.5f" %  (dev.readRegister(28) - 273.15)
+        
+        results.append({'connection' : "DAC0", 'state' : "%0.5f" %  dev.readRegister(5000) })
+        results.append({'connection' : "DAC1" , 'state' : "%0.5f" %  dev.readRegister(5002) })
+        results.append({'connection' : "InternalTemp", 'state' : "%0.5f" %  (dev.readRegister(28) - 273.15) })
+        
         
         return dev.serialNumber, results
 
@@ -153,14 +276,19 @@ class DeviceManager(object):
         for dev in self.devices.values():
             name = dev.getName()
             devices[str(dev.serialNumber)] = name
-            #devices.append({'devType' : devType, 'name' : name, 'serial' : dev.serialNumber, 'productName' : dev.deviceName})
         
         return json.dumps(devices)
         
     def details(self, serial):
         dev = self.devices[serial]
         name = dev.getName()
-        return json.dumps({'devType' : dev.devType, 'name' : name, 'serial' : dev.serialNumber, 'productName' : dev.deviceName})
+        
+        if dev.devType == 9:
+            firmware = [dev.commFWVersion, dev.controlFWVersion]
+        else:
+            firmware = dev.firmwareVersion 
+        
+        return json.dumps({'devType' : dev.devType, 'name' : name, 'serial' : dev.serialNumber, 'productName' : dev.deviceName, 'firmware' : firmware, 'localId' : dev.localId})
         
     def setFioState(self, serial, fioNumber, state):
         if serial is None:
@@ -191,6 +319,13 @@ class DeviceManager(object):
             dev = self.devices.values()[0]
         else:
             dev = self.devices[serial]
+        
+        pargs = list(pargs)
+        for i in range(len(pargs)):
+            pargs[i] = autoConvert(pargs[i])
+            
+        for key, value in kwargs.items():
+            kwargs[key] = autoConvert(value)
         
         if dev.devType == 3:
             classDict = u3Dict
@@ -228,9 +363,16 @@ class DevicesPage:
             yield self.header()
             yield "<p>serial = %s, cmd = %s</p>" % (serial, cmd)
             yield "<p>kwargs = %s, pargs = %s</p>" % (str(kwargs), str(pargs))
-            #yield "<p>%s</p>" % self.dm.callDeviceFunction(serial, cmd, pargs, kwargs)[1]
+            yield "<p>%s</p>" % self.dm.callDeviceFunction(serial, cmd, pargs, kwargs)[1]
             yield self.footer()
     default.exposed = True
+    
+    def inputInfo(self, serial = None, inputNumber = 0):
+        inputConnection = self.dm.getFioInfo(serial, int(inputNumber))
+        cherrypy.response.headers['content-type'] = "application/json"
+        yield json.dumps(inputConnection)
+    
+    inputInfo.exposed = True
     
     def scan(self, serial = None):
         #yield self.header()
@@ -241,14 +383,6 @@ class DevicesPage:
         cherrypy.response.headers['content-type'] = "application/json"
         yield json.dumps(results)
         
-        #yield "<h2>Scan of %s</h2>" % serialNumber
-        #yield "<ul>"
-        
-        #for key, value in results.items():
-        #    yield "<li>%s: %s</li>" % (key, value)
-        
-        #yield "</ul>"
-        #yield self.footer()
             
     scan.exposed = True
 
@@ -272,13 +406,28 @@ class DevicesPage:
 
 class RootPage:
     def __init__(self, dm):
+        self.dm = dm
         self.devices = DevicesPage(dm)
     
     def index(self):
-        return serve_file(os.path.join(current_dir , "html/index.html"))
+        if self.dm.connected:
+            return serve_file(os.path.join(current_dir , "html/index.html"))
+        else:
+            return serve_file(os.path.join(current_dir , "html/connect.html"))
     index.exposed = True
-
-
+    
+    def retry(self, address = "localhost", port = "6000"):
+        self.dm.address = address
+        self.dm.port = port
+        
+        try:
+            self.dm.updateDeviceDict()
+            self.dm.connected = True
+        except:
+            pass
+        
+        raise cherrypy.HTTPRedirect("/")
+    retry.exposed = True
 
 # Main:
 if __name__ == '__main__':
