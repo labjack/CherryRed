@@ -60,3 +60,31 @@ margin-top:5px;
 .ui-jqgrid tr.ui-row-ltr td .test-panel-state {
     margin-left:90px;
 }
+
+
+/* CSS for the "Couldn't Connect" page */
+#cant-connect-content {
+    padding: 15px;
+    margin: auto;
+    width: 350px;
+    text-align: center;
+    margin-top: 100px
+}
+
+.retry-form {
+    text-align: left;
+    width: 300px;
+    margin:auto;
+    position: relative;
+    background-image: none;
+    line-height: 1.5em;
+}
+
+.retry-form div {
+    margin: 15px;
+}
+
+.retry-form-input {
+    position: absolute;
+    left: 90px;
+}

@@ -35,6 +35,10 @@ ue9Dict = buildLowerDict(ue9.UE9)
 LJSOCKET_ADDRESS = "localhost"
 LJSOCKET_PORT = "6000"
 
+ANALOG_TYPE = "analogIn"
+DIGITAL_OUT_TYPE = "digitalOut"
+DIGITAL_IN_TYPE = "digitalIn"
+
 # Class Definitions
 class FIO(object):
     def __init__(self, fioNumber, label = None , chType = "analogIn", state = None):
@@ -42,9 +46,13 @@ class FIO(object):
         self.chType = chType
         self.label = None
         self.negChannel = None
-        self.state = state
         
-        if self.chType == "analogIn":
+        if state is not None:
+            self.state = int(state)
+        else:
+            self.state = None
+        
+        if self.chType == ANALOG_TYPE:
             self.negChannel = 31
             self.label = "AIN%s" % self.fioNumber
         else:
@@ -55,9 +63,70 @@ class FIO(object):
     
     def asDict(self):
         return { "fioNumber" : self.fioNumber, "chType" : self.chType, "label" : self.label, "negChannel" : self.negChannel, "state": self.state }
+        
+    def transform(self, dev, inputConnection):
+        # Check if we're doing a A -> D or D -> A switch
+        if inputConnection.chType == ANALOG_TYPE:
+            self.negChannel = inputConnection.negChannel
+            self.setSelfToAnalog(dev)
+        elif inputConnection.chType == DIGITAL_OUT_TYPE:
+            self.state = inputConnection.state
+            self.setSelfToDigital(dev, DIGITAL_OUT_TYPE) 
+        else:
+            self.setSelfToDigital(dev, DIGITAL_IN_TYPE)
+    
+    
+    def setSelfToDigital(self, dev, chType):
+        # FIO or EIO
+        if self.fioNumber < 16:
+            if self.fioNumber < 8:
+                reg = 50590
+                self.label = "FIO%s" % self.fioNumber
+            else:
+                reg = 50591
+                self.label = "EIO%s" % ( self.fioNumber % 8 )
+            
+            analog = dev.readRegister(reg)  
+            
+            digitalMask = 0xffff - ( 1 << (self.fioNumber % 8) )
+            
+            analog = analog & digitalMask
+            
+            # Set pin to digital.
+            dev.writeRegister(reg, analog)
+        else:
+            self.label = "CIO%s" % ( self.fioNumber % 16 )
+        
+        if chType == DIGITAL_OUT_TYPE:
+            dev.writeRegister(6100 + self.fioNumber, 0)
+            dev.writeRegister(6000 + self.fioNumber, self.state)
+        else:
+            dev.writeRegister(6100 + self.fioNumber, 1)
+        
+        self.chType = chType
+    
+    def setSelfToAnalog(self, dev):
+        # FIO or EIO
+        if self.fioNumber < 8:
+            reg = 50590
+        else:
+            reg = 50591
+            
+        analog = dev.readRegister(reg)
+            
+        analog |= (1 << (self.fioNumber % 8))
+        
+        # Set pin to Analog.
+        dev.writeRegister(reg, analog)
+        
+        # Set Negitive channel.
+        # TODO
+        
+        self.chType = ANALOG_TYPE
+        self.label = "AIN%s" % ( self.fioNumber )
     
     def readResult(self, dev):
-        if self.chType == "analogIn":
+        if self.chType == ANALOG_TYPE:
             return self.readAin(dev)
         else:
             return self.readFio(dev)
@@ -87,7 +156,7 @@ class FIO(object):
             fioStateText = "High"
         
         infoDict = {'connection' : self.label, 'state' : "%s %s" % (fioDirText, fioStateText), 'value' : "%s" % fioState}
-        infoDict['chType'] = ("digitalIn" if fioDir == 0 else "digitalOut")
+        infoDict['chType'] = (DIGITAL_IN_TYPE if fioDir == 0 else DIGITAL_OUT_TYPE)
         
         return infoDict
 
@@ -109,13 +178,22 @@ class DeviceManager(object):
         
         print self.devices
     
-    def getFioInfo(self, serial, inputNumber):
+    def getDevice(self, serial):
         if serial is None:
-            dev = self.devices.values()[0]
+            return self.devices.values()[0]
         else:
-            dev = self.devices[serial]
+            return self.devices[serial]
+    
+    def getFioInfo(self, serial, inputNumber):
+        dev = self.getDevice(serial)
         
         return dev.fioList[inputNumber].asDict()
+        
+    def updateFio(self, serial, inputConnection):
+        dev = self.getDevice(serial)
+        
+        current = dev.fioList[ inputConnection.fioNumber ]
+        current.transform(dev, inputConnection)
     
     def makeU3FioList(self, dev):
         # Make a list to hold the state of all the fios
@@ -144,7 +222,7 @@ class DeviceManager(object):
                 fioDir = dev.readRegister(6100 + i)
                 fioState = dev.readRegister(6000 + i)
                 
-                fios.append( FIO(i, label % (i + labelOffset), ("digitalIn" if fioDir == 0 else "digitalOut"), fioState) )
+                fios.append( FIO(i, label % (i + labelOffset), (DIGITAL_IN_TYPE if fioDir == 0 else DIGITAL_OUT_TYPE), fioState) )
             
         return fios
         
@@ -184,10 +262,7 @@ class DeviceManager(object):
                 self.devices.pop(str(serial))
 
     def scan(self, serial = None):
-        if serial is None:
-            dev = self.devices.values()[0]
-        else:
-            dev = self.devices[serial]
+        dev = self.getDevice(serial)
         
         if dev.devType == 3:
             return self.u3Scan(dev)
@@ -291,10 +366,7 @@ class DeviceManager(object):
         return json.dumps({'devType' : dev.devType, 'name' : name, 'serial' : dev.serialNumber, 'productName' : dev.deviceName, 'firmware' : firmware, 'localId' : dev.localId})
         
     def setFioState(self, serial, fioNumber, state):
-        if serial is None:
-            dev = self.devices.values()[0]
-        else:
-            dev = self.devices[serial]
+        dev = self.getDevice(serial)
             
         dev.writeRegister(6000 + int(fioNumber), int(state))
         
@@ -304,21 +376,22 @@ class DeviceManager(object):
             return "High"
             
     def setName(self, serial, name):
-        if serial is None:
-            dev = self.devices.values()[0]
-        else:
-            dev = self.devices[serial]
+        dev = self.getDevice(serial)
             
         dev.setName(name)
         
         return dev.serialNumber, name
         
+    def setDefaults(self, serial):
+        dev = self.getDevice(serial)
+        
+        dev.setDefaults()
+        
+        return "Ok"
+        
         
     def callDeviceFunction(self, serial, funcName, pargs, kwargs):
-        if serial is None:
-            dev = self.devices.values()[0]
-        else:
-            dev = self.devices[serial]
+        dev = self.getDevice(serial)
         
         pargs = list(pargs)
         for i in range(len(pargs)):
@@ -374,6 +447,11 @@ class DevicesPage:
     
     inputInfo.exposed = True
     
+    def updateInputInfo(self, serial, inputNumber, chType, negChannel = None, state = None ):
+        inputConnection = FIO( int(inputNumber), "FIO%s" % inputNumber, chType, state )
+        self.dm.updateFio(serial, inputConnection)
+    updateInputInfo.exposed = True
+    
     def scan(self, serial = None):
         #yield self.header()
         
@@ -403,6 +481,14 @@ class DevicesPage:
         
         yield self.footer()
     setName.exposed = True
+    
+    def setDefaults(self, serial = None):
+        results = { 'state' : self.dm.setDefaults(serial) }
+        
+        cherrypy.response.headers['content-type'] = "application/json"
+        yield json.dumps(results)
+    setDefaults.exposed = True
+        
 
 class RootPage:
     def __init__(self, dm):
