@@ -9,9 +9,11 @@ Desc:
 import cherrypy
 from cherrypy.lib.static import serve_file
 
-import os.path
+import os.path, zipfile
 
 import json
+
+import sys
 
 import LabJackPython, u3, u6, ue9
 from Autoconvert import autoConvert
@@ -519,7 +521,18 @@ class RootPage:
 if __name__ == '__main__':
     dm = DeviceManager()
 
-    current_dir = os.path.dirname(os.path.abspath(__file__))
+    frozen = getattr(sys, 'frozen', '')
+    
+    if not frozen:
+        # not frozen: in regular python interpreter
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+    elif frozen in ('dll', 'console_exe', 'windows_exe'):
+        # py2exe:
+        current_dir = os.path.dirname(os.path.abspath(sys.executable))
+        #print current_dir
+        #test = zipfile.ZipFile(current_dir, 'r')
+        #print test.namelist()
+    
 
     root = RootPage(dm)
     root._cp_config = {'tools.staticdir.root': current_dir}
