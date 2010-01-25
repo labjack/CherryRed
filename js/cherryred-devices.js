@@ -5,8 +5,11 @@ var currentSerialNumber = null;
 var showingTestPanel = false;
 
 var sparklineDataMap = {};
-var sparklineMaxPoints = 30;
-var sparklineOptions = {height: "15px", minSpotColor: false, maxSpotColor: false, spotColor: "#CC0000", lineColor: "#004276", fillColor: "#E6F3FF" };
+var sparklineMaxPoints = 22;
+var sparklineAnalogInOptions = {height: "15px", minSpotColor: false, maxSpotColor: false, spotColor: "#CC0000", lineColor: "#004276", fillColor: "#E6F3FF" };
+var sparklineDigitalInOptions = {type:'bar', height: "15px", barColor: "#004276" };
+var sparklineDigitalOutOptions = {type:'bar', height: "15px", barColor: "#CC0000" };
+
 
 $(document).ready(function() {
     $("#tabs").tabs();
@@ -16,6 +19,7 @@ $(document).ready(function() {
 });
 
 function stopScanning() {
+    console.log(refreshId);
     if (refreshId != null) {
         clearTimeout(refreshId);
     }
@@ -36,7 +40,8 @@ function setupDialog() {
 }
 
 function setupTestPanelConnectionLinks() {
-    $(".test-panel-connection-link").live("click", function(){
+    $(".test-panel-connection-link").live("click", function(e){
+        //console.log(e.target);
         stopScanning();
         $("#dialog").empty();
         $("#u3-connection-dialog").jqote().appendTo($("#dialog"));
@@ -111,11 +116,13 @@ function handleScan(data) {
         var thisConnection = data[d].connection;
         var thisState = data[d].state;
         var thisValue = data[d].value;
+        var thisChType = data[d].chType;
         sparklineDataMap[thisConnection].push(thisValue);
+        
         if (sparklineDataMap[thisConnection].length > sparklineMaxPoints) {
             sparklineDataMap[thisConnection].splice(0,1);
         }
-        var obj = { connection : "<a href='#' class='test-panel-connection-link'>"+thisConnection+"</a>", state: "<span class='test-panel-sparkline'></span>" + "<span class='test-panel-state'>"+thisState + "</span>" };
+        var obj = { connection : "<a href='#' class='test-panel-connection-link'>"+thisConnection+"</a>", state: "<span class='test-panel-sparkline " + thisChType + "'></span>" + "<span class='test-panel-state'>"+thisState + "</span>" };
         $("#test-panel-table").jqGrid('setRowData', count, obj);
         count++;
     }
@@ -123,9 +130,22 @@ function handleScan(data) {
     $('.test-panel-sparkline').each(function(i) {
         var thisConnection = data[i].connection;
         var chartMinMax = sparklineMinMax(data[i].chType);
+        var sparklineOptions;
+        if ($(this).hasClass("analogIn")) {
+            sparklineOptions = sparklineAnalogInOptions;
+            sparklineOptions.width = sparklineDataMap[thisConnection].length*5;
+        } else if ($(this).hasClass("digitalIn")) {
+            sparklineOptions = sparklineDigitalInOptions;        
+            sparklineOptions.width = sparklineDataMap[thisConnection].length;
+        } else if ($(this).hasClass("digitalOut")) {
+            sparklineOptions = sparklineDigitalOutOptions;        
+            sparklineOptions.width = sparklineDataMap[thisConnection].length;
+        } else {
+            sparklineOptions = sparklineAnalogInOptions;        
+            sparklineOptions.width = sparklineDataMap[thisConnection].length*5;
+        }
         sparklineOptions.chartRangeMin = chartMinMax.min;
         sparklineOptions.chartRangeMax = chartMinMax.max;
-        sparklineOptions.width = sparklineDataMap[thisConnection].length*2
         $(this).sparkline(sparklineDataMap[thisConnection],  sparklineOptions);
     });
         
@@ -156,6 +176,7 @@ function handleDeviceList(data) {
     }
     $("#device-name-list").selectable({
         selected: function(event, ui) { 
+            $(ui.selected).addClass("ui-helper-reset ui-widget-header");
             handleSelectDevice(event, ui);
         }
     });

@@ -1,9 +1,9 @@
 #device-name-list { font-size: 1.4em; }
 #device-name-list .ui-selecting { background: #FECA40; }
-#device-name-list .ui-selected { background: #CC0000; color: white; }
+#device-name-list .ui-selected { background: #A20000; color: white; }
 #device-name-list { list-style-type: none; margin: 0; padding: 0; width: 100%; }
 #device-name-list li { margin: 0px; padding: 0.4em 5%; font-size: 1.4em; width: 95%;}
-#tabs { display: none ; min-height: 850px; border: 2px solid #CC0000; }
+#tabs { display: none ; min-height: 850px; border: 2px solid #A20000; }
 
 #more-info-pane { padding: 10px; }
 #more-info-pane p { font-size: 110%; }
@@ -49,17 +49,17 @@ body {
 .ui-jqgrid tr.ui-row-ltr td .test-panel-sparkline { 
 position:absolute;
 text-align:right;
-width:80px;
+width:130px;
 height: 5px;
+}
+.ui-jqgrid tr.ui-row-ltr td .test-panel-state {
+    margin-left:140px;
 }
 
 .ui-jqgrid tr.ui-row-ltr td .test-panel-sparkline canvas { 
 margin-top:5px;
 }
 
-.ui-jqgrid tr.ui-row-ltr td .test-panel-state {
-    margin-left:90px;
-}
 
 
 /* CSS for the "Couldn't Connect" page */
