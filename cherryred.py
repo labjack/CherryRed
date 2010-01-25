@@ -15,8 +15,18 @@ import json
 
 import sys
 
+import StringIO, ConfigParser
+
 import LabJackPython, u3, u6, ue9
 from Autoconvert import autoConvert
+
+import mimetypes
+mimetypes.init()
+mimetypes.types_map['.dwg']='image/x-dwg'
+mimetypes.types_map['.ico']='image/x-icon'
+mimetypes.types_map['.bz2']='application/x-bzip2'
+mimetypes.types_map['.gz']='application/x-gzip'
+
 
 # Function dictionaries:
 def buildLowerDict(aClass):
@@ -40,6 +50,23 @@ LJSOCKET_PORT = "6000"
 ANALOG_TYPE = "analogIn"
 DIGITAL_OUT_TYPE = "digitalOut"
 DIGITAL_IN_TYPE = "digitalIn"
+    
+if not getattr(sys, 'frozen', ''):
+    # not frozen: in regular python interpreter
+    IS_FROZEN = False
+else:
+    # py2exe: running in an executable
+    IS_FROZEN = True
+
+def deviceAsDict(dev):
+    name = dev.getName()
+    
+    if dev.devType == 9:
+        firmware = [dev.commFWVersion, dev.controlFWVersion]
+    else:
+        firmware = dev.firmwareVersion 
+    
+    return {'devType' : dev.devType, 'name' : name, 'serial' : dev.serialNumber, 'productName' : dev.deviceName, 'firmware' : firmware, 'localId' : dev.localId}
 
 # Class Definitions
 class FIO(object):
@@ -188,14 +215,25 @@ class DeviceManager(object):
     
     def getFioInfo(self, serial, inputNumber):
         dev = self.getDevice(serial)
+        returnDict = dev.fioList[inputNumber].asDict()
         
-        return dev.fioList[inputNumber].asDict()
+        # devType, productName
+        returnDict['device'] = deviceAsDict(dev)
+        
+        return returnDict
         
     def updateFio(self, serial, inputConnection):
         dev = self.getDevice(serial)
         
         current = dev.fioList[ inputConnection.fioNumber ]
         current.transform(dev, inputConnection)
+    
+    def remakeFioList(self, serial):
+        dev = self.getDevice(serial)
+        
+        dev.fioList = self.makeU3FioList(dev)
+        
+        self.devices[str(dev.serialNumber)] = dev
     
     def makeU3FioList(self, dev):
         # Make a list to hold the state of all the fios
@@ -242,9 +280,21 @@ class DeviceManager(object):
             serials.append(str(dev['serial']))
             
             if dev['prodId'] == 3:
-                d = u3.U3(LJSocket = ljsocketAddress, serial = dev['serial'])
-                d.configU3()
-                d.fioList = self.makeU3FioList(d)
+                try:
+                    d = u3.U3(LJSocket = ljsocketAddress, serial = dev['serial'])
+                except Exception, e:
+                    raise Exception( "Error opening U3: %s" % e )
+                    
+                try:
+                    d.configU3()
+                except Exception, e:
+                    raise Exception( "Error with configU3: %s" % e )
+                    
+                try:
+                    #d.debug = True
+                    d.fioList = self.makeU3FioList(d)
+                except Exception, e:
+                    raise Exception( "makign u3 fio list: %s" % e )
                 
             elif dev['prodId'] == 6:
                 d = u6.U6(LJSocket = ljsocketAddress, serial = dev['serial'])
@@ -358,14 +408,8 @@ class DeviceManager(object):
         
     def details(self, serial):
         dev = self.devices[serial]
-        name = dev.getName()
         
-        if dev.devType == 9:
-            firmware = [dev.commFWVersion, dev.controlFWVersion]
-        else:
-            firmware = dev.firmwareVersion 
-        
-        return json.dumps({'devType' : dev.devType, 'name' : name, 'serial' : dev.serialNumber, 'productName' : dev.deviceName, 'firmware' : firmware, 'localId' : dev.localId})
+        return json.dumps( deviceAsDict(dev) )
         
     def setFioState(self, serial, fioNumber, state):
         dev = self.getDevice(serial)
@@ -409,7 +453,7 @@ class DeviceManager(object):
         elif dev.devType == 9:
             classDict = ue9Dict
         
-        return dev.serialNumber, dev.__getattribute__(classDict[funcName])(*pargs, **kwargs)
+        return deviceAsDict(dev), dev.__getattribute__(classDict[funcName])(*pargs, **kwargs)
 
 class DevicesPage:
     def __init__(self, dm):
@@ -490,7 +534,85 @@ class DevicesPage:
         cherrypy.response.headers['content-type'] = "application/json"
         yield json.dumps(results)
     setDefaults.exposed = True
+    
+    def importConfigFromFile(self, myFile, serial):
+        out = """<html>
+        <body>
+            myFile length: %s<br />
+            myFile filename: %s<br />
+            myFile mime-type: %s<br />
+            %s
+        </body>
+        </html>"""
         
+        parserobj = ConfigParser.SafeConfigParser()
+        parserobj.readfp(myFile.file)
+        
+        devDict, result = self.dm.callDeviceFunction(serial, "loadconfig", [parserobj], {})
+        
+        self.dm.remakeFioList(serial)
+        
+        raise cherrypy.HTTPRedirect("/")
+    importConfigFromFile.exposed = True
+        
+    def exportConfigToFile(self, serial):
+        devDict, result = self.dm.callDeviceFunction(serial, "exportconfig", [], {})
+        fakefile = StringIO.StringIO()
+        result.write(fakefile)
+        
+        cherrypy.response.headers['Content-Type'] = "application/x-download"
+        cd = '%s; filename="%s"' % ("attachment", "labjack-%s-%s-conf.txt" % (devDict['productName'], devDict['serial']) )
+        cherrypy.response.headers["Content-Disposition"] = cd
+        
+        return fakefile.getvalue()
+
+    exportConfigToFile.exposed = True
+
+if IS_FROZEN:
+
+    ZIP_FILE = zipfile.ZipFile(os.path.abspath(sys.executable), 'r')    
+
+    def printWhenRun():
+        print "I got run: %s" % cherrypy.request.path_info
+        
+        filepath = cherrypy.request.path_info[1:]
+        print "filepath: %s" % filepath
+        
+        if filepath not in ZIP_FILE.namelist():
+            print "%s not in name list."
+            return False
+        
+        ext = ""
+        i = filepath.rfind('.')
+        if i != -1:
+            ext = filepath[i:].lower()
+        content_type = mimetypes.types_map.get(ext, None)
+        
+        if content_type is not None:
+            cherrypy.response.headers['Content-Type'] = content_type
+        else:
+            cherrypy.response.headers.pop('Content-Type')
+        
+        try:
+            f = ZIP_FILE.open(filepath)
+            cherrypy.response.body = "".join(f.readlines())
+            f.close()
+            print "Body set, returning true"
+            return True
+        except Exception, e: 
+            print "Got Exception in printWhenRun: %s" % e
+            return False
+    
+    cherrypy.tools.printWhenRun = cherrypy._cptools.HandlerTool(printWhenRun)
+
+def serve_file2(path):
+    if IS_FROZEN:
+        f = ZIP_FILE.open(path)
+        body = "".join(f.readlines())
+        f.close()
+        return body
+    else:
+        return serve_file(os.path.join(current_dir,path))
 
 class RootPage:
     def __init__(self, dm):
@@ -498,10 +620,12 @@ class RootPage:
         self.devices = DevicesPage(dm)
     
     def index(self):
+        cherrypy.response.headers['Cache-Control'] = "no-cache"
+        
         if self.dm.connected:
-            return serve_file(os.path.join(current_dir , "html/index.html"))
+            return serve_file2("html/index.html")
         else:
-            return serve_file(os.path.join(current_dir , "html/connect.html"))
+            return serve_file2("html/connect.html")
     index.exposed = True
     
     def retry(self, address = "localhost", port = "6000"):
@@ -511,8 +635,8 @@ class RootPage:
         try:
             self.dm.updateDeviceDict()
             self.dm.connected = True
-        except:
-            pass
+        except Exception,e:
+            print "Retry got an exception:", e
         
         raise cherrypy.HTTPRedirect("/")
     retry.exposed = True
@@ -520,20 +644,17 @@ class RootPage:
 # Main:
 if __name__ == '__main__':
     dm = DeviceManager()
-
-    frozen = getattr(sys, 'frozen', '')
     
-    if not frozen:
+    if not IS_FROZEN:
         # not frozen: in regular python interpreter
         current_dir = os.path.dirname(os.path.abspath(__file__))
-    elif frozen in ('dll', 'console_exe', 'windows_exe'):
+        configfile = os.path.join(current_dir, "cherryred.conf")
+    else:
         # py2exe:
         current_dir = os.path.dirname(os.path.abspath(sys.executable))
-        #print current_dir
-        #test = zipfile.ZipFile(current_dir, 'r')
-        #print test.namelist()
+        configfile = ZIP_FILE.open("cherryred.conf")
     
 
     root = RootPage(dm)
-    root._cp_config = {'tools.staticdir.root': current_dir}
-    cherrypy.quickstart(root, config="cherryred.conf")
+    root._cp_config = {'tools.staticdir.root': current_dir, 'tools.printWhenRun.on': IS_FROZEN}
+    cherrypy.quickstart(root, config=configfile)
