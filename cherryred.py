@@ -20,6 +20,8 @@ import StringIO, ConfigParser
 import LabJackPython, u3, u6, ue9
 from Autoconvert import autoConvert
 
+import webbrowser
+
 import mimetypes
 mimetypes.init()
 mimetypes.types_map['.dwg']='image/x-dwg'
@@ -74,7 +76,10 @@ class FIO(object):
         self.fioNumber = fioNumber
         self.chType = chType
         self.label = None
-        self.negChannel = None
+        self.negChannel = False
+        self.gainIndex = 0
+        self.resolutionIndex = 1
+        self.settleingFactor = 0
         
         if state is not None:
             self.state = int(state)
@@ -91,12 +96,15 @@ class FIO(object):
             self.label = label
     
     def asDict(self):
-        return { "fioNumber" : self.fioNumber, "chType" : self.chType, "label" : self.label, "negChannel" : self.negChannel, "state": self.state }
+        return { "fioNumber" : self.fioNumber, "chType" : self.chType, "label" : self.label, "negChannel" : self.negChannel, "state": self.state, 'gainIndex' : self.gainIndex, 'resolutionIndex' : self.resolutionIndex, 'settleingFactor' : self.settleingFactor }
         
     def transform(self, dev, inputConnection):
         # Check if we're doing a A -> D or D -> A switch
         if inputConnection.chType == ANALOG_TYPE:
             self.negChannel = inputConnection.negChannel
+            self.gainIndex = 0
+            self.resolutionIndex = 1
+            self.settleingFactor = 0
             self.setSelfToAnalog(dev)
         elif inputConnection.chType == DIGITAL_OUT_TYPE:
             self.state = inputConnection.state
@@ -162,6 +170,9 @@ class FIO(object):
 
     def readAin(self, dev):
         state = dev.readRegister(self.fioNumber*2)
+        return self.parseAinResults(state)
+        
+    def parseAinResults(self, state):
         infoDict = dict()
         infoDict['connection'] = self.label
         infoDict['state'] = "%0.5f" % state
@@ -174,6 +185,9 @@ class FIO(object):
         fioDir = dev.readRegister(6100 + self.fioNumber)
         fioState = dev.readRegister(6000 + self.fioNumber)
         
+        return self.parseFioResults(fioDir, fioState)
+        
+    def parseFioResults(self, fioDir, fioState):
         if fioDir == 0:
             fioDirText = "Input"
         else:
@@ -235,6 +249,38 @@ class DeviceManager(object):
         
         self.devices[str(dev.serialNumber)] = dev
     
+
+    def makeU6FioList(self, dev):
+        # Make a list to hold the state of all the fios
+        fios = list()
+        
+        analogCommandList = list()
+        for i in range(14):
+            fios.append( FIO(i) )
+            analogCommandList.append( u6.AIN24(i) )
+        dev.numberOfAnalogIn = 14
+        
+        for i in range(20):
+            
+            label = "FIO%s"
+            labelOffset = 0
+            if i in range(8,16):
+                label = "EIO%s"
+                labelOffset = -8
+            elif i >= 16:
+                label = "CIO%s"
+                labelOffset = -16            
+        
+            fioDir = dev.readRegister(6100 + i)
+            fioState = dev.readRegister(6000 + i)                
+            fios.append( FIO(i, label % (i + labelOffset), (DIGITAL_IN_TYPE if fioDir == 0 else DIGITAL_OUT_TYPE), fioState) )
+        dev.numberOfDigitalIOs = 20
+        
+        digitalCommandList = [ u6.PortDirRead(), u6.PortStateRead() ]
+            
+        return fios, analogCommandList, digitalCommandList
+
+
     def makeU3FioList(self, dev):
         # Make a list to hold the state of all the fios
         
@@ -297,8 +343,17 @@ class DeviceManager(object):
                     raise Exception( "makign u3 fio list: %s" % e )
                 
             elif dev['prodId'] == 6:
-                d = u6.U6(LJSocket = ljsocketAddress, serial = dev['serial'])
-                d.configU6()
+                try:
+                    d = u6.U6(LJSocket = ljsocketAddress, serial = dev['serial'])
+                    d.configU6()
+                    d.getCalibrationData()
+                    fios, analogCommandList, digitalCommandList = self.makeU6FioList(d)
+                    d.fioList = fios
+                    d.analogCommandList = analogCommandList
+                    d.digitalCommandList = digitalCommandList
+                except Exception, e:
+                    print "In opening a U6: %s" % e
+                
             elif dev['prodId'] == 9:
                 d = ue9.UE9(LJSocket = ljsocketAddress, serial = dev['serial'])
                 d.controlConfig()
@@ -371,29 +426,32 @@ class DeviceManager(object):
     def u6Scan(self, dev):
         results = list()
         
-        for i in range(4):
-            results.append({'connection' : "AIN%s" % i, 'state' : "%0.5f" % dev.readRegister(i*2)})
+        analogInputs = dev.getFeedback( dev.analogCommandList )
+        
+        for i, value in enumerate(analogInputs):
+            fio = dev.fioList[i]
+            v = dev.binaryToCalibratedAnalogVoltage(fio.gainIndex, value)
             
-        for i in range(4):
-            fioDir = dev.readRegister(6100 + i)
-            fioState = dev.readRegister(6000 + i)
-            
-            if fioDir == 0:
-                fioDir = "Input"
-            else:
-                fioDir = "Output"
-                
-            if fioState == 0:
-                fioState = "Low"
-            else:
-                fioState = "High"
-            
-            results.append({'connection' : "FIO%s" % i, 'state' : "%s %s" % (fioDir, fioState) })
+            results.append(fio.parseAinResults(v))
+        
+        digitalDirections, digitalStates = dev.getFeedback( dev.digitalCommandList )
         
         
-        results.append({'connection' : "DAC0", 'state' : "%0.5f" %  dev.readRegister(5000) })
-        results.append({'connection' : "DAC1" , 'state' : "%0.5f" %  dev.readRegister(5002) })
-        results.append({'connection' : "InternalTemp", 'state' : "%0.5f" %  (dev.readRegister(28) - 273.15) })
+        for i in range(dev.numberOfDigitalIOs):
+            fio = dev.fioList[ i + dev.numberOfAnalogIn ]
+            
+            direction = ((digitalDirections[fio.label[:3]]) >> int(fio.label[3:])) & 1
+            state = ((digitalStates[fio.label[:3]]) >> int(fio.label[3:])) & 1
+            
+            results.append( fio.parseFioResults(direction, state) )
+        
+        dac0State = dev.readRegister(5000)
+        dac1State = dev.readRegister(5002)
+        results.append({'connection' : "DAC0", 'state' : "%0.5f" % dac0State, 'value' : "%0.5f" % dac0State})
+        results.append({'connection' : "DAC1", 'state' : "%0.5f" % dac1State, 'value' : "%0.5f" % dac1State})
+        
+        internalTemp = dev.readRegister(28) - 273.15
+        results.append({'connection' : "InternalTemp", 'state' : "%0.5f" % internalTemp, 'value' : "%0.5f" % internalTemp, 'chType' : "internalTemp"})
         
         
         return dev.serialNumber, results
@@ -641,6 +699,39 @@ class RootPage:
         raise cherrypy.HTTPRedirect("/")
     retry.exposed = True
 
+
+def openWebBrowser(host = "localhost", port = 8080):
+    url = "http://%s:%s" % (host, port)
+    
+    if LabJackPython.os.name == 'nt':
+        try:
+            webbrowser.register("firefox", webbrowser.Mozilla)
+            ff = webbrowser.get("firefox")
+            ff.open_new_tab(url)
+        except Exception, e:
+            print "Firefox failed to start, pray the default browser isn't IE."
+            webbrowser.open_new_tab(url)
+    else:
+        webbrowser.open_new_tab(url)
+
+def quickstartWithBrowserOpen(root=None, script_name="", config=None):
+    if config:
+        cherrypy._global_conf_alias.update(config)
+    
+    cherrypy.tree.mount(root, script_name, config)
+    
+    if hasattr(cherrypy.engine, "signal_handler"):
+        cherrypy.engine.signal_handler.subscribe()
+    if hasattr(cherrypy.engine, "console_control_handler"):
+        cherrypy.engine.console_control_handler.subscribe()
+    
+    cherrypy.engine.start()
+    
+    openWebBrowser("localhost", cherrypy._global_conf_alias['server.socket_port'])
+    
+    cherrypy.engine.block()
+
+
 # Main:
 if __name__ == '__main__':
     dm = DeviceManager()
@@ -657,4 +748,4 @@ if __name__ == '__main__':
 
     root = RootPage(dm)
     root._cp_config = {'tools.staticdir.root': current_dir, 'tools.printWhenRun.on': IS_FROZEN}
-    cherrypy.quickstart(root, config=configfile)
+    quickstartWithBrowserOpen(root, config=configfile)
