@@ -39,6 +39,54 @@
 </script>
 
 
+<script type="text/html" id="u3-hv-analog-connection-dialog">
+<![CDATA[
+  <div id="u3-connection-dialog-tabs">
+    <ul>
+      <li><a href="#u3-connection-dialog-tabs-analog">Analog</a></li>
+    </ul>
+    <div id="u3-connection-dialog-tabs-analog">
+      <form class="u3-analog-form">
+        <fieldset>
+          <div>
+              <label>
+                  <input type="radio" name="analog" value="single-regular" />Single-ended, range &plusmn;10V
+              </label>
+          </div>
+          <div>
+              <label>
+                <input type="radio" name="analog" value="single-special-hv" />Single-ended, range -10V to 20V
+              </label>
+          </div>
+          <div>
+            <label>
+            <input type="radio" name="analog" value="differential" />Differential with negative channel 
+            </label>
+                <select name="neg-channel">
+                    <option value="AIN0">AIN0</option>
+                    <option value="AIN1">AIN1</option>
+                    <option value="AIN2">AIN2</option>
+                    <option value="AIN3">AIN3</option>
+                    <option value="AIN4">AIN4</option>
+                    <option value="AIN5">AIN5</option>
+                    <option value="AIN6">AIN6</option>
+                    <option value="AIN7">AIN7</option>
+                    <option value="AIN8">AIN8</option>
+                    <option value="AIN9">AIN9</option>
+                    <option value="AIN10">AIN10</option>
+                    <option value="AIN11">AIN11</option>
+                    <option value="AIN12">AIN12</option>
+                    <option value="AIN13">AIN13</option>
+                    <option value="AIN14">AIN14</option>
+                    <option value="AIN15">AIN15</option>
+                </select>
+          </div>
+        </fieldset>
+      </form>
+    </div>
+]]>
+</script>
+
 
 <script type="text/html" id="u3-connection-dialog">
 <![CDATA[
@@ -51,8 +99,23 @@
       Single/Differential
     </div>
     <div id="u3-connection-dialog-tabs-digital">
-      <p>Direction:</p>
-      <p>State:</p>
+      <form>
+        <div>
+            <label>
+            <input type="radio" name="digital" value="digital-input"/>Digital Input
+            </label>
+        </div>
+        <div>
+            <label>
+            <input type="radio" name="digital" value="digital-output-low"/>Digital Output Low
+            </label>
+        </div>
+        <div>
+            <label>
+            <input type="radio" name="digital" value="digital-output-high"/>Digital Output High
+            </label>
+        </div>
+      </form>
     </div>
 ]]>
 </script>

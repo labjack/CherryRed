@@ -19,7 +19,6 @@ $(document).ready(function() {
 });
 
 function stopScanning() {
-    console.log(refreshId);
     if (refreshId != null) {
         clearTimeout(refreshId);
     }
@@ -39,15 +38,118 @@ function setupDialog() {
     });
 }
 
-function setupTestPanelConnectionLinks() {
-    $(".test-panel-connection-link").live("click", function(e){
-        //console.log(e.target);
-        stopScanning();
-        $("#dialog").empty();
-        $("#u3-connection-dialog").jqote().appendTo($("#dialog"));
+function dialogDone() {
+    $("#dialog").dialog("close");
+    callScan();
+    restartScanning();
+}
+
+function clearSparklineIfNeeded(oldState, newState, connectionLabel) {
+    if (oldState != newState) {
+        sparklineDataMap[connectionLabel] = [];
+    }
+}
+
+function getUpdateInputInfo(inputConnection, chType, negChannel, state) {
+    var updateInputInfoOptions = {serial : currentSerialNumber, inputNumber : inputConnection, chType : chType};
+    if (negChannel != undefined) {
+        updateInputInfoOptions.negChannel = negChannel;
+    }
+    if (state != undefined) {
+        updateInputInfoOptions.state = state;
+    }
+    console.log("getUpdateInputInfo");
+    console.log(updateInputInfoOptions);
+    $.get("/devices/updateInputInfo", updateInputInfoOptions, dialogDone);
+}
+
+function getInputInfo(inputConnection) {
+    stopScanning();
+    console.log(currentSerialNumber);
+    console.log(inputConnection);
+    $.get("/devices/inputInfo", {serial : currentSerialNumber, inputNumber : inputConnection}, handleInputInfo, "json");
+
+}
+
+function handleInputInfo(inputInfoJson) {
+    console.log(inputInfoJson);
+    $("#dialog").empty();
+    if (inputInfoJson.device.devType == 3) {
+        if (inputInfoJson.device.productName == "U3-HV" && inputInfoJson.fioNumber < 4) {
+            $("#u3-hv-analog-connection-dialog").jqote().appendTo($("#dialog"));
+        } else {
+            $("#u3-connection-dialog").jqote().appendTo($("#dialog"));
+        }
+
         $("#u3-connection-dialog-tabs").tabs();
-        $("#dialog").dialog('option', 'title', $(this).text());
+        if (inputInfoJson.chType != "analogIn") {
+            $("#u3-connection-dialog-tabs").tabs('select', '#u3-connection-dialog-tabs-digital');
+            if (inputInfoJson.chType == "digitalIn") {
+                $("input[name='digital']:nth(0)").attr("checked","checked");        
+            } else {
+                if (inputInfoJson.state == 0) {
+                    $("input[name='digital']:nth(1)").attr("checked","checked");
+                } else {
+                    $("input[name='digital']:nth(2)").attr("checked","checked");
+                }
+            }
+            
+        }
+        $("#dialog").dialog('option', 'title', inputInfoJson.label);
+        $("#dialog").dialog('option', 'width', 425);
+        $("#dialog").dialog('option', 'buttons', { 
+            "Save": function() {
+                var tabIndex = $("#u3-connection-dialog-tabs").tabs('option', 'selected');
+                var analogSelected = (tabIndex == 0) ? true : false;
+                if (analogSelected) {
+                    
+                
+                } else {
+                    console.log("digital selected");
+                    var digitalSelection = $("input[name='digital']:checked").val();
+                    console.log(digitalSelection);
+
+                    var newChType = '';
+                    var newState = null;
+                    if (digitalSelection == "digital-input") {
+                        newChType = "digitalIn";
+                    } else if (digitalSelection == "digital-output-low") {
+                        newChType = "digitalOut";
+                        newState = 0;
+                    } else if (digitalSelection == "digital-output-high") {
+                        newChType = "digitalOut";
+                        newState = 1;
+                    }
+
+
+                    clearSparklineIfNeeded(inputInfoJson.chType, newChType, inputInfoJson.label);
+
+                    getUpdateInputInfo(inputInfoJson.fioNumber, newChType, null, newState);
+                }
+            },
+            "Cancel": dialogDone
+        });
         $("#dialog").dialog('open');
+        console.log("U3");    
+    } else {
+        console.log("Not a U3");
+    }
+}
+
+
+function setupTestPanelConnectionLinks() {
+    $(".test-panel-connection-link").live("click", function(e) {
+        var inputConnection = $(this).attr("inputConnection");
+        getInputInfo(inputConnection);
+        return false;
+    });
+    $(".digital-out-toggle-link").live("click", function(e) {
+        stopScanning();
+        console.log("toggling digital");
+        console.log($(this));
+        var inputConnection = $(this).attr("inputConnection");
+        $.get("/devices/toggleDigitalOutput", {serial : currentSerialNumber, inputNumber : inputConnection});
+        callScan();
         return false;
     });
 }
@@ -91,7 +193,7 @@ function handleScan(data) {
              colNames:['Connection','State'],
              colModel:[
                {name:'connection',index:'connection', width:250,  sortable:false},
-               {name:'state',index:'state', width:250, sortable:false}
+               {name:'state',index:'state', width:350, sortable:false}
              ],
              multiselect: false,
              caption: "Test Panel"
@@ -101,6 +203,7 @@ function handleScan(data) {
         var count = 0;
         for (var d in data) {
             var thisConnection = data[d].connection;
+            console.log(thisConnection);
             var thisState = data[d].state;
             var thisValue = data[d].value;
             var obj = { connection : thisConnection, state: thisState };
@@ -122,7 +225,12 @@ function handleScan(data) {
         if (sparklineDataMap[thisConnection].length > sparklineMaxPoints) {
             sparklineDataMap[thisConnection].splice(0,1);
         }
-        var obj = { connection : "<a href='#' class='test-panel-connection-link'>"+thisConnection+"</a>", state: "<span class='test-panel-sparkline " + thisChType + "'></span>" + "<span class='test-panel-state'>"+thisState + "</span>" };
+        
+        if (thisChType == "digitalOut") {
+            thisState = thisState + "<a href='#' class='digital-out-toggle-link' inputConnection='"+count+"' title='Toggle the state of this output'>Toggle</a>";
+        }
+        
+        var obj = { connection : "<a href='#' class='test-panel-connection-link' inputConnection='"+count+"' title='Configure " + thisConnection + "'>"+thisConnection+"</a>", state: "<span class='test-panel-sparkline " + thisChType + "'></span>" + "<span class='test-panel-state'>"+thisState + "</span>" };
         $("#test-panel-table").jqGrid('setRowData', count, obj);
         count++;
     }

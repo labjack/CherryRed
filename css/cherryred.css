@@ -38,6 +38,14 @@ body {
   min-height: 180px;
 }
 
+.submit-wrapper {
+    height:22px;
+    margin-top:15px;
+}
+
+.submit-wrapper input {
+    float: right;
+}
 
 /* Devices */
 /*.test-panel-sparkline { width: 100px; }*/
@@ -60,7 +68,30 @@ height: 5px;
 margin-top:5px;
 }
 
+/* Prevent horizontal scrolling */
+.ui-jqgrid .ui-jqgrid-bdiv {
+    overflow: hidden;
+}
 
+#test-panel-table a {
+    text-decoration: none;
+}
+
+#test-panel-table .ui-state-hover a,
+#test-panel-table .ui-state-hover a:hover {
+    text-decoration: underline;
+}
+
+a.digital-out-toggle-link {
+    position: absolute;
+    right: 20px;
+    display: none;
+}
+
+.ui-state-hover a.digital-out-toggle-link,
+.ui-state-highlight a.digital-out-toggle-link {
+    display: inline;
+}
 
 /* CSS for the "Couldn't Connect" page */
 #cant-connect-content {

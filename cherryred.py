@@ -135,11 +135,12 @@ class FIO(object):
             self.label = "CIO%s" % ( self.fioNumber % 16 )
         
         if chType == DIGITAL_OUT_TYPE:
-            dev.writeRegister(6100 + self.fioNumber, 0)
+            dev.writeRegister(6100 + self.fioNumber, 1)
             dev.writeRegister(6000 + self.fioNumber, self.state)
         else:
-            dev.writeRegister(6100 + self.fioNumber, 1)
+            dev.writeRegister(6100 + self.fioNumber, 0)
         
+        print "Setting self to be %s" % chType
         self.chType = chType
     
     def setSelfToAnalog(self, dev):
@@ -156,8 +157,11 @@ class FIO(object):
         # Set pin to Analog.
         dev.writeRegister(reg, analog)
         
-        # Set Negitive channel.
-        # TODO
+        # Set Negative channel.
+        if self.negChannel == 32:
+            dev.writeRegister(3000 + self.fioNumber, 30)
+        else:
+            dev.writeRegister(3000 + self.fioNumber, self.negChannel)
         
         self.chType = ANALOG_TYPE
         self.label = "AIN%s" % ( self.fioNumber )
@@ -170,6 +174,9 @@ class FIO(object):
 
     def readAin(self, dev):
         state = dev.readRegister(self.fioNumber*2)
+        if self.negChannel == 32:
+            state += 2.4
+        
         return self.parseAinResults(state)
         
     def parseAinResults(self, state):
@@ -495,6 +502,12 @@ class DeviceManager(object):
         
         
     def callDeviceFunction(self, serial, funcName, pargs, kwargs):
+        """ Allows you to call any function a device offers.
+            serial = serial number of the device
+            funcName = all lowercase version of the function name
+            pargs = a list of positional arguments
+            kwargs = a dict of keyword
+        """
         dev = self.getDevice(serial)
         
         pargs = list(pargs)
@@ -514,6 +527,8 @@ class DeviceManager(object):
         return deviceAsDict(dev), dev.__getattribute__(classDict[funcName])(*pargs, **kwargs)
 
 class DevicesPage:
+    """ A class for handling all things /devices/
+    """
     def __init__(self, dm):
         self.dm = dm
     
@@ -524,6 +539,8 @@ class DevicesPage:
         return "</body></html>"
 
     def index(self):
+        """ Handles /devices/, returns a JSON list of all known devices.
+        """
         self.dm.updateDeviceDict()
         
         cherrypy.response.headers['content-type'] = "application/json"
@@ -533,10 +550,18 @@ class DevicesPage:
     
     
     def default(self, serial, cmd = None, *pargs, **kwargs):
+        """ Handles URLs like: /devices/<serial number>/
+            if the URL is just /devices/<serial number>/ it returns the
+            "details" of that device.
+            
+            if the URL is more like /devices/<serial number>/<command>, it runs
+            that command on the device.
+        """
         if cmd is None:
             cherrypy.response.headers['content-type'] = "application/json"
             yield self.dm.details(serial)
         else:
+            # TODO: Make this return a JSON
             yield self.header()
             yield "<p>serial = %s, cmd = %s</p>" % (serial, cmd)
             yield "<p>kwargs = %s, pargs = %s</p>" % (str(kwargs), str(pargs))
@@ -545,6 +570,8 @@ class DevicesPage:
     default.exposed = True
     
     def inputInfo(self, serial = None, inputNumber = 0):
+        """ Returns a JSON of the current state of an input.
+        """
         inputConnection = self.dm.getFioInfo(serial, int(inputNumber))
         cherrypy.response.headers['content-type'] = "application/json"
         yield json.dumps(inputConnection)
@@ -552,22 +579,48 @@ class DevicesPage:
     inputInfo.exposed = True
     
     def updateInputInfo(self, serial, inputNumber, chType, negChannel = None, state = None ):
+        """ For configuring an input.
+            serial = serial number of device
+            inputNumber = the row number of that input
+            chType = ( AnalogIn, DigitalIn, DigitalOut )
+            negChannel = the negative channel, only matters for AnalogIN type
+            state = 1 for high, 0 for low. Only matters for DigitalOut
+        """
+        
+        # Make a temp FIO with the new settings.
         inputConnection = FIO( int(inputNumber), "FIO%s" % inputNumber, chType, state )
+        
+        # Tells the device manager to update the input
         self.dm.updateFio(serial, inputConnection)
     updateInputInfo.exposed = True
     
+    def toggleDigitalOutput(self, serial, inputNumber):
+        """ Toggle a digital output line.
+        """
+        inputConnection = self.dm.getFioInfo(serial, int(inputNumber))
+        chType = inputConnection["chType"]
+        state = inputConnection["state"]
+        if chType == "digitalOut":
+            state = not state
+            newInputConnection = FIO( int(inputNumber), "FIO%s" % inputNumber, chType, state )
+            self.dm.updateFio(serial, newInputConnection)
+    toggleDigitalOutput.exposed = True
+
     def scan(self, serial = None):
-        #yield self.header()
+        """ Scan reads all the inputs and such off the device. Renders the
+            result as a JSON.
+        """
         
         print "Scan: serial = %s" % serial
         serialNumber, results = self.dm.scan(serial)
         
         cherrypy.response.headers['content-type'] = "application/json"
         yield json.dumps(results)
-        
-            
     scan.exposed = True
 
+
+
+    # ---------------- Deprecated ----------------
     def setFioState(self, serial = None, fioNumber = 0, state = 1):
         result = self.dm.setFioState(serial, fioNumber, state)
         yield self.header()
@@ -586,84 +639,115 @@ class DevicesPage:
         yield self.footer()
     setName.exposed = True
     
+    # ---------------- End Deprecated ----------------
+    
     def setDefaults(self, serial = None):
+        """ Makes the calls to set the current state of the device as the
+            power-up default.
+        """
         results = { 'state' : self.dm.setDefaults(serial) }
         
         cherrypy.response.headers['content-type'] = "application/json"
         yield json.dumps(results)
     setDefaults.exposed = True
     
+    
     def importConfigFromFile(self, myFile, serial):
-        out = """<html>
-        <body>
-            myFile length: %s<br />
-            myFile filename: %s<br />
-            myFile mime-type: %s<br />
-            %s
-        </body>
-        </html>"""
+        """ Allows people to upload a config file which gets loaded onto 
+            the device.
+        """
         
+        # loadConfig takes a ConfigParser object, so we need to make one.
         parserobj = ConfigParser.SafeConfigParser()
         parserobj.readfp(myFile.file)
         
+        # Have to device load in the configuration.
         devDict, result = self.dm.callDeviceFunction(serial, "loadconfig", [parserobj], {})
         
+        # Rebuild the FioList because settings could have changed.
         self.dm.remakeFioList(serial)
         
+        # Redirect them away because there's nothing to be rendered.
+        # TODO: Return JSON for Mike C.
         raise cherrypy.HTTPRedirect("/")
+        
     importConfigFromFile.exposed = True
         
     def exportConfigToFile(self, serial):
+        """ Allows people to download the configuration of their LabJack.
+        """
+        
+        # Call the exportConfig function on the device.
         devDict, result = self.dm.callDeviceFunction(serial, "exportconfig", [], {})
+        
+        # exportConfig returns a ConfigParser object. We need it as a string.
         fakefile = StringIO.StringIO()
         result.write(fakefile)
         
+        # Set the headers
         cherrypy.response.headers['Content-Type'] = "application/x-download"
         cd = '%s; filename="%s"' % ("attachment", "labjack-%s-%s-conf.txt" % (devDict['productName'], devDict['serial']) )
         cherrypy.response.headers["Content-Disposition"] = cd
         
+        # Send the data
         return fakefile.getvalue()
 
     exportConfigToFile.exposed = True
 
 if IS_FROZEN:
-
+    # All of this depends on us being 'frozen' in an executable.
     ZIP_FILE = zipfile.ZipFile(os.path.abspath(sys.executable), 'r')    
 
-    def printWhenRun():
-        print "I got run: %s" % cherrypy.request.path_info
+    def renderFromZipFile():
+        """ renderFromZipFile handles pulling static files out of the ZipFile
+            and rendering them like nothing happened. 
+        """
+        print "renderFromZipFile got run: %s" % cherrypy.request.path_info
         
+        # Get rid of the leading "/"
         filepath = cherrypy.request.path_info[1:]
         print "filepath: %s" % filepath
         
+        # Check if the file being requested is in the ZipFile
         if filepath not in ZIP_FILE.namelist():
             print "%s not in name list."
+            # If it isn't then we pass the responsibility on.
             return False
         
+        # Figure out the content type from the file extension.
         ext = ""
         i = filepath.rfind('.')
         if i != -1:
             ext = filepath[i:].lower()
         content_type = mimetypes.types_map.get(ext, None)
         
+        # Set or remove the content type
         if content_type is not None:
             cherrypy.response.headers['Content-Type'] = content_type
         else:
             cherrypy.response.headers.pop('Content-Type')
         
         try:
+            # Open up the file and read it into the response body
             f = ZIP_FILE.open(filepath)
             cherrypy.response.body = "".join(f.readlines())
             f.close()
             print "Body set, returning true"
+            
+            # Tell CherryPy we got this one
             return True
         except Exception, e: 
-            print "Got Exception in printWhenRun: %s" % e
+            print "Got Exception in renderFromZipFile: %s" % e
+            
+            # Tell CherryPy we didn't render and it should try.
             return False
     
-    cherrypy.tools.printWhenRun = cherrypy._cptools.HandlerTool(printWhenRun)
+    cherrypy.tools.renderFromZipFile = cherrypy._cptools.HandlerTool(renderFromZipFile)
 
 def serve_file2(path):
+    """ A slightly modified version of serve_file, to handle the case where
+        we are running inside an executable.
+    """
     if IS_FROZEN:
         f = ZIP_FILE.open(path)
         body = "".join(f.readlines())
@@ -673,11 +757,21 @@ def serve_file2(path):
         return serve_file(os.path.join(current_dir,path))
 
 class RootPage:
+    """ The RootPage class handles showing index.html. If we can't connect to
+        LJSocket then it shows connect.html instead.
+    """
     def __init__(self, dm):
+        # Keep a copy of the device manager
         self.dm = dm
+        
+        # Adds the DevicesPage child which handles all the device communication
         self.devices = DevicesPage(dm)
     
     def index(self):
+        """ if we can talk to LJSocket, renders index.html. Otherwise, 
+            it renders connect.html """
+        
+        # Tell people (firefox) not to cash this page. 
         cherrypy.response.headers['Cache-Control'] = "no-cache"
         
         if self.dm.connected:
@@ -687,6 +781,9 @@ class RootPage:
     index.exposed = True
     
     def retry(self, address = "localhost", port = "6000"):
+        """ The retry endpoint is for trying to connect to LJSocket.
+            No matter what happens it will redirect you to '/'.
+        """
         self.dm.address = address
         self.dm.port = port
         
@@ -701,6 +798,9 @@ class RootPage:
 
 
 def openWebBrowser(host = "localhost", port = 8080):
+    """ openWebBrowser handles the opening of a webbrowser for people.
+        Makes a special effort to open firefox on Windows.
+    """
     url = "http://%s:%s" % (host, port)
     
     if LabJackPython.os.name == 'nt':
@@ -715,6 +815,9 @@ def openWebBrowser(host = "localhost", port = 8080):
         webbrowser.open_new_tab(url)
 
 def quickstartWithBrowserOpen(root=None, script_name="", config=None):
+    """ Code exactly as it appears in cherrypy.quickstart() only with a call
+        to open web Browser in between the start() and the block()
+    """
     if config:
         cherrypy._global_conf_alias.update(config)
     
@@ -747,5 +850,5 @@ if __name__ == '__main__':
     
 
     root = RootPage(dm)
-    root._cp_config = {'tools.staticdir.root': current_dir, 'tools.printWhenRun.on': IS_FROZEN}
+    root._cp_config = {'tools.staticdir.root': current_dir, 'tools.renderFromZipFile.on': IS_FROZEN}
     quickstartWithBrowserOpen(root, config=configfile)
