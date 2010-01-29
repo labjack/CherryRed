@@ -44,9 +44,9 @@ function dialogDone() {
     restartScanning();
 }
 
-function clearSparklineIfNeeded(oldState, newState, connectionLabel) {
+function clearSparklineIfNeeded(oldState, newState, fioNumber) {
     if (oldState != newState) {
-        sparklineDataMap[connectionLabel] = [];
+        sparklineDataMap[fioNumber] = [];
     }
 }
 
@@ -58,21 +58,21 @@ function getUpdateInputInfo(inputConnection, chType, negChannel, state) {
     if (state != undefined) {
         updateInputInfoOptions.state = state;
     }
-    console.log("getUpdateInputInfo");
-    console.log(updateInputInfoOptions);
+    //console.log("getUpdateInputInfo");
+    //console.log(updateInputInfoOptions);
     $.get("/devices/updateInputInfo", updateInputInfoOptions, dialogDone);
 }
 
 function getInputInfo(inputConnection) {
     stopScanning();
-    console.log(currentSerialNumber);
-    console.log(inputConnection);
+    //console.log(currentSerialNumber);
+    //console.log(inputConnection);
     $.get("/devices/inputInfo", {serial : currentSerialNumber, inputNumber : inputConnection}, handleInputInfo, "json");
 
 }
 
 function handleInputInfo(inputInfoJson) {
-    console.log(inputInfoJson);
+    //console.log(inputInfoJson);
     $("#dialog").empty();
     if (inputInfoJson.device.devType == 3) {
         if (inputInfoJson.device.productName == "U3-HV" && inputInfoJson.fioNumber < 4) {
@@ -105,9 +105,9 @@ function handleInputInfo(inputInfoJson) {
                     
                 
                 } else {
-                    console.log("digital selected");
+                    //console.log("digital selected");
                     var digitalSelection = $("input[name='digital']:checked").val();
-                    console.log(digitalSelection);
+                    //console.log(digitalSelection);
 
                     var newChType = '';
                     var newState = null;
@@ -122,7 +122,7 @@ function handleInputInfo(inputInfoJson) {
                     }
 
 
-                    clearSparklineIfNeeded(inputInfoJson.chType, newChType, inputInfoJson.label);
+                    clearSparklineIfNeeded(inputInfoJson.chType, newChType, inputInfoJson.fioNumber);
 
                     getUpdateInputInfo(inputInfoJson.fioNumber, newChType, null, newState);
                 }
@@ -130,9 +130,9 @@ function handleInputInfo(inputInfoJson) {
             "Cancel": dialogDone
         });
         $("#dialog").dialog('open');
-        console.log("U3");    
+        //console.log("U3");    
     } else {
-        console.log("Not a U3");
+        //console.log("Not a U3");
     }
 }
 
@@ -145,11 +145,10 @@ function setupTestPanelConnectionLinks() {
     });
     $(".digital-out-toggle-link").live("click", function(e) {
         stopScanning();
-        console.log("toggling digital");
-        console.log($(this));
+        $(this).addClass("toggling");
+        var toggleLink = $(this);
         var inputConnection = $(this).attr("inputConnection");
-        $.get("/devices/toggleDigitalOutput", {serial : currentSerialNumber, inputNumber : inputConnection});
-        callScan();
+        $.get("/devices/toggleDigitalOutput", {serial : currentSerialNumber, inputNumber : inputConnection}, function (data) {handleScan(data); toggleLink.removeClass("toggling");}, "json");
         return false;
     });
 }
@@ -202,37 +201,58 @@ function handleScan(data) {
 
         var count = 0;
         for (var d in data) {
+
             var thisConnection = data[d].connection;
-            console.log(thisConnection);
             var thisState = data[d].state;
             var thisValue = data[d].value;
-            var obj = { connection : thisConnection, state: thisState };
+            var thisChType = data[d].chType;
+            sparklineDataMap[count] = [];
+            sparklineDataMap[count].push(thisValue);
+
+            if (sparklineDataMap[count].length > sparklineMaxPoints) {
+                sparklineDataMap[count].splice(0,1);
+            }
+            
+            
+            var obj = { connection : "<a href='#' class='test-panel-connection-link' inputConnection='"+count+"' title='Configure " + thisConnection + "'>"+thisConnection+"</a>", state: "<span class='test-panel-sparkline " + thisChType + "'></span>" + "<span class='test-panel-state'>"+thisState + "</span>"};
+
+            if (thisChType == "digitalOut") {
+                obj.state += "<a href='#' class='digital-out-toggle-link' inputConnection='"+count+"' title='Toggle the state of this output'>Toggle</a>";
+            }
+
             $("#test-panel-table").jqGrid('addRowData', count, obj);
             count++;
-            sparklineDataMap[thisConnection] = [];
         }
         showingTestPanel = true;
 
-    }
-    var count = 0;
-    for (var d in data) {          
-        var thisConnection = data[d].connection;
-        var thisState = data[d].state;
-        var thisValue = data[d].value;
-        var thisChType = data[d].chType;
-        sparklineDataMap[thisConnection].push(thisValue);
-        
-        if (sparklineDataMap[thisConnection].length > sparklineMaxPoints) {
-            sparklineDataMap[thisConnection].splice(0,1);
+    } else {
+        var count = 0;
+        for (var d in data) {          
+            var selectorCount = "#" + count;
+            var thisConnection = data[d].connection;
+            var thisState = data[d].state;
+            var thisValue = data[d].value;
+            var thisChType = data[d].chType;
+            sparklineDataMap[count].push(thisValue);
+            
+            if (sparklineDataMap[count].length > sparklineMaxPoints) {
+                sparklineDataMap[count].splice(0,1);
+            }
+            
+            /*
+            if (thisChType == "digitalOut") {
+                thisState = thisState + "<a href='#' class='digital-out-toggle-link' inputConnection='"+count+"' title='Toggle the state of this output'>Toggle</a>";
+            }
+            */
+            
+            var obj = { connection : "<a href='#' class='test-panel-connection-link' inputConnection='"+count+"' title='Configure " + thisConnection + "'>"+thisConnection+"</a>", state: "<span class='test-panel-sparkline " + thisChType + "'></span>" + "<span class='test-panel-state'>"+thisState + "</span>" };
+            //$("#test-panel-table").jqGrid('setRowData', count, obj);
+            $(selectorCount + " .test-panel-connection-link").text(thisConnection);
+            //console.log(selectorCount + " .test-panel-state");
+            $(selectorCount + " .test-panel-state").text(thisState);
+            $(selectorCount + " .test-panel-sparkline").removeClass().addClass("test-panel-sparkline " + thisChType);
+            count++;
         }
-        
-        if (thisChType == "digitalOut") {
-            thisState = thisState + "<a href='#' class='digital-out-toggle-link' inputConnection='"+count+"' title='Toggle the state of this output'>Toggle</a>";
-        }
-        
-        var obj = { connection : "<a href='#' class='test-panel-connection-link' inputConnection='"+count+"' title='Configure " + thisConnection + "'>"+thisConnection+"</a>", state: "<span class='test-panel-sparkline " + thisChType + "'></span>" + "<span class='test-panel-state'>"+thisState + "</span>" };
-        $("#test-panel-table").jqGrid('setRowData', count, obj);
-        count++;
     }
 
     $('.test-panel-sparkline').each(function(i) {
@@ -241,20 +261,20 @@ function handleScan(data) {
         var sparklineOptions;
         if ($(this).hasClass("analogIn")) {
             sparklineOptions = sparklineAnalogInOptions;
-            sparklineOptions.width = sparklineDataMap[thisConnection].length*5;
+            sparklineOptions.width = sparklineDataMap[i].length*5;
         } else if ($(this).hasClass("digitalIn")) {
             sparklineOptions = sparklineDigitalInOptions;        
-            sparklineOptions.width = sparklineDataMap[thisConnection].length;
+            sparklineOptions.width = sparklineDataMap[i].length;
         } else if ($(this).hasClass("digitalOut")) {
             sparklineOptions = sparklineDigitalOutOptions;        
-            sparklineOptions.width = sparklineDataMap[thisConnection].length;
+            sparklineOptions.width = sparklineDataMap[i].length;
         } else {
             sparklineOptions = sparklineAnalogInOptions;        
-            sparklineOptions.width = sparklineDataMap[thisConnection].length*5;
+            sparklineOptions.width = sparklineDataMap[i].length*5;
         }
         sparklineOptions.chartRangeMin = chartMinMax.min;
         sparklineOptions.chartRangeMax = chartMinMax.max;
-        $(this).sparkline(sparklineDataMap[thisConnection],  sparklineOptions);
+        $(this).sparkline(sparklineDataMap[i],  sparklineOptions);
     });
         
 
@@ -273,7 +293,7 @@ function handleMoreInfo(data) {
 function handleSelectDevice(event, ui) {
     var serialNumber = ui.selected.id;
     $.get("/devices/" + serialNumber, {}, handleMoreInfo, "json");
-      
+
     $("#tabs").show();  
 }
   

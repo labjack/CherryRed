@@ -622,6 +622,7 @@ class DevicesPage:
             state = not state
             newInputConnection = FIO( int(inputNumber), "FIO%s" % inputNumber, chType, state )
             self.dm.updateFio(serial, newInputConnection)
+            return self.scan(serial)
     toggleDigitalOutput.exposed = True
 
     def scan(self, serial = None):
