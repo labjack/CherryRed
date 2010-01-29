@@ -61,6 +61,8 @@ else:
     IS_FROZEN = True
 
 def deviceAsDict(dev):
+    """ Returns a dictionary representation of a device.
+    """
     name = dev.getName()
     
     if dev.devType == 9:
@@ -72,6 +74,9 @@ def deviceAsDict(dev):
 
 # Class Definitions
 class FIO(object):
+    """
+    The FIO Class represents a single input. Helps keep track of state.
+    """
     def __init__(self, fioNumber, label = None , chType = "analogIn", state = None):
         self.fioNumber = fioNumber
         self.chType = chType
@@ -96,10 +101,13 @@ class FIO(object):
             self.label = label
     
     def asDict(self):
+        """ Returns a dictionary representation of a FIO
+        """
         return { "fioNumber" : self.fioNumber, "chType" : self.chType, "label" : self.label, "negChannel" : self.negChannel, "state": self.state, 'gainIndex' : self.gainIndex, 'resolutionIndex' : self.resolutionIndex, 'settleingFactor' : self.settleingFactor }
         
     def transform(self, dev, inputConnection):
-        # Check if we're doing a A -> D or D -> A switch
+        """ Converts a FIO to match a given FIO
+        """
         if inputConnection.chType == ANALOG_TYPE:
             self.negChannel = inputConnection.negChannel
             self.gainIndex = 0
@@ -248,6 +256,9 @@ class DeviceManager(object):
         
         current = dev.fioList[ inputConnection.fioNumber ]
         current.transform(dev, inputConnection)
+        
+        if dev.devType == 6:
+            remakeU6AnalogCommandList(dev)
     
     def remakeFioList(self, serial):
         dev = self.getDevice(serial)
@@ -256,6 +267,13 @@ class DeviceManager(object):
         
         self.devices[str(dev.serialNumber)] = dev
     
+    def remakeU6AnalogCommandList(dev):
+        analogCommandList = list()
+        for i in range(14):
+            ain = dev.fioList[i]
+            analogCommandList.append( u6.AIN24(i, ResolutionIndex = ain.resolutionIndex, GainIndex = ain.gainIndex, SettlingFactor = ain.settleingFactor, Differential = ain.negChannel) )
+        
+        dev.analogCommandList = analogCommandList
 
     def makeU6FioList(self, dev):
         # Make a list to hold the state of all the fios
