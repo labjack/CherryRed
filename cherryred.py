@@ -600,9 +600,9 @@ class DevicesPage:
         """ For configuring an input.
             serial = serial number of device
             inputNumber = the row number of that input
-            chType = ( AnalogIn, DigitalIn, DigitalOut )
-            negChannel = the negative channel, only matters for AnalogIN type
-            state = 1 for high, 0 for low. Only matters for DigitalOut
+            chType = ( analogIn, digitalIn, digitalOut )
+            negChannel = the negative channel, only matters for analogIn type
+            state = 1 for high, 0 for low. Only matters for digitalOut
         """
         
         # Make a temp FIO with the new settings.
