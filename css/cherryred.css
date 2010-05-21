@@ -149,6 +149,10 @@ a.digital-out-toggle-link.toggling {
   background-color: rgba(150, 0, 0, 0.3);
 }
 
+.small-list {
+    font-size: 14pt;
+}
+
 /*
  Weak Style
 */

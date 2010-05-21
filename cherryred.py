@@ -9,7 +9,7 @@ Desc:
 import cherrypy
 from cherrypy.lib.static import serve_file
 
-import xmppconnection
+import xmppconnection, logger
 from fio import FIO
 
 import os.path, zipfile
@@ -91,8 +91,9 @@ class DeviceManager(object):
         
         self.devices = dict()
         self.xmppThreads = dict()
+        self.loggingThreads = dict()
         
-        cherrypy.engine.subscribe('stop', self.shutdownXmppThreads)
+        cherrypy.engine.subscribe('stop', self.shutdownThreads)
         
         try:
             self.updateDeviceDict()
@@ -108,6 +109,28 @@ class DeviceManager(object):
         else:
             return self.devices[serial]
     
+    def startDeviceLogging(self, serial):
+        d = self.getDevice(serial)
+        
+        if str(d.serialNumber) not in self.loggingThreads:
+            lt = logger.LoggingThread(d)
+            lt.start()
+            self.loggingThreads[str(d.serialNumber)] = lt
+            
+            return True
+        else:
+            return False
+            
+    def stopDeviceLogging(self, serial):
+        d = self.getDevice(serial)
+        
+        if str(d.serialNumber) in self.loggingThreads:
+            lt = self.loggingThreads.pop(str(d.serialNumber))
+            lt.stop()
+            return True
+        else:
+            return False
+    
     def connectDeviceToCloudDot(self, serial):
         d = self.getDevice(serial)
         
@@ -120,8 +143,11 @@ class DeviceManager(object):
         else:
             return False
         
-    def shutdownXmppThreads(self):
+    def shutdownThreads(self):
         for s, thread in self.xmppThreads.items():
+            thread.stop()
+            
+        for s, thread in self.loggingThreads.items():
             thread.stop()
     
     def getFioInfo(self, serial, inputNumber):
@@ -734,6 +760,44 @@ class UsersPage:
         raise cherrypy.HTTPRedirect("/users/")
     update.exposed = True
 
+class LoggingPage:
+    """ A class for handling all things /log/
+    """
+    def __init__(self, dm):
+        self.dm = dm
+    
+    def header(self):
+        return "<html><body>"
+    
+    def footer(self):
+        return "</body></html>"
+
+    def index(self):
+        """ Handles /log/
+        """
+        # Tell people (firefox) not to cash this page. 
+        cherrypy.response.headers['Cache-Control'] = "no-cache"
+        
+        return serve_file2("html/log.html")
+        
+    index.exposed = True
+    
+    def start(self, serial = None):
+        if serial is None:
+            print "serial is null"
+            return False
+        else:
+            self.dm.startDeviceLogging(serial)
+    start.exposed = True
+    
+    def stop(self, serial = None):
+        if serial is None:
+            print "serial is null"
+            return False
+        else:
+            self.dm.stopDeviceLogging(serial)
+    stop.exposed = True
+
 class RootPage:
     """ The RootPage class handles showing index.html. If we can't connect to
         LJSocket then it shows connect.html instead.
@@ -744,6 +808,8 @@ class RootPage:
         
         # Adds the DevicesPage child which handles all the device communication
         self.devices = DevicesPage(dm)
+        
+        self.log = LoggingPage(dm)
         
         self.users = UsersPage(dm)
     
