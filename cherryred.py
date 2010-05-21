@@ -14,7 +14,8 @@ from fio import FIO
 
 import os.path, zipfile
 
-import json
+import json, httplib2
+from urllib import urlencode
 
 import sys
 
@@ -84,7 +85,10 @@ class DeviceManager(object):
     def __init__(self):
         self.address = LJSOCKET_ADDRESS
         self.port = LJSOCKET_PORT
-    
+        
+        self.username = None
+        self.apikey = None
+        
         self.devices = dict()
         self.xmppThreads = dict()
         
@@ -107,11 +111,14 @@ class DeviceManager(object):
     def connectDeviceToCloudDot(self, serial):
         d = self.getDevice(serial)
         
-        xt = xmppconnection.XmppThread(d)
-        xt.start()
-        self.xmppThreads[str(d.serialNumber)] = xt
-        
-        return True
+        if str(d.serialNumber) not in self.xmppThreads:
+            xt = xmppconnection.XmppThread(d, password = self.apikey)
+            xt.start()
+            self.xmppThreads[str(d.serialNumber)] = xt
+            
+            return True
+        else:
+            return False
         
     def shutdownXmppThreads(self):
         for s, thread in self.xmppThreads.items():
@@ -658,6 +665,75 @@ def serve_file2(path):
     else:
         return serve_file(os.path.join(current_dir,path))
 
+class UsersPage:
+    """ A class for handling all things /users/
+    """
+    def __init__(self, dm):
+        self.dm = dm
+    
+    def header(self):
+        return "<html><body>"
+    
+    def footer(self):
+        return "</body></html>"
+
+    def index(self):
+        """ Handles /users/, returns a JSON list of all known devices.
+        """
+        # Tell people (firefox) not to cash this page. 
+        cherrypy.response.headers['Cache-Control'] = "no-cache"
+        
+        return serve_file2("html/user.html")
+        
+    index.exposed = True
+    
+    def fetch(self):
+        print "returning user info"
+        
+        yield json.dumps({'username' : self.dm.username, 'apikey' : self.dm.apikey})
+    
+    fetch.exposed = True
+    
+    def check(self, label = None, username = None, apikey = None):
+        """
+        Checks for valid username and apikey
+        """
+        print "Check called..."
+        print "label = %s, username = %s, apikey = %s" % (label, username, apikey)
+        if label is None:
+            return False
+        elif label == "username":
+            devurl = "http://cloudapi.labjack.com/%s/devices.json" % username
+            h = httplib2.Http()
+            resp, content = h.request(devurl, "GET")
+            if resp['status'] != '200':
+                return json.dumps({'username' : 1})
+            else:
+                return json.dumps({'username' : 0})
+        elif label == "apikey":
+            data = { 'userName' : username, "apiKey" : apikey}
+            devurl = "http://cloudapi.labjack.com/%s/info.json?%s" % (username, urlencode(data))
+            h = httplib2.Http()
+            resp, content = h.request(devurl, "GET")
+            if resp['status'] == '401':
+                return json.dumps({'username' : 0, 'apikey' : 1})
+            elif resp['status'] != '200':
+                return json.dumps({'username' : 1, 'apikey' : 1})
+            else:
+                return json.dumps({'username' : 0, 'apikey' : 0})
+    check.exposed = True
+    
+    def update(self, username = None, apikey = None):
+        """ Updates the saved username and API Key.
+        """
+        print "Update called: Username = %s, apikey = %s" % (username, apikey)
+        
+        self.dm.username = username
+        self.dm.apikey = apikey
+        
+        raise cherrypy.HTTPRedirect("/users/")
+    update.exposed = True
+
 class RootPage:
     """ The RootPage class handles showing index.html. If we can't connect to
         LJSocket then it shows connect.html instead.
@@ -668,6 +744,8 @@ class RootPage:
         
         # Adds the DevicesPage child which handles all the device communication
         self.devices = DevicesPage(dm)
+        
+        self.users = UsersPage(dm)
     
     def index(self):
         """ if we can talk to LJSocket, renders index.html. Otherwise, 

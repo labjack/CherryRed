@@ -3,6 +3,8 @@ import threading
 import sleekxmpp
 import logging
 
+from time import sleep
+
 import base64
 from xml.etree.cElementTree import Element, dump
 import struct
@@ -16,13 +18,30 @@ class CloudDotConnection(sleekxmpp.ClientXMPP):
         self.add_event_handler("message", self.message)
         self.add_handler("<iq xmlns='jabber:client'><query xmlns='jabber:iq:clouddot' />*</iq>", self.iq_handler)
         self.device = dev
+        
+        self.registerPlugin('xep_0199')
+        self.looping = True
+        
+        self.heartbeatThread = threading.Thread(target = self.pingLoop)
+
+    def pingLoop(self):
+        print "Started pingLoop"
+        while self.looping:
+            print "Sleeping for 14 seconds."
+            sleep(14)
+            print "Sending ping."
+            self.plugin['xep_0199'].sendPing("beanstalk@cloud.labjack.com")
+        print "Finished pingLoop"
     
     def start(self, event):
         self.getRoster()
         self.sendPresence()
         
+        self.heartbeatThread.start()
+        
     def stop(self):
         print "Called CloudDotConnection stop"
+        self.looping = False
         self.disconnect()
     
     def message(self, msg):

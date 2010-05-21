@@ -1,0 +1,176 @@
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+    <title>CherryRed: CloudDot User Info</title>
+
+    <link rel="stylesheet" href="/css/reset.css" />
+    <link rel="stylesheet" href="/css/text.css" />
+    <link rel="stylesheet" href="/css/960_24_col.css" />
+
+    <link type="text/css" href="/css/darkblitz/jquery-ui-1.7.2.custom.css" rel="Stylesheet" />
+    <link rel="stylesheet" type="text/css" media="screen" href="/css/ui.jqgrid.css" />
+    <link type="text/css" href="/css/cherryred.css" rel="Stylesheet" />
+
+    <script type="text/javascript" src="/js/jquery-1.3.2.min.js"></script>
+    <script type="text/javascript" src="/js/jquery-ui-1.7.2.custom.min.js"></script>
+    <script type="text/javascript" src="/js/jquery.jqote.min.js"></script>
+
+</head>
+
+<script type="text/javascript">
+  var LastUsername = "";
+  var LastApikey = "";
+
+  function handleFetch(data, textStatus, XMLHttpRequest) {
+    if( data.username != null ) {
+      $("#username-field").attr( "value", data.username);
+      checkUsernameValidity();
+    }
+    
+    if( data.apikey != null ) {
+      $("#apikey-field").attr("value", data.apikey);
+      checkApikeyValidity();
+    }
+  }
+
+  function handleAjaxError(XMLHttpRequest, textStatus, errorThrown) {
+    $('#username-field').removeClass("fieldWithNoErrors");
+    $('#username-field').addClass("fieldWithErrors");
+  }
+
+  $(document).ready(function() {
+    $.get("/users/fetch", {}, handleFetch, "json");
+    getDeviceList();
+  });
+  
+  
+  function handleConnect(data, textStatus, XMLHttpRequest) {
+    console.log("handleConnect: success");
+  }
+  
+  function connectToClouddot(serial) {
+    $.get("/devices/connectToCloudDot", {serial : serial}, handleConnect, "json");
+    
+    return false;
+  }
+  
+  function handleUsernameCheck(data, textStatus) {
+    if(data['username'] == 0) {
+      $('#username-field').removeClass("fieldWithErrors");
+      $('#username-field').addClass("fieldWithNoErrors");
+    }
+    else {
+      $('#username-field').removeClass("fieldWithNoErrors");
+      $('#username-field').addClass("fieldWithErrors");
+    }
+  }
+
+  function handleApikeyCheck(data, textStatus) {
+    if(data['username'] == 0) {
+      $('#username-field').removeClass("fieldWithErrors");
+      $('#username-field').addClass("fieldWithNoErrors");
+    }
+    else {
+      $('#username-field').removeClass("fieldWithNoErrors");
+      $('#username-field').addClass("fieldWithErrors");
+    }
+    
+    if(data['apikey'] == 0) {
+      $('#apikey-field').removeClass("fieldWithErrors");
+      $('#apikey-field').addClass("fieldWithNoErrors");
+    }
+    else {
+      $('#apikey-field').removeClass("fieldWithNoErrors");
+      $('#apikey-field').addClass("fieldWithErrors");
+    }
+  }
+  
+  function checkUsernameValidity() {
+    var name = $('#username-field').attr('value');
+    
+    if(name == LastUsername) {
+      return false;
+    }
+    
+    $.ajax({
+            url : "/users/check",
+            dataType: 'json',
+            success: handleUsernameCheck,
+            error: handleAjaxError,
+            type: "GET",
+            data: { label : "username", username : name, apikey : "crap" }
+            });
+            
+    LastUsername = name;
+    
+    return false;
+  }
+
+  function checkApikeyValidity() {
+    var name = $('#username-field').attr('value');
+    var apikey = $('#apikey-field').attr('value');
+    
+    if(apikey == LastApikey) {
+      return false;
+    }
+    
+    if( name != undefined && name != null && apikey != undefined && apikey != null) {
+          
+          $.ajax({
+            url : "/users/check",
+            dataType: 'json',
+            success: handleApikeyCheck,
+            error: handleAjaxError,
+            data: { label : "apikey", username: name, apikey : apikey },
+            type: "GET"
+            });
+            
+          LastUsername = name;
+          LastApikey = apikey;
+    }
+    
+    return false;
+  }
+  
+  function handleDeviceList(data) {
+      for (var d in data) {
+      var obj = { name: data[d], serial : d };
+          $("#device-template").jqote(obj).appendTo($("#device-name-list"));
+      }
+  }
+    
+    
+  function getDeviceList() {
+      $.get("/devices/", {}, handleDeviceList, "json");
+  }
+
+</script>
+
+<script type="text/html" id="device-template">
+<![CDATA[
+  <li id="<%= this.serial %>"><%= this.name %> <a href="#" onclick="connectToClouddot(<%= this.serial %>)">Connect To CloudDot</a></li>
+]]>
+</script>
+
+<body>
+  <div id="content" class="users-page-content">
+    <h2>Link to your CloudDot Account</h2>
+    <p>Enter your CloudDot username and API key below.  You can find your API key on your <a href="http://cloud.labjack.com/admin" target="_blank">CloudDot Account page</a>. (<a id='showlink' onclick='showPicture(); return false;'>Show Picture</a>)</p>
+    <div id="example" style="display:none">
+        <img src="/images/apikey-demo.png" />
+    </div>
+    <p class="weak">
+        If you don't have a CloudDot account, <a href="http://cloud.labjack.com/signup" target="_blank">sign up here</a>.
+    </p>
+    <form id="user-form" action="/users/update" method="get">
+      <div>Username: <input type="text" id="username-field" name="username" onblur="checkUsernameValidity();"/></div>
+      <div>API Key: <input type="text" id="apikey-field" name="apikey" onblur="checkApikeyValidity();"/></div>
+      
+      <input type="submit" value="Save CloudDot Account Information">
+    </form>
+  
+    <ul id="device-name-list">
+    </ul>
+  </div>
+</body>
+
+</html>
