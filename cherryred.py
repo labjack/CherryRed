@@ -179,7 +179,7 @@ class DeviceManager(object):
         analogCommandList = list()
         for i in range(14):
             ain = dev.fioList[i]
-            analogCommandList.append( u6.AIN24(i, ResolutionIndex = ain.resolutionIndex, GainIndex = ain.gainIndex, SettlingFactor = ain.settleingFactor, Differential = ain.negChannel) )
+            analogCommandList.append( u6.AIN24(i, ResolutionIndex = ain.resolutionIndex, GainIndex = ain.gainIndex, SettlingFactor = ain.settlingFactor, Differential = ain.negChannel) )
         
         dev.analogCommandList = analogCommandList
 
@@ -514,7 +514,7 @@ class DevicesPage:
         """
         
         # Make a temp FIO with the new settings.
-        inputConnection = FIO( int(inputNumber), "FIO%s" % inputNumber, chType, state )
+        inputConnection = FIO( int(inputNumber), "FIO%s" % inputNumber, chType, state, int(negChannel) )
         
         # Tells the device manager to update the input
         self.dm.updateFio(serial, inputConnection)

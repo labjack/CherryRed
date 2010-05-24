@@ -6,14 +6,17 @@ class FIO(object):
     """
     The FIO Class represents a single input. Helps keep track of state.
     """
-    def __init__(self, fioNumber, label = None , chType = "analogIn", state = None):
+    def __init__(self, fioNumber, label = None , chType = "analogIn", state = None, negChannel = None):
         self.fioNumber = fioNumber
         self.chType = chType
         self.label = None
-        self.negChannel = False
+        if negChannel:
+            self.negChannel = int(negChannel)
+        else:
+            self.negChannel = False
         self.gainIndex = 0
         self.resolutionIndex = 1
-        self.settleingFactor = 0
+        self.settlingFactor = 0
         
         if state is not None:
             self.state = int(state)
@@ -21,7 +24,8 @@ class FIO(object):
             self.state = None
         
         if self.chType == ANALOG_TYPE:
-            self.negChannel = 31
+            if not self.negChannel:
+                self.negChannel = 31
             self.label = "AIN%s" % self.fioNumber
         else:
             self.label = "FIO%s" % self.fioNumber
@@ -32,7 +36,7 @@ class FIO(object):
     def asDict(self):
         """ Returns a dictionary representation of a FIO
         """
-        return { "fioNumber" : self.fioNumber, "chType" : self.chType, "label" : self.label, "negChannel" : self.negChannel, "state": self.state, 'gainIndex' : self.gainIndex, 'resolutionIndex' : self.resolutionIndex, 'settleingFactor' : self.settleingFactor }
+        return { "fioNumber" : self.fioNumber, "chType" : self.chType, "label" : self.label, "negChannel" : self.negChannel, "state": self.state, 'gainIndex' : self.gainIndex, 'resolutionIndex' : self.resolutionIndex, 'settlingFactor' : self.settlingFactor }
         
     def transform(self, dev, inputConnection):
         """ Converts a FIO to match a given FIO
@@ -41,7 +45,7 @@ class FIO(object):
             self.negChannel = inputConnection.negChannel
             self.gainIndex = 0
             self.resolutionIndex = 1
-            self.settleingFactor = 0
+            self.settlingFactor = 0
             self.setSelfToAnalog(dev)
         elif inputConnection.chType == DIGITAL_OUT_TYPE:
             self.state = inputConnection.state

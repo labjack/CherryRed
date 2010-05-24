@@ -93,8 +93,17 @@ function handleInputInfo(inputInfoJson) {
                     $("input[name='digital']:nth(2)").attr("checked","checked");
                 }
             }
-            
+        } else {
+            if (inputInfoJson.negChannel == 31) {
+                $("input[name='analog']:nth(0)").attr("checked","checked");
+            } else if (inputInfoJson.negChannel == 32) {
+                $("input[name='analog']:nth(1)").attr("checked","checked");
+            } else if (inputInfoJson.negChannel >= 0 && inputInfoJson.negChannel < 31) {
+                $("input[name='analog']:nth(2)").attr("checked","checked");
+                $("select[name='neg-channel']").val(inputInfoJson.negChannel)
+            }
         }
+       
         $("#dialog").dialog('option', 'title', inputInfoJson.label);
         $("#dialog").dialog('option', 'width', 425);
         $("#dialog").dialog('option', 'buttons', { 
@@ -104,11 +113,13 @@ function handleInputInfo(inputInfoJson) {
                 if (analogSelected) {
                     var newChType = "analogIn";
                     var negChannel = 31;
-                    console.log("analog selected");
+                    //console.log("analog selected");
                     var analogSelection = $("input[name='analog']:checked").val();
-                    console.log(analogSelection);
-                    if (analogSelection = "single-special") {
+                    //console.log(analogSelection);
+                    if (analogSelection == "single-special") {
                         negChannel = 32;
+                    } else if (analogSelection == "differential") {
+                        negChannel = $("select[name='neg-channel']").val()
                     }
                     getUpdateInputInfo(inputInfoJson.fioNumber, newChType, negChannel, null);
                 } else {
@@ -209,7 +220,7 @@ function handleScan(data) {
           ],
           multiselect: false,
           caption: "Test Panel",
-          beforeSelectRow : function() { console.log("beforeSelectRow"); return false; }
+          beforeSelectRow : function() { return false; }
         }).selectable( "option", "disabled", true );
 
 
