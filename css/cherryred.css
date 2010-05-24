@@ -47,10 +47,19 @@ body {
     float: right;
 }
 
+#top-bar {
+    text-align: center;
+}
+
+#top-bar p {
+    margin: 2px 0;
+}
+
 /* Devices */
 /*.test-panel-sparkline { width: 100px; }*/
 
-.ui-jqgrid tr.ui-row-ltr td:nth-child(1) {
+.ui-jqgrid tr.ui-row-ltr td:nth-child(1),
+.ui-jqgrid tr.ui-row-ltr td:nth-child(3) {
     text-align:center;
 }
 
@@ -81,11 +90,13 @@ margin-top:5px;
 #test-panel-table .ui-state-hover a,
 #test-panel-table .ui-state-hover a:hover {
     text-decoration: underline;
+    font-weight: bold;
+/*    color:#A20000;*/
 }
 
 a.digital-out-toggle-link {
     position: absolute;
-    right: 20px;
+    right: 120px;
     display: none;
 }
 
