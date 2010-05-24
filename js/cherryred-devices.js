@@ -102,8 +102,15 @@ function handleInputInfo(inputInfoJson) {
                 var tabIndex = $("#u3-connection-dialog-tabs").tabs('option', 'selected');
                 var analogSelected = (tabIndex == 0) ? true : false;
                 if (analogSelected) {
-                    
-                
+                    var newChType = "analogIn";
+                    var negChannel = 31;
+                    console.log("analog selected");
+                    var analogSelection = $("input[name='analog']:checked").val();
+                    console.log(analogSelection);
+                    if (analogSelection = "single-special") {
+                        negChannel = 32;
+                    }
+                    getUpdateInputInfo(inputInfoJson.fioNumber, newChType, negChannel, null);
                 } else {
                     //console.log("digital selected");
                     var digitalSelection = $("input[name='digital']:checked").val();
@@ -179,7 +186,12 @@ function sparklineMinMax(sparklineType) {
 
 
 function callScan() {
-    $.get("/devices/scan", {serial : currentSerialNumber}, handleScan, "json");
+    $.ajax({
+        url: "/devices/scan", 
+        data: {serial : currentSerialNumber}, 
+        success: handleScan, 
+        dataType: "json"
+    });
 }
 
 function handleScan(data) {
@@ -189,14 +201,16 @@ function handleScan(data) {
         $("#test-panel-table").jqGrid({
           datatype: "local",
           height: "100%",
-             colNames:['Connection','State'],
-             colModel:[
+          colNames:['Connection','State','Log'],
+          colModel:[
                {name:'connection',index:'connection', width:250,  sortable:false},
-               {name:'state',index:'state', width:350, sortable:false}
-             ],
-             multiselect: false,
-             caption: "Test Panel"
-        });
+               {name:'state',index:'state', width:350, sortable:false},
+               {name:'log',index:'log', width:100, sortable:false}
+          ],
+          multiselect: false,
+          caption: "Test Panel",
+          beforeSelectRow : function() { console.log("beforeSelectRow"); return false; }
+        }).selectable( "option", "disabled", true );
 
 
         var count = 0;
@@ -214,7 +228,7 @@ function handleScan(data) {
             }
             
             
-            var obj = { connection : "<a href='#' class='test-panel-connection-link' inputConnection='"+count+"' title='Configure " + thisConnection + "'>"+thisConnection+"</a>", state: "<span class='test-panel-sparkline " + thisChType + "'></span>" + "<span class='test-panel-state'>"+thisState + "</span>"};
+            var obj = { connection : "<a href='#' class='test-panel-connection-link' inputConnection='"+count+"' title='Configure " + thisConnection + "'>"+thisConnection+"</a>", state: "<span class='test-panel-sparkline " + thisChType + "'></span>" + "<span class='test-panel-state'>"+thisState + "</span>", log: "<input type='checkbox' />"};
 
             if (thisChType == "digitalOut") {
                 obj.state += "<a href='#' class='digital-out-toggle-link' inputConnection='"+count+"' title='Toggle the state of this output'>Toggle</a>";
@@ -284,6 +298,9 @@ function handleScan(data) {
 function handleMoreInfo(data) {
     $("#more-info-pane").empty();
     $("#more-info-template").jqote(data).appendTo($("#more-info-pane"));
+    
+    $("#top-bar").empty();
+    $("#scanning-device-template").jqote(data).appendTo($("#top-bar"));
 
     currentSerialNumber = data.serial;
 
