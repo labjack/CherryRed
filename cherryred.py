@@ -253,12 +253,13 @@ class DeviceManager(object):
         serials = list()
         
         for dev in devs:
-            if dev['serial'] in self.devices:
+            serials.append(str(dev['serial']))
+        
+            if str(dev['serial']) in self.devices:
                 continue
             
-            serials.append(str(dev['serial']))
-            
             if dev['prodId'] == 3:
+                print "Adding new device with serial = %s" % (dev['serial'])
                 try:
                     d = u3.U3(LJSocket = ljsocketAddress, serial = dev['serial'])
                 except Exception, e:
@@ -273,7 +274,7 @@ class DeviceManager(object):
                     #d.debug = True
                     d.fioList = self.makeU3FioList(d)
                 except Exception, e:
-                    raise Exception( "makign u3 fio list: %s" % e )
+                    raise Exception( "making u3 fio list: %s" % e )
                 
             elif dev['prodId'] == 6:
                 try:
@@ -514,7 +515,7 @@ class DevicesPage:
         """
         
         # Make a temp FIO with the new settings.
-        inputConnection = FIO( int(inputNumber), "FIO%s" % inputNumber, chType, state, int(negChannel) )
+        inputConnection = FIO( int(inputNumber), "FIO%s" % inputNumber, chType, state, negChannel )
         
         # Tells the device manager to update the input
         self.dm.updateFio(serial, inputConnection)

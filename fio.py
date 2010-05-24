@@ -114,9 +114,7 @@ class FIO(object):
             return self.readFio(dev)
 
     def readAin(self, dev):
-        state = dev.readRegister(self.fioNumber*2)
-        if self.negChannel == 32:
-            state += 2.4
+        state = dev.getAIN(self.fioNumber, negChannel = self.negChannel)
         
         return self.parseAinResults(state)
         
