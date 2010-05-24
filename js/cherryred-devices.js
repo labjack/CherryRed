@@ -82,6 +82,8 @@ function handleInputInfo(inputInfoJson) {
         }
 
         $("#u3-connection-dialog-tabs").tabs();
+        var removeSelector = "select[name='neg-channel'] option[value=" + inputInfoJson.fioNumber + "]";
+        $(removeSelector).remove();
         if (inputInfoJson.chType != "analogIn") {
             $("#u3-connection-dialog-tabs").tabs('select', '#u3-connection-dialog-tabs-digital');
             if (inputInfoJson.chType == "digitalIn") {
