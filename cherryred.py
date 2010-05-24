@@ -9,9 +9,13 @@ Desc:
 import cherrypy
 from cherrypy.lib.static import serve_file
 
+import xmppconnection, logger
+from fio import FIO
+
 import os.path, zipfile
 
-import json
+import json, httplib2
+from urllib import urlencode
 
 import sys
 
@@ -73,150 +77,6 @@ def deviceAsDict(dev):
     return {'devType' : dev.devType, 'name' : name, 'serial' : dev.serialNumber, 'productName' : dev.deviceName, 'firmware' : firmware, 'localId' : dev.localId}
 
 # Class Definitions
-class FIO(object):
-    """
-    The FIO Class represents a single input. Helps keep track of state.
-    """
-    def __init__(self, fioNumber, label = None , chType = "analogIn", state = None):
-        self.fioNumber = fioNumber
-        self.chType = chType
-        self.label = None
-        self.negChannel = False
-        self.gainIndex = 0
-        self.resolutionIndex = 1
-        self.settleingFactor = 0
-        
-        if state is not None:
-            self.state = int(state)
-        else:
-            self.state = None
-        
-        if self.chType == ANALOG_TYPE:
-            self.negChannel = 31
-            self.label = "AIN%s" % self.fioNumber
-        else:
-            self.label = "FIO%s" % self.fioNumber
-            
-        if label != None:
-            self.label = label
-    
-    def asDict(self):
-        """ Returns a dictionary representation of a FIO
-        """
-        return { "fioNumber" : self.fioNumber, "chType" : self.chType, "label" : self.label, "negChannel" : self.negChannel, "state": self.state, 'gainIndex' : self.gainIndex, 'resolutionIndex' : self.resolutionIndex, 'settleingFactor' : self.settleingFactor }
-        
-    def transform(self, dev, inputConnection):
-        """ Converts a FIO to match a given FIO
-        """
-        if inputConnection.chType == ANALOG_TYPE:
-            self.negChannel = inputConnection.negChannel
-            self.gainIndex = 0
-            self.resolutionIndex = 1
-            self.settleingFactor = 0
-            self.setSelfToAnalog(dev)
-        elif inputConnection.chType == DIGITAL_OUT_TYPE:
-            self.state = inputConnection.state
-            self.setSelfToDigital(dev, DIGITAL_OUT_TYPE) 
-        else:
-            self.setSelfToDigital(dev, DIGITAL_IN_TYPE)
-    
-    
-    def setSelfToDigital(self, dev, chType):
-        # FIO or EIO
-        if self.fioNumber < 16:
-            if self.fioNumber < 8:
-                reg = 50590
-                self.label = "FIO%s" % self.fioNumber
-            else:
-                reg = 50591
-                self.label = "EIO%s" % ( self.fioNumber % 8 )
-            
-            analog = dev.readRegister(reg)  
-            
-            digitalMask = 0xffff - ( 1 << (self.fioNumber % 8) )
-            
-            analog = analog & digitalMask
-            
-            # Set pin to digital.
-            dev.writeRegister(reg, analog)
-        else:
-            self.label = "CIO%s" % ( self.fioNumber % 16 )
-        
-        if chType == DIGITAL_OUT_TYPE:
-            dev.writeRegister(6100 + self.fioNumber, 1)
-            dev.writeRegister(6000 + self.fioNumber, self.state)
-        else:
-            dev.writeRegister(6100 + self.fioNumber, 0)
-        
-        print "Setting self to be %s" % chType
-        self.chType = chType
-    
-    def setSelfToAnalog(self, dev):
-        # FIO or EIO
-        if self.fioNumber < 8:
-            reg = 50590
-        else:
-            reg = 50591
-            
-        analog = dev.readRegister(reg)
-            
-        analog |= (1 << (self.fioNumber % 8))
-        
-        # Set pin to Analog.
-        dev.writeRegister(reg, analog)
-        
-        # Set Negative channel.
-        if self.negChannel == 32:
-            dev.writeRegister(3000 + self.fioNumber, 30)
-        else:
-            dev.writeRegister(3000 + self.fioNumber, self.negChannel)
-        
-        self.chType = ANALOG_TYPE
-        self.label = "AIN%s" % ( self.fioNumber )
-    
-    def readResult(self, dev):
-        if self.chType == ANALOG_TYPE:
-            return self.readAin(dev)
-        else:
-            return self.readFio(dev)
-
-    def readAin(self, dev):
-        state = dev.readRegister(self.fioNumber*2)
-        if self.negChannel == 32:
-            state += 2.4
-        
-        return self.parseAinResults(state)
-        
-    def parseAinResults(self, state):
-        infoDict = dict()
-        infoDict['connection'] = self.label
-        infoDict['state'] = "%0.5f" % state
-        infoDict['value'] = "%0.5f" % state # Use state for 'state' and 'value'
-        infoDict['chType'] = self.chType
-        
-        return infoDict
-
-    def readFio(self, dev):
-        fioDir = dev.readRegister(6100 + self.fioNumber)
-        fioState = dev.readRegister(6000 + self.fioNumber)
-        
-        return self.parseFioResults(fioDir, fioState)
-        
-    def parseFioResults(self, fioDir, fioState):
-        if fioDir == 0:
-            fioDirText = "Input"
-        else:
-            fioDirText = "Output"
-            
-        if fioState == 0:
-            fioStateText = "Low"
-        else:
-            fioStateText = "High"
-        
-        infoDict = {'connection' : self.label, 'state' : "%s %s" % (fioDirText, fioStateText), 'value' : "%s" % fioState}
-        infoDict['chType'] = (DIGITAL_IN_TYPE if fioDir == 0 else DIGITAL_OUT_TYPE)
-        
-        return infoDict
 
 class DeviceManager(object):
     """
@@ -225,8 +85,15 @@ class DeviceManager(object):
     def __init__(self):
         self.address = LJSOCKET_ADDRESS
         self.port = LJSOCKET_PORT
-    
+        
+        self.username = None
+        self.apikey = None
+        
         self.devices = dict()
+        self.xmppThreads = dict()
+        self.loggingThreads = dict()
+        
+        cherrypy.engine.subscribe('stop', self.shutdownThreads)
         
         try:
             self.updateDeviceDict()
@@ -241,6 +108,47 @@ class DeviceManager(object):
             return self.devices.values()[0]
         else:
             return self.devices[serial]
+    
+    def startDeviceLogging(self, serial):
+        d = self.getDevice(serial)
+        
+        if str(d.serialNumber) not in self.loggingThreads:
+            lt = logger.LoggingThread(d)
+            lt.start()
+            self.loggingThreads[str(d.serialNumber)] = lt
+            
+            return True
+        else:
+            return False
+            
+    def stopDeviceLogging(self, serial):
+        d = self.getDevice(serial)
+        
+        if str(d.serialNumber) in self.loggingThreads:
+            lt = self.loggingThreads.pop(str(d.serialNumber))
+            lt.stop()
+            return True
+        else:
+            return False
+    
+    def connectDeviceToCloudDot(self, serial):
+        d = self.getDevice(serial)
+        
+        if str(d.serialNumber) not in self.xmppThreads:
+            xt = xmppconnection.XmppThread(d, password = self.apikey)
+            xt.start()
+            self.xmppThreads[str(d.serialNumber)] = xt
+            
+            return True
+        else:
+            return False
+        
+    def shutdownThreads(self):
+        for s, thread in self.xmppThreads.items():
+            thread.stop()
+            
+        for s, thread in self.loggingThreads.items():
+            thread.stop()
     
     def getFioInfo(self, serial, inputNumber):
         dev = self.getDevice(serial)
@@ -638,6 +546,14 @@ class DevicesPage:
     scan.exposed = True
 
 
+    def connectToCloudDot(self, serial = None):
+        print "Connecting %s to CloudDot." % serial
+        
+        self.dm.connectDeviceToCloudDot(serial)
+        
+        yield json.dumps({'result' : "connected"})
+    
+    connectToCloudDot.exposed = True
 
     # ---------------- Deprecated ----------------
     def setFioState(self, serial = None, fioNumber = 0, state = 1):
@@ -775,6 +691,113 @@ def serve_file2(path):
     else:
         return serve_file(os.path.join(current_dir,path))
 
+class UsersPage:
+    """ A class for handling all things /users/
+    """
+    def __init__(self, dm):
+        self.dm = dm
+    
+    def header(self):
+        return "<html><body>"
+    
+    def footer(self):
+        return "</body></html>"
+
+    def index(self):
+        """ Handles /users/, returns a JSON list of all known devices.
+        """
+        # Tell people (firefox) not to cash this page. 
+        cherrypy.response.headers['Cache-Control'] = "no-cache"
+        
+        return serve_file2("html/user.html")
+        
+    index.exposed = True
+    
+    def fetch(self):
+        print "returning user info"
+        
+        yield json.dumps({'username' : self.dm.username, 'apikey' : self.dm.apikey})
+    
+    fetch.exposed = True
+    
+    def check(self, label = None, username = None, apikey = None):
+        """
+        Checks for valid username and apikey
+        """
+        print "Check called..."
+        print "label = %s, username = %s, apikey = %s" % (label, username, apikey)
+        if label is None:
+            return False
+        elif label == "username":
+            devurl = "http://cloudapi.labjack.com/%s/devices.json" % username
+            h = httplib2.Http()
+            resp, content = h.request(devurl, "GET")
+            if resp['status'] != '200':
+                return json.dumps({'username' : 1})
+            else:
+                return json.dumps({'username' : 0})
+        elif label == "apikey":
+            data = { 'userName' : username, "apiKey" : apikey}
+            devurl = "http://cloudapi.labjack.com/%s/info.json?%s" % (username, urlencode(data))
+            h = httplib2.Http()
+            resp, content = h.request(devurl, "GET")
+            if resp['status'] == '401':
+                return json.dumps({'username' : 0, 'apikey' : 1})
+            elif resp['status'] != '200':
+                return json.dumps({'username' : 1, 'apikey' : 1})
+            else:
+                return json.dumps({'username' : 0, 'apikey' : 0})
+    check.exposed = True
+    
+    def update(self, username = None, apikey = None):
+        """ Updates the saved username and API Key.
+        """
+        print "Update called: Username = %s, apikey = %s" % (username, apikey)
+        
+        self.dm.username = username
+        self.dm.apikey = apikey
+        
+        raise cherrypy.HTTPRedirect("/users/")
+    update.exposed = True
+
+class LoggingPage:
+    """ A class for handling all things /log/
+    """
+    def __init__(self, dm):
+        self.dm = dm
+    
+    def header(self):
+        return "<html><body>"
+    
+    def footer(self):
+        return "</body></html>"
+
+    def index(self):
+        """ Handles /log/
+        """
+        # Tell people (firefox) not to cash this page. 
+        cherrypy.response.headers['Cache-Control'] = "no-cache"
+        
+        return serve_file2("html/log.html")
+        
+    index.exposed = True
+    
+    def start(self, serial = None):
+        if serial is None:
+            print "serial is null"
+            return False
+        else:
+            self.dm.startDeviceLogging(serial)
+    start.exposed = True
+    
+    def stop(self, serial = None):
+        if serial is None:
+            print "serial is null"
+            return False
+        else:
+            self.dm.stopDeviceLogging(serial)
+    stop.exposed = True
+
 class RootPage:
     """ The RootPage class handles showing index.html. If we can't connect to
         LJSocket then it shows connect.html instead.
@@ -785,6 +808,10 @@ class RootPage:
         
         # Adds the DevicesPage child which handles all the device communication
         self.devices = DevicesPage(dm)
+        
+        self.log = LoggingPage(dm)
+        
+        self.users = UsersPage(dm)
     
     def index(self):
         """ if we can talk to LJSocket, renders index.html. Otherwise, 
