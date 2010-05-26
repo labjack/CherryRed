@@ -7,11 +7,12 @@ from time import sleep
 from datetime import datetime
 
 class LoggingThread(threading.Thread):
-    def __init__(self, device):
+    def __init__(self, dm, serial):
         threading.Thread.__init__(self)
-        self.dev = device
+        self.dm = dm
+        self.serial = str(serial)
         self.logging = False
-        self.csvWriter = csv.writer(open("./log-%s.csv" % self.dev.serialNumber, "wb", 1))
+        self.csvWriter = csv.writer(open("./log-%s.csv" % self.serial, "wb", 1))
         
     def stop(self):
         print "Stopping logging thread."
@@ -19,9 +20,13 @@ class LoggingThread(threading.Thread):
         
     def run(self):
         self.logging = True
-        print "Starting logging thread for device %s." % self.dev.serialNumber
+        print "Starting logging thread for device %s." % self.serial
         
         while self.logging:
-            result = self.dev.readRegister(0, numReg = 8)
-            self.csvWriter.writerow([datetime.now()] + result)
+            result = self.dm.scan(self.serial)[1]
+            values = [ None ] * (len(result)+1)
+            values[0] = datetime.now()
+            for i, connection in enumerate(result):
+                values[i+1] = connection['value']
+            self.csvWriter.writerow(values)
             sleep(1)

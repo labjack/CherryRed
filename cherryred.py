@@ -17,7 +17,7 @@ import os.path, zipfile
 import json, httplib2
 from urllib import urlencode
 
-import sys
+import sys, time
 
 import StringIO, ConfigParser
 
@@ -113,7 +113,7 @@ class DeviceManager(object):
         d = self.getDevice(serial)
         
         if str(d.serialNumber) not in self.loggingThreads:
-            lt = logger.LoggingThread(d)
+            lt = logger.LoggingThread(self, d.serialNumber)
             lt.start()
             self.loggingThreads[str(d.serialNumber)] = lt
             
@@ -294,6 +294,7 @@ class DeviceManager(object):
             else:
                 raise Exception("Unknown device type")
             
+            d.scanCache = (0, None)
             self.devices["%s" % dev['serial']] = d
         
         # Remove the disconnected devices
@@ -305,12 +306,18 @@ class DeviceManager(object):
     def scan(self, serial = None):
         dev = self.getDevice(serial)
         
-        if dev.devType == 3:
-            return self.u3Scan(dev)
-        elif dev.devType == 6:
-            return self.u6Scan(dev)
-        elif dev.devType == 9:
-            return self.ue9Scan(dev)
+        if (int(time.time()) - dev.scanCache[0]) >= 1:
+            if dev.devType == 3:
+                result = self.u3Scan(dev)
+            elif dev.devType == 6:
+                result = self.u6Scan(dev)
+            elif dev.devType == 9:
+                result = self.ue9Scan(dev)
+                
+            dev.scanCache = (int(time.time()), result)
+            return result
+        else:
+            return dev.scanCache[1]
     
 
     def readTimer(self, dev, timerNumber):
@@ -513,7 +520,6 @@ class DevicesPage:
             negChannel = the negative channel, only matters for analogIn type
             state = 1 for high, 0 for low. Only matters for digitalOut
         """
-        
         # Make a temp FIO with the new settings.
         inputConnection = FIO( int(inputNumber), "FIO%s" % inputNumber, chType, state, negChannel )
         
