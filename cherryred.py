@@ -7,12 +7,14 @@ Desc:
 
 # Imports
 import cherrypy
+import cherrypy.lib
 from cherrypy.lib.static import serve_file
+from Cheetah.Template import Template
 
 import xmppconnection, logger
 from fio import FIO
 
-import os.path, zipfile
+import os, os.path, zipfile
 
 import json, httplib2
 from urllib import urlencode
@@ -33,6 +35,8 @@ mimetypes.types_map['.ico']='image/x-icon'
 mimetypes.types_map['.bz2']='application/x-bzip2'
 mimetypes.types_map['.gz']='application/x-gzip'
 
+import gdata.docs.service
+import gdata.service
 
 # Function dictionaries:
 def buildLowerDict(aClass):
@@ -44,6 +48,9 @@ def buildLowerDict(aClass):
         if not key.startswith('_'):
             d[key.lower()] = key
     return d
+
+CLOUDDOT_GROUNDED_CONF = "./clouddotgrounded.conf"
+GOOGLE_DOCS_SCOPE = 'https://docs.google.com/feeds/'
 
 # Map all the functions to lower case.
 u3Dict = buildLowerDict(u3.U3)
@@ -688,9 +695,15 @@ def serve_file2(path):
         f = ZIP_FILE.open(path)
         body = "".join(f.readlines())
         f.close()
-        return body
+        if path.endswith(".tmpl"):
+            return Template(source=body)
+        else:
+            return body
     else:
-        return serve_file(os.path.join(current_dir,path))
+        if path.endswith(".tmpl"):
+            return Template(file=os.path.join(current_dir,path))
+        else:
+            return serve_file(os.path.join(current_dir,path))
 
 class UsersPage:
     """ A class for handling all things /users/
@@ -761,25 +774,92 @@ class UsersPage:
         raise cherrypy.HTTPRedirect("/users/")
     update.exposed = True
 
-class LoggingPage:
+class LoggingPage(object):
     """ A class for handling all things /log/
     """
     def __init__(self, dm):
         self.dm = dm
+        
+        self.gd_client = None
+        self.parser = ConfigParser.SafeConfigParser()
     
     def header(self):
         return "<html><body>"
     
     def footer(self):
         return "</body></html>"
+    
+    def loadSessionToken(self):
+        self.parser.read(CLOUDDOT_GROUNDED_CONF)
+        if self.parser.has_section("googledocs") and self.parser.has_option("googledocs", "session_token"):
+            token = self.parser.get("googledocs", "session_token")
+        
+            print "token = %s" % token
+        else:
+            return None
+        
+        if token and len(token) > 0:
+            return token
+        else:
+            return None
+            
+    def savetoken(self, filename, *args, **kwargs):
+        singleUseToken = kwargs['token']
+        self.gd_client.SetAuthSubToken(singleUseToken)
+        self.gd_client.UpgradeToSessionToken()
+        sessionToken = self.gd_client.GetAuthSubToken()
+        self.parser.set("googledocs", "session_token", str(sessionToken))
+        with open(CLOUDDOT_GROUNDED_CONF, 'wb') as configfile:
+            self.parser.write(configfile)
+
+        raise cherrypy.HTTPRedirect("/logs/upload/%s" % filename)
+        #return "called savetoken. filename = %s, sessionToken = %s" % (filename, sessionToken)
+        
+        
+    savetoken.exposed = True
+    
+    def upload(self, filename):
+        if self.gd_client is None:
+            self.gd_client = gdata.docs.service.DocsService()
+            token = self.loadSessionToken()
+            if token is None:
+                myHost =  cherrypy.config.get('server.socket_host')
+                if myHost == "0.0.0.0":
+                    myHost = "localhost"
+                myPort = cherrypy.config.get('server.socket_port')
+                next = 'http://%s:%s/logs/savetoken/%s' % (myHost, myPort, filename)
+                auth_sub_url = gdata.service.GenerateAuthSubRequestUrl(next, GOOGLE_DOCS_SCOPE, secure=False, session=True)
+                raise cherrypy.HTTPRedirect(auth_sub_url)
+            else:
+                self.gd_client.SetAuthSubToken(token, scopes=[GOOGLE_DOCS_SCOPE])
+        
+        csvPath = os.path.join(current_dir,"logfiles/%s" % filename)
+        csvFile = file(csvPath)
+        virtual_media_source = gdata.MediaSource(file_handle=csvFile, content_type='text/csv', content_length=os.path.getsize(csvPath))
+        db_entry = self.gd_client.UploadSpreadsheet(virtual_media_source, filename)
+        return "Upload: filename = %s" % filename
+    
+    upload.exposed = True
+
+    def getLogFiles(self):
+        l = []
+        files = os.listdir(os.path.join(current_dir,"logfiles"))
+        for filename in files:
+            aLog = dict(name = filename, url= "/logfiles/%s" % filename, uploadurl = "/logs/upload/%s" % filename)
+            l.append(aLog)
+        return l
 
     def index(self):
-        """ Handles /log/
+        """ Handles /logs/
         """
-        # Tell people (firefox) not to cash this page. 
+        # Tell people (firefox) not to cache this page. 
         cherrypy.response.headers['Cache-Control'] = "no-cache"
         
-        return serve_file2("html/log.html")
+        t = serve_file2("templates/logfiles.tmpl")
+        t.logfiles = self.getLogFiles()
+
+        return t.respond()
+        #return serve_file2("html/log.html")
         
     index.exposed = True
     
@@ -810,7 +890,7 @@ class RootPage:
         # Adds the DevicesPage child which handles all the device communication
         self.devices = DevicesPage(dm)
         
-        self.log = LoggingPage(dm)
+        self.logs = LoggingPage(dm)
         
         self.users = UsersPage(dm)
     
