@@ -34,6 +34,7 @@ mimetypes.types_map['.dwg']='image/x-dwg'
 mimetypes.types_map['.ico']='image/x-icon'
 mimetypes.types_map['.bz2']='application/x-bzip2'
 mimetypes.types_map['.gz']='application/x-gzip'
+mimetypes.types_map['.csv']='text/plain'
 
 import gdata.docs.service
 import gdata.service
@@ -83,6 +84,14 @@ def deviceAsDict(dev):
     
     return {'devType' : dev.devType, 'name' : name, 'serial' : dev.serialNumber, 'productName' : dev.deviceName, 'firmware' : firmware, 'localId' : dev.localId}
 
+
+def replaceUnderscoresWithColons(filename):
+    splitFilename = filename.split(" ")
+    replacedFilename = splitFilename[1].replace("__", ":").replace("__", ":")
+    splitFilename[1] = replacedFilename
+    newName = " ".join(splitFilename)
+    return newName
+
 # Class Definitions
 
 class DeviceManager(object):
@@ -116,17 +125,26 @@ class DeviceManager(object):
         else:
             return self.devices[serial]
     
-    def startDeviceLogging(self, serial):
+    def startDeviceLogging(self, serial, headers = None):
         d = self.getDevice(serial)
         
         if str(d.serialNumber) not in self.loggingThreads:
-            lt = logger.LoggingThread(self, d.serialNumber)
+            lt = logger.LoggingThread(self, d.serialNumber, d.getName(), headers)
             lt.start()
             self.loggingThreads[str(d.serialNumber)] = lt
             
             return True
         else:
-            return False
+            sn = str(d.serialNumber)
+            if self.loggingThreads[sn].headers != headers:
+                lt = self.loggingThreads[sn]
+                lt.stop()
+                if headers:
+                    lt = logger.LoggingThread(self, d.serialNumber, d.getName(), headers)
+                    lt.start()
+                    self.loggingThreads[str(d.serialNumber)] = lt
+            else:
+                return False
             
     def stopDeviceLogging(self, serial):
         d = self.getDevice(serial)
@@ -312,8 +330,8 @@ class DeviceManager(object):
 
     def scan(self, serial = None):
         dev = self.getDevice(serial)
-        
-        if (int(time.time()) - dev.scanCache[0]) >= 1:
+        now = int(time.time())
+        if (now - dev.scanCache[0]) >= 1:
             if dev.devType == 3:
                 result = self.u3Scan(dev)
             elif dev.devType == 6:
@@ -321,7 +339,7 @@ class DeviceManager(object):
             elif dev.devType == 9:
                 result = self.ue9Scan(dev)
                 
-            dev.scanCache = (int(time.time()), result)
+            dev.scanCache = (now, result)
             return result
         else:
             return dev.scanCache[1]
@@ -527,6 +545,11 @@ class DevicesPage:
             negChannel = the negative channel, only matters for analogIn type
             state = 1 for high, 0 for low. Only matters for digitalOut
         """
+        if negChannel and int(negChannel) < 30:
+            print "Setting %s to analog." % negChannel
+            inputConnection = FIO( int(negChannel), "FIO%s" % negChannel, chType, state, 31 )
+            self.dm.updateFio(serial, inputConnection)
+            
         # Make a temp FIO with the new settings.
         inputConnection = FIO( int(inputNumber), "FIO%s" % inputNumber, chType, state, negChannel )
         
@@ -829,29 +852,29 @@ class LoggingPage(object):
             self.gd_client = gdata.docs.service.DocsService()
             token = self.loadSessionToken()
             if token is None:
-                myHost =  cherrypy.config.get('server.socket_host')
-                if myHost == "0.0.0.0":
-                    myHost = "localhost"
-                myPort = cherrypy.config.get('server.socket_port')
-                next = 'http://%s:%s/logs/savetoken/%s' % (myHost, myPort, filename)
+                next = '%s/logs/savetoken/%s' % (cherrypy.request.base, filename)
                 auth_sub_url = gdata.service.GenerateAuthSubRequestUrl(next, GOOGLE_DOCS_SCOPE, secure=False, session=True)
                 raise cherrypy.HTTPRedirect(auth_sub_url)
             else:
                 self.gd_client.SetAuthSubToken(token, scopes=[GOOGLE_DOCS_SCOPE])
         
+        googleDocName = replaceUnderscoresWithColons(filename)
+        
         csvPath = os.path.join(current_dir,"logfiles/%s" % filename)
         csvFile = file(csvPath)
         virtual_media_source = gdata.MediaSource(file_handle=csvFile, content_type='text/csv', content_length=os.path.getsize(csvPath))
-        db_entry = self.gd_client.UploadSpreadsheet(virtual_media_source, filename)
-        return "Upload: filename = %s" % filename
+        db_entry = self.gd_client.UploadSpreadsheet(virtual_media_source, googleDocName)
+        return "Upload: filename = %s" % googleDocName
     
     upload.exposed = True
 
     def getLogFiles(self):
         l = []
-        files = os.listdir(os.path.join(current_dir,"logfiles"))
+        files = sorted(os.listdir(os.path.join(current_dir,"logfiles")), reverse = True)
         for filename in files:
-            aLog = dict(name = filename, url= "/logfiles/%s" % filename, uploadurl = "/logs/upload/%s" % filename)
+            newName = replaceUnderscoresWithColons(filename)
+            
+            aLog = dict(name = newName, url= "/logfiles/%s" % filename, uploadurl = "/logs/upload/%s" % filename)
             l.append(aLog)
         return l
 
@@ -869,12 +892,28 @@ class LoggingPage(object):
         
     index.exposed = True
     
-    def start(self, serial = None):
+    def test(self):
+        cherrypy.response.headers['Cache-Control'] = "no-cache"
+        
+        t = serve_file2("templates/testlog.tmpl")
+        
+        devs = list()
+        for d in self.dm.devices.values():
+            devs.append({"name" : d.getName(), "serial" : d.serialNumber})
+        
+        t.devices = devs
+
+        return t.respond()
+    test.exposed = True
+    
+    def start(self, serial = None, headers = None):
         if serial is None:
             print "serial is null"
             return False
         else:
-            self.dm.startDeviceLogging(serial)
+            if headers:
+                headers = header.split(",")
+            self.dm.startDeviceLogging(serial, headers = headers)
     start.exposed = True
     
     def stop(self, serial = None):
@@ -971,6 +1010,9 @@ def quickstartWithBrowserOpen(root=None, script_name="", config=None):
 # Main:
 if __name__ == '__main__':
     dm = DeviceManager()
+    
+    if not os.path.isdir("./logfiles"):
+        os.mkdir("./logfiles")
     
     if not IS_FROZEN:
         # not frozen: in regular python interpreter

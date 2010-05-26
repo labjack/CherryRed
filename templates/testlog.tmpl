@@ -1,0 +1,5 @@
+<ul>
+    #for $device in $devices
+        <li>$device.name <span><a href="/logs/start?serial=$device.serial">Start Logging</a></span> <span><a href="/logs/stop?serial=$device.serial">Stop Logging</a></span></li>
+    #end for
+</ul>
