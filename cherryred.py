@@ -111,11 +111,19 @@ class DeviceManager(object):
         
         cherrypy.engine.subscribe('stop', self.shutdownThreads)
         
+        self.usbOverride = False
+        
         try:
             self.updateDeviceDict()
             self.connected = True
         except Exception:
-            self.connected = False
+            try:
+                self.usbOverride = True
+                self.updateDeviceDict()
+                self.connected = True
+            except Exception:
+                self.connected = False
+            
         
         print self.devices
     
@@ -143,6 +151,7 @@ class DeviceManager(object):
                     lt = logger.LoggingThread(self, d.serialNumber, d.getName(), headers)
                     lt.start()
                     self.loggingThreads[str(d.serialNumber)] = lt
+                    return True
             else:
                 return False
             
@@ -272,8 +281,34 @@ class DeviceManager(object):
         
     
     def updateDeviceDict(self):
-        ljsocketAddress = "%s:%s" % (self.address, self.port)
-        devs = LabJackPython.listAll(ljsocketAddress, 200)
+    
+        if self.usbOverride:
+            ljsocketAddress = None
+            devs = list()
+            
+            devCount = LabJackPython.deviceCount(None)
+            
+            for serial, dev in self.devices.items():
+                dev.close()
+                self.devices.pop(str(serial))
+            
+            devsObj = LabJackPython.listAll(3)
+            for dev in devsObj.values():
+                devs.append({"serial" : dev["serialNumber"], "prodId" : dev["devType"]})
+            
+            devsObj = LabJackPython.listAll(6)
+            for dev in devsObj.values():
+                devs.append({"serial" : dev["serialNumber"], "prodId" : dev["devType"]})
+            
+            devsObj = LabJackPython.listAll(9)
+            for dev in devsObj.values():
+                devs.append({"serial" : dev["serialNumber"], "prodId" : dev["devType"]})
+                
+            print devs
+                
+        else:
+            ljsocketAddress = "%s:%s" % (self.address, self.port)
+            devs = LabJackPython.listAll(ljsocketAddress, 200)
         
         serials = list()
         
@@ -325,6 +360,7 @@ class DeviceManager(object):
         # Remove the disconnected devices
         for serial in self.devices.keys():
             if serial not in serials:
+                print "Removing device with serial = %s" % serial
                 self.devices[str(serial)].close()
                 self.devices.pop(str(serial))
 
@@ -952,13 +988,13 @@ class RootPage:
             return serve_file2("html/connect.html")
     index.exposed = True
     
-    def retry(self, address = "localhost", port = "6000"):
+    def retry(self, address = "localhost", port = "6000", usbOverride = ""):
         """ The retry endpoint is for trying to connect to LJSocket.
             No matter what happens it will redirect you to '/'.
         """
         self.dm.address = address
         self.dm.port = port
-        
+        self.dm.usbOverride = bool(usbOverride)
         try:
             self.dm.updateDeviceDict()
             self.dm.connected = True
