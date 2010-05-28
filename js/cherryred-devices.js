@@ -15,6 +15,7 @@ $(document).ready(function() {
     $("#tabs").tabs();
     setupTestPanelConnectionLinks();
     setupDialog();
+    setupLogCheckboxes();
     getDeviceList();
 });
 
@@ -42,6 +43,13 @@ function dialogDone() {
     $("#dialog").dialog("close");
     callScan();
     restartScanning();
+}
+
+function setupLogCheckboxes() {
+    $(".log-checkbox").live('click', function() {
+        console.log("setupLogCheckboxes: clicked");
+        $(this).closest("tr").addClass("ui-state-highlight");
+    });
 }
 
 function clearSparklineIfNeeded(oldState, newState, fioNumber) {
@@ -199,6 +207,7 @@ function sparklineMinMax(sparklineType) {
 
 
 function callScan() {
+    $("#scan-bar .scanning-indicator").addClass("ui-icon ui-icon-bullet");
     $.ajax({
         url: "/devices/scan", 
         data: {serial : currentSerialNumber}, 
@@ -209,6 +218,8 @@ function callScan() {
 
 function handleScan(data) {
     
+    $("#scan-bar .scanning-indicator").removeClass("ui-icon ui-icon-bullet");
+
     if (showingTestPanel == false) {
         
         $("#test-panel-table").jqGrid({
@@ -223,7 +234,7 @@ function handleScan(data) {
           multiselect: false,
           caption: "Test Panel",
           beforeSelectRow : function() { return false; }
-        }).selectable( "option", "disabled", true );
+        });
 
 
         var count = 0;
@@ -241,12 +252,13 @@ function handleScan(data) {
             }
             
             
-            var obj = { connection : "<a href='#' class='test-panel-connection-link' inputConnection='"+count+"' title='Configure " + thisConnection + "'>"+thisConnection+"</a>", state: "<span class='test-panel-sparkline " + thisChType + "'></span>" + "<span class='test-panel-state'>"+thisState + "</span>", log: "<input type='checkbox' />"};
+            var obj = { connection : "<a href='#' class='test-panel-connection-link' inputConnection='"+count+"' title='Configure " + thisConnection + "'>"+thisConnection+"</a>", state: "<span class='test-panel-sparkline " + thisChType + "'></span>" + "<span class='test-panel-state'>"+thisState + "</span>", log: "<input type='checkbox' class='log-checkbox' />"};
 
+/*
             if (thisChType == "digitalOut") {
                 obj.state += "<a href='#' class='digital-out-toggle-link' inputConnection='"+count+"' title='Toggle the state of this output'>Toggle</a>";
             }
-
+*/
             $("#test-panel-table").jqGrid('addRowData', count, obj);
             count++;
         }
@@ -266,17 +278,17 @@ function handleScan(data) {
                 sparklineDataMap[count].splice(0,1);
             }
             
-            /*
+            
             if (thisChType == "digitalOut") {
                 thisState = thisState + "<a href='#' class='digital-out-toggle-link' inputConnection='"+count+"' title='Toggle the state of this output'>Toggle</a>";
             }
-            */
             
-            var obj = { connection : "<a href='#' class='test-panel-connection-link' inputConnection='"+count+"' title='Configure " + thisConnection + "'>"+thisConnection+"</a>", state: "<span class='test-panel-sparkline " + thisChType + "'></span>" + "<span class='test-panel-state'>"+thisState + "</span>" };
+            
+
             //$("#test-panel-table").jqGrid('setRowData', count, obj);
             $(selectorCount + " .test-panel-connection-link").text(thisConnection);
             //console.log(selectorCount + " .test-panel-state");
-            $(selectorCount + " .test-panel-state").text(thisState);
+            $(selectorCount + " .test-panel-state").html(thisState);
             $(selectorCount + " .test-panel-sparkline").removeClass().addClass("test-panel-sparkline " + thisChType);
             count++;
         }
@@ -312,8 +324,8 @@ function handleMoreInfo(data) {
     $("#more-info-pane").empty();
     $("#more-info-template").jqote(data).appendTo($("#more-info-pane"));
     
-    $("#top-bar").empty();
-    $("#scanning-device-template").jqote(data).appendTo($("#top-bar"));
+    $("#scan-bar").empty();
+    $("#scanning-device-template").jqote(data).appendTo($("#scan-bar"));
 
     currentSerialNumber = data.serial;
 
@@ -335,6 +347,7 @@ function handleDeviceList(data) {
     $("#device-name-list").selectable({
         selected: function(event, ui) { 
             $(ui.selected).addClass("ui-helper-reset ui-widget-header");
+            location.href = "#" + ui.selected.id;
             handleSelectDevice(event, ui);
         }
     });
