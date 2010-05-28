@@ -464,12 +464,12 @@ class DeviceManager(object):
             name = dev.getName()
             devices[str(dev.serialNumber)] = name
         
-        return json.dumps(devices)
+        return devices
         
     def details(self, serial):
         dev = self.devices[serial]
         
-        return json.dumps( deviceAsDict(dev) )
+        return deviceAsDict(dev)
         
     def setFioState(self, serial, fioNumber, state):
         dev = self.getDevice(serial)
@@ -539,7 +539,14 @@ class DevicesPage:
         self.dm.updateDeviceDict()
         
         cherrypy.response.headers['content-type'] = "application/json"
-        return self.dm.listAll()
+        devices = self.dm.listAll()
+        
+        t = serve_file2("templates/devices.tmpl")
+        t.devices = devices
+        
+        devices['html'] = t.respond()
+        
+        return json.dumps(devices)
         
     index.exposed = True
     
@@ -554,7 +561,15 @@ class DevicesPage:
         """
         if cmd is None:
             cherrypy.response.headers['content-type'] = "application/json"
-            yield self.dm.details(serial)
+            
+            returnDict = self.dm.details(serial)
+            
+            t = serve_file2("templates/device-details.tmpl")
+            t.device = returnDict
+            
+            returnDict['html'] = t.respond()
+            
+            yield json.dumps( returnDict )
         else:
             # TODO: Make this return a JSON
             yield self.header()
