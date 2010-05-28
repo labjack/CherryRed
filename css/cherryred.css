@@ -33,6 +33,9 @@ body {
   min-height: 400px;
   padding-left: 0.5em;
 }
+#list-pane h2 {
+  margin-bottom: 0;
+}
 #more-info-pane {
   background-color: #aaa;
   min-height: 180px;
@@ -47,12 +50,13 @@ body {
     float: right;
 }
 
-#top-bar {
-    text-align: center;
-}
-
-#top-bar p {
+#scan-bar p,
+#scan-bar span {
     margin: 2px 0;
+}
+#scan-bar span {
+    width: 16px;
+    float: left;
 }
 
 /* Devices */
@@ -105,8 +109,7 @@ a.digital-out-toggle-link.toggling {
     font-style: italic;
 }
 
-.ui-state-hover a.digital-out-toggle-link,
-.ui-state-highlight a.digital-out-toggle-link {
+.ui-state-hover a.digital-out-toggle-link {
     display: inline;
 }
 
