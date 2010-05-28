@@ -13,11 +13,56 @@ var sparklineDigitalOutOptions = {type:'bar', height: "15px", barColor: "#CC0000
 
 $(document).ready(function() {
     $("#tabs").tabs();
+    setupHashChange();    
     setupTestPanelConnectionLinks();
     setupDialog();
     setupLogCheckboxes();
     getDeviceList();
 });
+
+function setupHashChange() {
+  // Override the default behavior of all `a` elements so that, when
+  // clicked, their `href` value is pushed onto the history hash
+  // instead of being navigated to directly.
+  $("#device-name-list a").live('click', function(){
+    //console.log("setupHashChange: clicked");
+    var href = $(this).attr( "href" );
+
+    // Push this device "state" onto the history hash.
+    $.bbq.pushState({ d: href });
+
+    // Prevent the default click behavior.
+    return false;
+  });
+
+  // Bind a callback that executes when document.location.hash changes.
+  $(window).bind("hashchange", urlHashChange);
+
+  // Since the event is only triggered when the hash changes, we need
+  // to trigger the event now, to handle the hash the page may have
+  // loaded with.
+  $(window).trigger( "hashchange" );
+}
+
+function urlHashChange(e) {
+    stopScanning();
+    //sparklineDataMap = {};
+    // In jQuery 1.4, use e.getState( "url" );
+    var serialNumber = e.getState( "d" );
+    highlightCurrentSerialNumber(serialNumber);
+
+    //console.log(" urlHashChange d = " + serialNumber );
+    if (serialNumber) {
+        handleSelectDevice(serialNumber);
+    } else {
+        $("#tabs").hide();
+    }
+}
+
+function highlightCurrentSerialNumber(serialNumber) {
+    $("#device-name-list li").removeClass("ui-helper-reset ui-widget-header");
+    $("#"+serialNumber).closest("li").addClass("ui-helper-reset ui-widget-header");
+}
 
 function stopScanning() {
     if (refreshId != null) {
@@ -47,8 +92,8 @@ function dialogDone() {
 
 function setupLogCheckboxes() {
     $(".log-checkbox").live('click', function() {
-        console.log("setupLogCheckboxes: clicked");
-        $(this).closest("tr").addClass("ui-state-highlight");
+        //console.log("setupLogCheckboxes: clicked");
+        $(this).closest("tr").toggleClass("ui-state-highlight");
     });
 }
 
@@ -254,11 +299,6 @@ function handleScan(data) {
             
             var obj = { connection : "<a href='#' class='test-panel-connection-link' inputConnection='"+count+"' title='Configure " + thisConnection + "'>"+thisConnection+"</a>", state: "<span class='test-panel-sparkline " + thisChType + "'></span>" + "<span class='test-panel-state'>"+thisState + "</span>", log: "<input type='checkbox' class='log-checkbox' />"};
 
-/*
-            if (thisChType == "digitalOut") {
-                obj.state += "<a href='#' class='digital-out-toggle-link' inputConnection='"+count+"' title='Toggle the state of this output'>Toggle</a>";
-            }
-*/
             $("#test-panel-table").jqGrid('addRowData', count, obj);
             count++;
         }
@@ -288,6 +328,7 @@ function handleScan(data) {
             //$("#test-panel-table").jqGrid('setRowData', count, obj);
             $(selectorCount + " .test-panel-connection-link").text(thisConnection);
             //console.log(selectorCount + " .test-panel-state");
+            //console.log(thisState);
             $(selectorCount + " .test-panel-state").html(thisState);
             $(selectorCount + " .test-panel-sparkline").removeClass().addClass("test-panel-sparkline " + thisChType);
             count++;
@@ -321,36 +362,41 @@ function handleScan(data) {
 }
 
 function handleMoreInfo(data) {
-    $("#more-info-pane").empty();
-    $("#more-info-template").jqote(data).appendTo($("#more-info-pane"));
+    $("#more-info-pane").html(data.html);
     
     $("#scan-bar").empty();
     $("#scanning-device-template").jqote(data).appendTo($("#scan-bar"));
 
     currentSerialNumber = data.serial;
+    highlightCurrentSerialNumber(currentSerialNumber);
 
     callScan();
 }
 
-function handleSelectDevice(event, ui) {
-    var serialNumber = ui.selected.id;
-    $.get("/devices/" + serialNumber, {}, handleMoreInfo, "json");
-
-    $("#tabs").show();  
+function handleSelectDevice(serialNumber) {
+    if (serialNumber) {
+        $.get("/devices/" + serialNumber, {}, handleMoreInfo, "json");
+    
+        $("#tabs").show();   
+    } else {
+        //console.log("no serialNumber");
+    }
 }
   
 function handleDeviceList(data) {
-    for (var d in data) {
-    var obj = { name: data[d], serial : d };
-        $("#device-template").jqote(obj).appendTo($("#device-name-list"));
+    $("#device-name-list").html(data.html);
+    if (currentSerialNumber) {
+        highlightCurrentSerialNumber(currentSerialNumber);
     }
-    $("#device-name-list").selectable({
+/*
+    selectable({
         selected: function(event, ui) { 
             $(ui.selected).addClass("ui-helper-reset ui-widget-header");
             location.href = "#" + ui.selected.id;
             handleSelectDevice(event, ui);
         }
     });
+*/
 }
   
   
