@@ -7,7 +7,7 @@ import os
 import glob
 from py2exe.build_exe import py2exe as build_exe
 
-CONTENT_DIRS = [ "css", "html", "js" ]
+CONTENT_DIRS = [ "css", "html", "js", "templates" ]
 EXTRA_FILES = [ "./cherryred.conf" ]
 
 class MediaCollector(build_exe):
@@ -44,7 +44,7 @@ setup(
         "py2exe":{
             "bundle_files" : 1,
             "excludes" : ["Tkinter", "Tkconstants", "tcl"],
-            "data_files" : CONTENT_DIRS+EXTRA_FILES
+            "includes" : ["Cheetah", "Cheetah.DummyTransaction"]
         }
     },
     cmdclass={'py2exe': MediaCollector},

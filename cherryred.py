@@ -706,6 +706,36 @@ if IS_FROZEN:
     # All of this depends on us being 'frozen' in an executable.
     ZIP_FILE = zipfile.ZipFile(os.path.abspath(sys.executable), 'r')    
 
+    def renderFromLocalFile(filepath):
+        # Figure out the content type from the file extension.
+        ext = ""
+        i = filepath.rfind('.')
+        if i != -1:
+            ext = filepath[i:].lower()
+        content_type = mimetypes.types_map.get(ext, None)
+        
+        # Set or remove the content type
+        if content_type is not None:
+            cherrypy.response.headers['Content-Type'] = content_type
+        else:
+            cherrypy.response.headers.pop('Content-Type')
+        
+        try:
+            # Open up the file and read it into the response body
+            f = open(filepath)
+            cherrypy.response.body = "".join(f.readlines())
+            f.close()
+            print "Body set, returning true"
+            
+            # Tell CherryPy we got this one
+            return True
+        except Exception, e: 
+            print "Got Exception in renderFromLocalFile: %s" % e
+            
+            # Tell CherryPy we didn't render and it should try.
+            return False
+
+
     def renderFromZipFile():
         """ renderFromZipFile handles pulling static files out of the ZipFile
             and rendering them like nothing happened. 
@@ -718,9 +748,15 @@ if IS_FROZEN:
         
         # Check if the file being requested is in the ZipFile
         if filepath not in ZIP_FILE.namelist():
-            print "%s not in name list."
-            # If it isn't then we pass the responsibility on.
-            return False
+            print "%s not in name list." % filepath
+            
+            # Check if the file is local
+            localAbsPath = os.path.join(current_dir,filepath)
+            if filepath.startswith("logfiles") and os.path.exists(localAbsPath):
+                return renderFromLocalFile(localAbsPath)
+            else:
+                # If it isn't then we pass the responsibility on.
+                return False
         
         # Figure out the content type from the file extension.
         ext = ""
