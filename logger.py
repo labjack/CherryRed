@@ -71,8 +71,15 @@ class LoggingThread(object):
         self._rescheduleTimer()
         
         result = self.dm.scan(self.serial)[1]
-        values = [ None ] * (len(result)+1)
-        values[0] = datetime.now()
-        for i, connection in enumerate(result):
-            values[i+1] = connection['value']
+        if self.headers:
+            values = []
+            values.append(datetime.now())
+            for i, connection in enumerate(result):
+                if connection["connection"] in self.headers:
+                    values.append(connection['value'])
+        else:
+            values = [ None ] * (len(result)+1)
+            values[0] = datetime.now()
+            for i, connection in enumerate(result):
+                values[i+1] = connection['value']
         self.csvWriter.writerow(values)

@@ -46,7 +46,9 @@ function setupHashChange() {
 
 function urlHashChange(e) {
     stopScanning();
-    //sparklineDataMap = {};
+    sparklineDataMap = {};
+    showingTestPanel = false;
+    $("#test-panel-table").empty();
     // In jQuery 1.4, use e.getState( "url" );
     var serialNumber = e.getState( "d" );
     highlightCurrentSerialNumber(serialNumber);
@@ -91,10 +93,22 @@ function dialogDone() {
 }
 
 function setupLogCheckboxes() {
-    $(".log-checkbox").live('click', function() {
+    $(".log-checkbox").live('click', findCheckedCheckboxes);
+}
+
+function findCheckedCheckboxes() {
         //console.log("setupLogCheckboxes: clicked");
-        $(this).closest("tr").toggleClass("ui-state-highlight");
-    });
+        var logList = [];
+        $(".log-checkbox:not(:checked)").each(function() {
+            $(this).closest("tr").removeClass("ui-state-highlight");
+        });
+        $(".log-checkbox:checked").each(function() {
+            var textVal = $(this).closest("tr").addClass("ui-state-highlight").find(".test-panel-connection-link").text();
+            logList.push(textVal);
+        });
+        logList = logList.join(",");
+        $("#log-bar").text("Logging " + logList);
+        $.get("/logs/start", {serial : currentSerialNumber, headers : logList}, function(data) {console.log(data)}, "json");
 }
 
 function clearSparklineIfNeeded(oldState, newState, fioNumber) {
@@ -127,6 +141,50 @@ function getInputInfo(inputConnection) {
 function handleInputInfo(inputInfoJson) {
     //console.log(inputInfoJson);
     $("#dialog").empty();
+
+    // Check for DAC0 or DAC1    
+    if (inputInfoJson.connectionNumber == 5000 || inputInfoJson.connectionNumber == 5002) {
+        $("#dialog").html(inputInfoJson.html);
+        $("#dac-slider").slider({
+                 range: "min",
+                    value:inputInfoJson.state,
+                    min: 0,
+                    max: 5,
+                    step: 0.01,
+                    slide: function(event, ui) {
+                        $("#dac-value").val(ui.value);
+                    }
+                });
+        $("#dac-value").val($("#dac-slider").slider("value")).blur(function() {
+            var newValue = $(this).val();
+            if (newValue >=0 && newValue <= 5.0) {
+                $("#dac-slider").slider("option", "value", $(this).val());
+            }
+        });
+        $("#dac-form").submit(function() {
+            var newValue = $("#dac-value").val();
+            console.log(newValue);
+            if (newValue >=0 && newValue <= 5.0) {
+                $.get("/devices/" + currentSerialNumber + "/writeregister", {addr : inputInfoJson.connectionNumber, value : newValue}, function (data) {console.log(data); return true;}, "json");
+            }
+            restartScanning();
+            $("#dialog").dialog('close');
+            return false;
+        });
+
+        $("#dialog").dialog('option', 'title', inputInfoJson.label);
+        $("#dialog").dialog('option', 'width', 425);
+        $("#dialog").dialog('option', 'buttons', { 
+            "Save": function() {
+                $("#dac-form").submit();
+            },
+            "Cancel": dialogDone
+        });
+        $("#dialog").dialog('open');
+        return;
+    }
+
+    // Device-specific connnections    
     if (inputInfoJson.device.devType == 3) {
         if (inputInfoJson.device.productName == "U3-HV" && inputInfoJson.fioNumber < 4) {
             $("#u3-hv-analog-connection-dialog").jqote().appendTo($("#dialog"));
@@ -285,7 +343,8 @@ function handleScan(data) {
         var count = 0;
         for (var d in data) {
 
-            var thisConnection = data[d].connection;
+            var connectionText = data[d].connection;
+            var connectionNumber = data[d].connectionNumber;
             var thisState = data[d].state;
             var thisValue = data[d].value;
             var thisChType = data[d].chType;
@@ -297,7 +356,7 @@ function handleScan(data) {
             }
             
             
-            var obj = { connection : "<a href='#' class='test-panel-connection-link' inputConnection='"+count+"' title='Configure " + thisConnection + "'>"+thisConnection+"</a>", state: "<span class='test-panel-sparkline " + thisChType + "'></span>" + "<span class='test-panel-state'>"+thisState + "</span>", log: "<input type='checkbox' class='log-checkbox' />"};
+            var obj = { connection : "<a href='#' class='test-panel-connection-link' inputConnection='"+connectionNumber+"' title='Configure " + connectionText + "'>"+connectionText+"</a>", state: "<span class='test-panel-sparkline " + thisChType + "'></span>" + "<span class='test-panel-state'>"+thisState + "</span>", log: "<input type='checkbox' class='log-checkbox' />"};
 
             $("#test-panel-table").jqGrid('addRowData', count, obj);
             count++;
@@ -308,7 +367,8 @@ function handleScan(data) {
         var count = 0;
         for (var d in data) {          
             var selectorCount = "#" + count;
-            var thisConnection = data[d].connection;
+            var connectionText = data[d].connection;
+            var connectionNumber = data[d].connectionNumber;
             var thisState = data[d].state;
             var thisValue = data[d].value;
             var thisChType = data[d].chType;
@@ -320,13 +380,13 @@ function handleScan(data) {
             
             
             if (thisChType == "digitalOut") {
-                thisState = thisState + "<a href='#' class='digital-out-toggle-link' inputConnection='"+count+"' title='Toggle the state of this output'>Toggle</a>";
+                thisState = thisState + "<a href='#' class='digital-out-toggle-link' inputConnection='"+connectionNumber+"' title='Toggle the state of this output'>Toggle</a>";
             }
             
             
 
             //$("#test-panel-table").jqGrid('setRowData', count, obj);
-            $(selectorCount + " .test-panel-connection-link").text(thisConnection);
+            $(selectorCount + " .test-panel-connection-link").text(connectionText);
             //console.log(selectorCount + " .test-panel-state");
             //console.log(thisState);
             $(selectorCount + " .test-panel-state").html(thisState);
@@ -336,7 +396,7 @@ function handleScan(data) {
     }
 
     $('.test-panel-sparkline').each(function(i) {
-        var thisConnection = data[i].connection;
+        var connectionText = data[i].connection;
         var chartMinMax = sparklineMinMax(data[i].chType);
         var sparklineOptions;
         if ($(this).hasClass("analogIn")) {
@@ -388,15 +448,6 @@ function handleDeviceList(data) {
     if (currentSerialNumber) {
         highlightCurrentSerialNumber(currentSerialNumber);
     }
-/*
-    selectable({
-        selected: function(event, ui) { 
-            $(ui.selected).addClass("ui-helper-reset ui-widget-header");
-            location.href = "#" + ui.selected.id;
-            handleSelectDevice(event, ui);
-        }
-    });
-*/
 }
   
   

@@ -121,6 +121,7 @@ class FIO(object):
     def parseAinResults(self, state):
         infoDict = dict()
         infoDict['connection'] = self.label
+        infoDict['connectionNumber'] = self.fioNumber
         infoDict['state'] = "%0.5f" % state
         infoDict['value'] = "%0.5f" % state # Use state for 'state' and 'value'
         infoDict['chType'] = self.chType
@@ -145,6 +146,7 @@ class FIO(object):
             fioStateText = "High"
         
         infoDict = {'connection' : self.label, 'state' : "%s %s" % (fioDirText, fioStateText), 'value' : "%s" % fioState}
+        infoDict['connectionNumber'] = self.fioNumber
         infoDict['chType'] = (DIGITAL_IN_TYPE if fioDir == 0 else DIGITAL_OUT_TYPE)
         
         return infoDict

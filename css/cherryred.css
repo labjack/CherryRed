@@ -7,7 +7,7 @@
 a { color: black; }
 
 
-#tabs { display: none ; min-height: 850px; border: 2px solid #A20000; }
+#tabs { display: none ; min-height: 450px; border: 2px solid #A20000; }
 
 #more-info-pane { padding: 10px; }
 #more-info-pane p { font-size: 110%; margin-bottom: 5px; }
@@ -21,6 +21,7 @@ a { color: black; }
 .ui-jqgrid { font-size: 120%; }
 .ui-jqgrid .ui-jqgrid-htable th div { height:27px; }
 .ui-jqgrid .ui-jqgrid-titlebar { display: none; }
+.ui-dialog { -moz-box-shadow: 5px 5px 15px #333333; -webkit-box-shadow: 5px 5px 15px #333333; box-shadow: 5px 5px 15px #333333;}
 
 body {
   min-width: 960px;
