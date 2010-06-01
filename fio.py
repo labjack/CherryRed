@@ -1,3 +1,5 @@
+import u6, u3, ue9
+
 ANALOG_TYPE = "analogIn"
 DIGITAL_OUT_TYPE = "digitalOut"
 DIGITAL_IN_TYPE = "digitalIn"
@@ -37,6 +39,22 @@ class FIO(object):
         """ Returns a dictionary representation of a FIO
         """
         return { "fioNumber" : self.fioNumber, "chType" : self.chType, "label" : self.label, "negChannel" : self.negChannel, "state": self.state, 'gainIndex' : self.gainIndex, 'resolutionIndex' : self.resolutionIndex, 'settlingFactor' : self.settlingFactor }
+        
+    def makeFeedbackCommand(self, dev):
+        if self.chType == ANALOG_TYPE:
+            if dev.devType == 3:
+                return u3.AIN(self.fioNumber, NegativeChannel = self.negChannel, LongSettling = self.gainIndex, QuickSample = self.settlingFactor)
+            elif dev.devType == 6:
+                diff = False
+                if self.negChannel != 31:
+                    diff = True 
+                
+                return u6.AIN24(self.fioNumber, ResolutionIndex = self.resolutionIndex, GainIndex = self.gainIndex, Differential = diff)
+        else:
+            if dev.devType == 3:
+                return u3.BitStateRead(self.fioNumber)
+            elif dev.devType == 6:
+                return u6.BitStateRead(self.fioNumber)
         
     def transform(self, dev, inputConnection):
         """ Converts a FIO to match a given FIO

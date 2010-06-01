@@ -21,7 +21,7 @@ from urllib import urlencode
 
 import sys, time
 
-import StringIO, ConfigParser
+import cStringIO as StringIO, ConfigParser
 
 import LabJackPython, u3, u6, ue9
 from Autoconvert import autoConvert
@@ -64,13 +64,40 @@ LJSOCKET_PORT = "6000"
 ANALOG_TYPE = "analogIn"
 DIGITAL_OUT_TYPE = "digitalOut"
 DIGITAL_IN_TYPE = "digitalIn"
-    
+
+DAC_DICT = { 5000: "DAC0", 5002: "DAC1" }
+
 if not getattr(sys, 'frozen', ''):
     # not frozen: in regular python interpreter
     IS_FROZEN = False
 else:
     # py2exe: running in an executable
     IS_FROZEN = True
+
+# Create some decorator methods for functions.
+def exposeRawFunction(f):
+    """ Simply exposes the function """
+    f.exposed = True
+    return f
+
+def exposeJsonFunction(f):
+    """
+    Creates and exposes a function which will JSON encode the output of the
+    passed in function.
+    """
+    def jsonFunction(self, *args, **kwargs):
+        cherrypy.response.headers['content-type'] = "application/json"
+        result = f(self, *args, **kwargs)
+        return json.dumps(result)
+        
+    jsonFunction.exposed = True
+    return jsonFunction
+
+
+def kelvinToFahrenheit(value):
+    """Converts Kelvin to Fahrenheit"""
+    # F = K * (9/5) - 459.67
+    return value * (9.0/5.0) - 459.67
 
 def deviceAsDict(dev):
     """ Returns a dictionary representation of a device.
@@ -186,7 +213,14 @@ class DeviceManager(object):
     
     def getFioInfo(self, serial, inputNumber):
         dev = self.getDevice(serial)
-        returnDict = dev.fioList[inputNumber].asDict()
+        
+        if inputNumber in DAC_DICT.keys():
+            returnDict = { "state" : dev.readRegister(inputNumber), "label" : DAC_DICT[inputNumber], "connectionNumber" : inputNumber }
+            t = serve_file2("templates/dac.tmpl")
+            t.dac = returnDict
+            returnDict['html'] = t.respond()
+        else:
+            returnDict = dev.fioList[inputNumber].asDict()
         
         # devType, productName
         returnDict['device'] = deviceAsDict(dev)
@@ -414,13 +448,14 @@ class DeviceManager(object):
             
         if ioResults['EnableCounter1']:
             results.append( self.readCounter(dev, 1) )
+
+        for register, label in DAC_DICT.items():
+            dacState = dev.readRegister(register)
+            results.append({'connection' : label, 'connectionNumber' : register, 'state' : "%0.5f" % dacState, 'value' : "%0.5f" % dacState})
         
-        dac0State = dev.readRegister(5000)
-        dac1State = dev.readRegister(5002)
-        results.append({'connection' : "DAC0", 'state' : "%0.5f" % dac0State, 'value' : "%0.5f" % dac0State})
-        results.append({'connection' : "DAC1", 'state' : "%0.5f" % dac1State, 'value' : "%0.5f" % dac1State})
-        
-        internalTemp = dev.readRegister(60) - 273.15
+        # Returns Kelvin, converting to Fahrenheit
+        # F = K * (9/5) - 459.67
+        internalTemp = kelvinToFahrenheit(dev.readRegister(60))
         results.append({'connection' : "InternalTemp", 'state' : "%0.5f" % internalTemp, 'value' : "%0.5f" % internalTemp, 'chType' : "internalTemp"}) 
         
         return dev.serialNumber, results
@@ -447,12 +482,11 @@ class DeviceManager(object):
             
             results.append( fio.parseFioResults(direction, state) )
         
-        dac0State = dev.readRegister(5000)
-        dac1State = dev.readRegister(5002)
-        results.append({'connection' : "DAC0", 'state' : "%0.5f" % dac0State, 'value' : "%0.5f" % dac0State})
-        results.append({'connection' : "DAC1", 'state' : "%0.5f" % dac1State, 'value' : "%0.5f" % dac1State})
+        for register, label in DAC_DICT.items():
+            dacState = dev.readRegister(register)
+            results.append({'connection' : label, 'connectionNumber' : register, 'state' : "%0.5f" % dacState, 'value' : "%0.5f" % dacState})
         
-        internalTemp = dev.readRegister(28) - 273.15
+        internalTemp = kelvinToFahrenheit(dev.readRegister(28))
         results.append({'connection' : "InternalTemp", 'state' : "%0.5f" % internalTemp, 'value' : "%0.5f" % internalTemp, 'chType' : "internalTemp"})
         
         
@@ -521,7 +555,7 @@ class DeviceManager(object):
         
         return deviceAsDict(dev), dev.__getattribute__(classDict[funcName])(*pargs, **kwargs)
 
-class DevicesPage:
+class DevicesPage(object):
     """ A class for handling all things /devices/
     """
     def __init__(self, dm):
@@ -533,12 +567,12 @@ class DevicesPage:
     def footer(self):
         return "</body></html>"
 
+    @exposeJsonFunction
     def index(self):
         """ Handles /devices/, returns a JSON list of all known devices.
         """
         self.dm.updateDeviceDict()
         
-        cherrypy.response.headers['content-type'] = "application/json"
         devices = self.dm.listAll()
         
         t = serve_file2("templates/devices.tmpl")
@@ -546,11 +580,9 @@ class DevicesPage:
         
         devices['html'] = t.respond()
         
-        return json.dumps(devices)
-        
-    index.exposed = True
+        return devices
     
-    
+    @exposeJsonFunction
     def default(self, serial, cmd = None, *pargs, **kwargs):
         """ Handles URLs like: /devices/<serial number>/
             if the URL is just /devices/<serial number>/ it returns the
@@ -560,8 +592,6 @@ class DevicesPage:
             that command on the device.
         """
         if cmd is None:
-            cherrypy.response.headers['content-type'] = "application/json"
-            
             returnDict = self.dm.details(serial)
             
             t = serve_file2("templates/device-details.tmpl")
@@ -569,25 +599,19 @@ class DevicesPage:
             
             returnDict['html'] = t.respond()
             
-            yield json.dumps( returnDict )
+            return returnDict
         else:
-            # TODO: Make this return a JSON
-            yield self.header()
-            yield "<p>serial = %s, cmd = %s</p>" % (serial, cmd)
-            yield "<p>kwargs = %s, pargs = %s</p>" % (str(kwargs), str(pargs))
-            yield "<p>%s</p>" % self.dm.callDeviceFunction(serial, cmd, pargs, kwargs)[1]
-            yield self.footer()
-    default.exposed = True
-    
+            cmd = cmd.lower()
+            return { "result" : self.dm.callDeviceFunction(serial, cmd, pargs, kwargs)[1] }
+
+    @exposeJsonFunction
     def inputInfo(self, serial = None, inputNumber = 0):
         """ Returns a JSON of the current state of an input.
         """
         inputConnection = self.dm.getFioInfo(serial, int(inputNumber))
-        cherrypy.response.headers['content-type'] = "application/json"
-        yield json.dumps(inputConnection)
-    
-    inputInfo.exposed = True
-    
+        return inputConnection
+
+    @exposeJsonFunction
     def updateInputInfo(self, serial, inputNumber, chType, negChannel = None, state = None ):
         """ For configuring an input.
             serial = serial number of device
@@ -606,8 +630,10 @@ class DevicesPage:
         
         # Tells the device manager to update the input
         self.dm.updateFio(serial, inputConnection)
-    updateInputInfo.exposed = True
+        
+        return { "result" : 0 }
     
+    @exposeRawFunction
     def toggleDigitalOutput(self, serial, inputNumber):
         """ Toggle a digital output line.
         """
@@ -619,8 +645,8 @@ class DevicesPage:
             newInputConnection = FIO( int(inputNumber), "FIO%s" % inputNumber, chType, state )
             self.dm.updateFio(serial, newInputConnection)
             return self.scan(serial)
-    toggleDigitalOutput.exposed = True
 
+    @exposeJsonFunction
     def scan(self, serial = None):
         """ Scan reads all the inputs and such off the device. Renders the
             result as a JSON.
@@ -629,29 +655,26 @@ class DevicesPage:
         print "Scan: serial = %s" % serial
         serialNumber, results = self.dm.scan(serial)
         
-        cherrypy.response.headers['content-type'] = "application/json"
-        yield json.dumps(results)
-    scan.exposed = True
+        return results
 
-
+    @exposeJsonFunction
     def connectToCloudDot(self, serial = None):
         print "Connecting %s to CloudDot." % serial
         
         self.dm.connectDeviceToCloudDot(serial)
         
-        yield json.dumps({'result' : "connected"})
+        return {'result' : "connected"}
     
-    connectToCloudDot.exposed = True
 
     # ---------------- Deprecated ----------------
+    @exposeRawFunction
     def setFioState(self, serial = None, fioNumber = 0, state = 1):
         result = self.dm.setFioState(serial, fioNumber, state)
         yield self.header()
         yield "<p>FIO%s has been set to output %s</p>" % (fioNumber, result)
         yield self.footer()
-        
-    setFioState.exposed = True
     
+    @exposeRawFunction
     def setName(self, serial = None, name = None):
         yield self.header()
         
@@ -660,21 +683,19 @@ class DevicesPage:
             yield "%s's name set to %s" % (serialNumber, name)
         
         yield self.footer()
-    setName.exposed = True
     
     # ---------------- End Deprecated ----------------
     
+    @exposeJsonFunction
     def setDefaults(self, serial = None):
         """ Makes the calls to set the current state of the device as the
             power-up default.
         """
         results = { 'state' : self.dm.setDefaults(serial) }
         
-        cherrypy.response.headers['content-type'] = "application/json"
-        yield json.dumps(results)
-    setDefaults.exposed = True
+        return results
     
-    
+    @exposeRawFunction
     def importConfigFromFile(self, myFile, serial):
         """ Allows people to upload a config file which gets loaded onto 
             the device.
@@ -693,9 +714,8 @@ class DevicesPage:
         # Redirect them away because there's nothing to be rendered.
         # TODO: Return JSON for Mike C.
         raise cherrypy.HTTPRedirect("/")
-        
-    importConfigFromFile.exposed = True
-        
+    
+    @exposeRawFunction    
     def exportConfigToFile(self, serial):
         """ Allows people to download the configuration of their LabJack.
         """
@@ -715,7 +735,6 @@ class DevicesPage:
         # Send the data
         return fakefile.getvalue()
 
-    exportConfigToFile.exposed = True
 
 if IS_FROZEN:
     # All of this depends on us being 'frozen' in an executable.
@@ -833,6 +852,7 @@ class UsersPage:
     def footer(self):
         return "</body></html>"
 
+    @exposeRawFunction
     def index(self):
         """ Handles /users/, returns a JSON list of all known devices.
         """
@@ -840,16 +860,14 @@ class UsersPage:
         cherrypy.response.headers['Cache-Control'] = "no-cache"
         
         return serve_file2("html/user.html")
-        
-    index.exposed = True
     
+    @exposeJsonFunction
     def fetch(self):
         print "returning user info"
         
-        yield json.dumps({'username' : self.dm.username, 'apikey' : self.dm.apikey})
+        return {'username' : self.dm.username, 'apikey' : self.dm.apikey}
     
-    fetch.exposed = True
-    
+    @exposeJsonFunction
     def check(self, label = None, username = None, apikey = None):
         """
         Checks for valid username and apikey
@@ -863,22 +881,22 @@ class UsersPage:
             h = httplib2.Http()
             resp, content = h.request(devurl, "GET")
             if resp['status'] != '200':
-                return json.dumps({'username' : 1})
+                return {'username' : 1}
             else:
-                return json.dumps({'username' : 0})
+                return {'username' : 0}
         elif label == "apikey":
             data = { 'userName' : username, "apiKey" : apikey}
             devurl = "http://cloudapi.labjack.com/%s/info.json?%s" % (username, urlencode(data))
             h = httplib2.Http()
             resp, content = h.request(devurl, "GET")
             if resp['status'] == '401':
-                return json.dumps({'username' : 0, 'apikey' : 1})
+                return {'username' : 0, 'apikey' : 1}
             elif resp['status'] != '200':
-                return json.dumps({'username' : 1, 'apikey' : 1})
+                return {'username' : 1, 'apikey' : 1}
             else:
-                return json.dumps({'username' : 0, 'apikey' : 0})
-    check.exposed = True
+                return {'username' : 0, 'apikey' : 0}
     
+    @exposeRawFunction
     def update(self, username = None, apikey = None):
         """ Updates the saved username and API Key.
         """
@@ -888,10 +906,10 @@ class UsersPage:
         self.dm.apikey = apikey
         
         raise cherrypy.HTTPRedirect("/users/")
-    update.exposed = True
+    
 
 class LoggingPage(object):
-    """ A class for handling all things /log/
+    """ A class for handling all things /logs/
     """
     def __init__(self, dm):
         self.dm = dm
@@ -918,7 +936,8 @@ class LoggingPage(object):
             return token
         else:
             return None
-            
+    
+    @exposeRawFunction   
     def savetoken(self, filename, *args, **kwargs):
         singleUseToken = kwargs['token']
         self.gd_client.SetAuthSubToken(singleUseToken)
@@ -929,11 +948,8 @@ class LoggingPage(object):
             self.parser.write(configfile)
 
         raise cherrypy.HTTPRedirect("/logs/upload/%s" % filename)
-        #return "called savetoken. filename = %s, sessionToken = %s" % (filename, sessionToken)
-        
-        
-    savetoken.exposed = True
     
+    @exposeJsonFunction
     def upload(self, filename):
         if self.gd_client is None:
             self.gd_client = gdata.docs.service.DocsService()
@@ -948,12 +964,10 @@ class LoggingPage(object):
         googleDocName = replaceUnderscoresWithColons(filename)
         
         csvPath = os.path.join(current_dir,"logfiles/%s" % filename)
-        csvFile = file(csvPath)
-        virtual_media_source = gdata.MediaSource(file_handle=csvFile, content_type='text/csv', content_length=os.path.getsize(csvPath))
-        db_entry = self.gd_client.UploadSpreadsheet(virtual_media_source, googleDocName)
-        return "Upload: filename = %s" % googleDocName
-    
-    upload.exposed = True
+        csvStringIO = StringIO.StringIO(file(csvPath).read())
+        virtual_media_source = gdata.MediaSource(file_handle=csvStringIO, content_type='text/csv', content_length=len(csvStringIO.getvalue()))
+        db_entry = self.gd_client.Upload(virtual_media_source, googleDocName)
+        return {"result" : 0, "docName" : googleDocName }
 
     def getLogFiles(self):
         l = []
@@ -965,6 +979,7 @@ class LoggingPage(object):
             l.append(aLog)
         return l
 
+    @exposeRawFunction
     def index(self):
         """ Handles /logs/
         """
@@ -975,10 +990,8 @@ class LoggingPage(object):
         t.logfiles = self.getLogFiles()
 
         return t.respond()
-        #return serve_file2("html/log.html")
-        
-    index.exposed = True
     
+    @exposeRawFunction
     def test(self):
         cherrypy.response.headers['Cache-Control'] = "no-cache"
         
@@ -991,25 +1004,25 @@ class LoggingPage(object):
         t.devices = devs
 
         return t.respond()
-    test.exposed = True
     
+    @exposeRawFunction
     def start(self, serial = None, headers = None):
         if serial is None:
             print "serial is null"
             return False
         else:
             if headers:
-                headers = header.split(",")
+                headers = headers.split(",")
             self.dm.startDeviceLogging(serial, headers = headers)
-    start.exposed = True
-    
+
+    @exposeRawFunction    
     def stop(self, serial = None):
         if serial is None:
             print "serial is null"
             return False
         else:
             self.dm.stopDeviceLogging(serial)
-    stop.exposed = True
+    
 
 class RootPage:
     """ The RootPage class handles showing index.html. If we can't connect to
@@ -1026,6 +1039,7 @@ class RootPage:
         
         self.users = UsersPage(dm)
     
+    @exposeRawFunction
     def index(self):
         """ if we can talk to LJSocket, renders index.html. Otherwise, 
             it renders connect.html """
@@ -1037,8 +1051,8 @@ class RootPage:
             return serve_file2("html/index.html")
         else:
             return serve_file2("html/connect.html")
-    index.exposed = True
     
+    @exposeRawFunction
     def retry(self, address = "localhost", port = "6000", usbOverride = ""):
         """ The retry endpoint is for trying to connect to LJSocket.
             No matter what happens it will redirect you to '/'.
@@ -1053,7 +1067,6 @@ class RootPage:
             print "Retry got an exception:", e
         
         raise cherrypy.HTTPRedirect("/")
-    retry.exposed = True
 
 
 def openWebBrowser(host = "localhost", port = 8080):
