@@ -1031,9 +1031,10 @@ class LoggingPage(object):
         raise cherrypy.HTTPRedirect("/logs?%s" % message)
 
     def getLogFiles(self):
-        activeFiles = []
+        activeFiles = {}
         for thread in self.dm.loggingThreads.values():
-            activeFiles.append({ "%s" % thread.filename : thread.serial)
+            activeFiles["%s" % thread.filename] = thread.serial
+        print "activeFiles:", activeFiles
     
         l = []
         logfilesDir = os.path.join(current_dir,"logfiles")
@@ -1044,6 +1045,7 @@ class LoggingPage(object):
             active = False
             stopurl = ""
             if filename in activeFiles:
+                print "%s is active" % filename
                 active = True
                 stopurl = "/logs/stop?serial=%s" % activeFiles[filename]
             
@@ -1122,9 +1124,16 @@ class LoggingPage(object):
     def stop(self, serial = None):
         if serial is None:
             print "serial is null"
-            return False
+            if cherrypy.request.headers.has_key("Referer"):
+                raise cherrypy.HTTPRedirect("/logs?%s" % message)
+            else:
+                return "%s" % cherrypy.request.__dict__
         else:
             self.dm.stopDeviceLogging(serial)
+            if cherrypy.request.headers.has_key("Referer"):
+                raise cherrypy.HTTPRedirect(cherrypy.request.headers["Referer"])
+            else:
+                raise cherrypy.HTTPRedirect("/logs")
     
 
 class RootPage:

@@ -3,6 +3,12 @@ $message
 </p>
 <ul>
     #for $logfile in $logfiles
-        <li><span><a href="$logfile.url">$logfile.name</a> --- $logfile.size KB --- </span><span><a href="$logfile.uploadurl">Upload to Google Docs</a> --- <a href="$logfile.removeurl">Delete Forever</a></span></li>
+        <li><span><a href="$logfile.url">$logfile.name</a> --- $logfile.size KB --- </span><span><a href="$logfile.uploadurl">Upload to Google Docs</a> --- 
+      #if $logfile.active
+        <a href="$logfile.stopurl">Stop Logging</a>
+      #else
+        <a href="$logfile.removeurl">Delete Forever</a>
+      #end if
+      </span></li>
     #end for
 </ul>
