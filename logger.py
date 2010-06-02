@@ -30,14 +30,15 @@ class LoggingThread(object):
         else:
             self.headers = None
         self.logging = False
-        self.filename = "./logfiles/%%Y-%%m-%%d %%H__%%M__%%S %s %s.csv" % (sanitize(name), self.serial)
+        self.filename = "%%Y-%%m-%%d %%H__%%M__%%S %s %s.csv" % (self.name, self.serial)
         self.filename = datetime.now().strftime(self.filename)
         
+        self.filepath = "./logfiles/%s" % self.filename
         try:
-            self.csvWriter = csv.writer(open(self.filename, "wb", 1))
+            self.csvWriter = csv.writer(open(self.filepath, "wb", 1))
         except IOError:
             os.mkdir("./logfiles")
-            self.csvWriter = csv.writer(open(self.filename, "wb", 1))
+            self.csvWriter = csv.writer(open(self.filepath, "wb", 1))
             
         self.interval = 1
         self.timer = None

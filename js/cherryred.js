@@ -18,23 +18,14 @@ $(document).ready(function() {
     setupDialog();
     setupLogCheckboxes();
     getDeviceList();
+    updateLogBar();
 });
 
 function setupHashChange() {
   // Override the default behavior of all `a` elements so that, when
   // clicked, their `href` value is pushed onto the history hash
   // instead of being navigated to directly.
-  $("#device-name-list a").live('click', function(){
-    //console.log("setupHashChange: clicked");
-    var href = $(this).attr( "href" );
-
-    // Push this device "state" onto the history hash.
-    $.bbq.pushState({ d: href });
-
-    // Prevent the default click behavior.
-    return false;
-  });
-
+  
   // Bind a callback that executes when document.location.hash changes.
   $(window).bind("hashchange", urlHashChange);
 
@@ -93,22 +84,30 @@ function dialogDone() {
 }
 
 function setupLogCheckboxes() {
-    $(".log-checkbox").live('click', findCheckedCheckboxes);
+    $(".log-checkbox").live('click', findCheckedCheckboxesAndLog);
 }
 
-function findCheckedCheckboxes() {
-        //console.log("setupLogCheckboxes: clicked");
-        var logList = [];
-        $(".log-checkbox:not(:checked)").each(function() {
-            $(this).closest("tr").removeClass("ui-state-highlight");
-        });
-        $(".log-checkbox:checked").each(function() {
-            var textVal = $(this).closest("tr").addClass("ui-state-highlight").find(".test-panel-connection-link").text();
-            logList.push(textVal);
-        });
-        logList = logList.join(",");
-        $("#log-bar").text("Logging " + logList);
-        $.get("/logs/start", {serial : currentSerialNumber, headers : logList}, function(data) {console.log(data)}, "json");
+function findCheckedCheckboxesAndLog() {
+
+    var logList = highlightCheckedCheckboxes();
+    logList = logList.join(",");
+    $.get("/logs/start", {serial : currentSerialNumber, headers : logList}, updateLogBar, "json");
+}
+
+function highlightCheckedCheckboxes() {
+    var logList = [];
+    $(".log-checkbox:not(:checked)").each(function() {
+        $(this).closest("tr").removeClass("ui-state-highlight");
+    });
+    $(".log-checkbox:checked").each(function() {
+        var textVal = $(this).closest("tr").addClass("ui-state-highlight").find(".test-panel-connection-link").text();
+        logList.push(textVal);
+    });
+    return logList;
+}
+
+function updateLogBar() {
+    $.get("/logs/loggingSummary", {}, function(data) { console.log(data); $("#log-bar").html(data); }, "string");
 }
 
 function clearSparklineIfNeeded(oldState, newState, fioNumber) {
@@ -163,7 +162,7 @@ function handleInputInfo(inputInfoJson) {
         });
         $("#dac-form").submit(function() {
             var newValue = $("#dac-value").val();
-            console.log(newValue);
+            //console.log(newValue);
             if (newValue >=0 && newValue <= 5.0) {
                 $.get("/devices/" + currentSerialNumber + "/writeregister", {addr : inputInfoJson.connectionNumber, value : newValue}, function (data) {console.log(data); return true;}, "json");
             }
@@ -348,6 +347,7 @@ function handleScan(data) {
             var thisState = data[d].state;
             var thisValue = data[d].value;
             var thisChType = data[d].chType;
+            var thisLogging = data[d].logging;
             sparklineDataMap[count] = [];
             sparklineDataMap[count].push(thisValue);
 
@@ -357,8 +357,12 @@ function handleScan(data) {
             
             
             var obj = { connection : "<a href='#' class='test-panel-connection-link' inputConnection='"+connectionNumber+"' title='Configure " + connectionText + "'>"+connectionText+"</a>", state: "<span class='test-panel-sparkline " + thisChType + "'></span>" + "<span class='test-panel-state'>"+thisState + "</span>", log: "<input type='checkbox' class='log-checkbox' />"};
+            if (thisLogging) {
+                obj.log = "<input type='checkbox' class='log-checkbox' checked='yes' />";
+            }
 
             $("#test-panel-table").jqGrid('addRowData', count, obj);
+            highlightCheckedCheckboxes();
             count++;
         }
         showingTestPanel = true;
@@ -424,8 +428,7 @@ function handleScan(data) {
 function handleMoreInfo(data) {
     $("#more-info-pane").html(data.html);
     
-    $("#scan-bar").empty();
-    $("#scanning-device-template").jqote(data).appendTo($("#scan-bar"));
+    $("#scan-bar").html(data.htmlScanning);
 
     currentSerialNumber = data.serial;
     highlightCurrentSerialNumber(currentSerialNumber);

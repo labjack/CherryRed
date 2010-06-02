@@ -11,6 +11,8 @@ import cherrypy.lib
 from cherrypy.lib.static import serve_file
 from Cheetah.Template import Template
 
+from threading import Lock
+
 import xmppconnection, logger
 from fio import FIO
 
@@ -114,10 +116,13 @@ def deviceAsDict(dev):
 
 def replaceUnderscoresWithColons(filename):
     splitFilename = filename.split(" ")
-    replacedFilename = splitFilename[1].replace("__", ":").replace("__", ":")
-    splitFilename[1] = replacedFilename
-    newName = " ".join(splitFilename)
-    return newName
+    if len(splitFilename) > 1:
+        replacedFilename = splitFilename[1].replace("__", ":").replace("__", ":")
+        splitFilename[1] = replacedFilename
+        newName = " ".join(splitFilename)
+        return newName
+    else:
+        return filename
 
 # Class Definitions
 
@@ -135,6 +140,8 @@ class DeviceManager(object):
         self.devices = dict()
         self.xmppThreads = dict()
         self.loggingThreads = dict()
+        
+        self.loggingThreadLock = Lock()
         
         cherrypy.engine.subscribe('stop', self.shutdownThreads)
         
@@ -160,37 +167,64 @@ class DeviceManager(object):
         else:
             return self.devices[serial]
     
+    def makeLoggingSummary(self):
+        loggingList = []
+        
+        for serial, thread in self.loggingThreads.items():
+            headers = list(thread.headers)
+            headers.remove("Timestamp")
+            loggingList.append({ "devName" : thread.name, "headers" : ", ".join(headers), "filename" : thread.filename, "serial" : serial, "logname" : replaceUnderscoresWithColons(thread.filename)})
+        
+        return loggingList
+    
     def startDeviceLogging(self, serial, headers = None):
         d = self.getDevice(serial)
+        returnValue = False
         
-        if str(d.serialNumber) not in self.loggingThreads:
-            lt = logger.LoggingThread(self, d.serialNumber, d.getName(), headers)
-            lt.start()
-            self.loggingThreads[str(d.serialNumber)] = lt
-            
-            return True
-        else:
-            sn = str(d.serialNumber)
-            if self.loggingThreads[sn].headers != headers:
-                lt = self.loggingThreads[sn]
-                lt.stop()
-                if headers:
-                    lt = logger.LoggingThread(self, d.serialNumber, d.getName(), headers)
-                    lt.start()
-                    self.loggingThreads[str(d.serialNumber)] = lt
-                    return True
+        try:
+            self.loggingThreadLock.acquire()
+            if str(d.serialNumber) not in self.loggingThreads:
+                lt = logger.LoggingThread(self, d.serialNumber, d.getName(), headers)
+                lt.start()
+                self.loggingThreads[str(d.serialNumber)] = lt
+                
+                returnValue = True
             else:
-                return False
-            
+                sn = str(d.serialNumber)
+                if self.loggingThreads[sn].headers != headers:
+                    lt = self.loggingThreads[sn]
+                    lt.stop()
+                    if headers:
+                        lt = logger.LoggingThread(self, d.serialNumber, d.getName(), headers)
+                        lt.start()
+                        self.loggingThreads[str(d.serialNumber)] = lt
+                        returnValue = True
+                    else:
+                        self.loggingThreads.pop(sn)
+                        returnValue = True
+                else:
+                     returnValue =  False
+        finally:
+            self.loggingThreadLock.release()
+        
+        return returnValue    
+        
     def stopDeviceLogging(self, serial):
         d = self.getDevice(serial)
+        returnValue = False
         
-        if str(d.serialNumber) in self.loggingThreads:
-            lt = self.loggingThreads.pop(str(d.serialNumber))
-            lt.stop()
-            return True
-        else:
-            return False
+        try:
+            self.loggingThreadLock.acquire()
+            if str(d.serialNumber) in self.loggingThreads:
+                lt = self.loggingThreads.pop(str(d.serialNumber))
+                lt.stop()
+                returnValue = True
+            else:
+                returnValue = False
+        finally:
+            self.loggingThreadLock.release()
+        
+        return returnValue
     
     def connectDeviceToCloudDot(self, serial):
         d = self.getDevice(serial)
@@ -438,7 +472,6 @@ class DeviceManager(object):
         for fio in dev.fioList:
             results.append( fio.readResult(dev) )
         
-        
         ioResults = dev.configIO()
         for i in range(ioResults['NumberOfTimersEnabled']):
             results.append( self.readTimer(dev, i) )
@@ -457,6 +490,17 @@ class DeviceManager(object):
         # F = K * (9/5) - 459.67
         internalTemp = kelvinToFahrenheit(dev.readRegister(60))
         results.append({'connection' : "InternalTemp", 'state' : "%0.5f" % internalTemp, 'value' : "%0.5f" % internalTemp, 'chType' : "internalTemp"}) 
+
+        if str(dev.serialNumber) in self.loggingThreads:
+            headers = self.loggingThreads[str(dev.serialNumber)].headers
+        else:
+            headers = []
+            
+        for result in results:
+            if result['connection'] in headers:
+                result['logging'] = True
+            else:
+                result['logging'] = False
         
         return dev.serialNumber, results
 
@@ -489,6 +533,16 @@ class DeviceManager(object):
         internalTemp = kelvinToFahrenheit(dev.readRegister(28))
         results.append({'connection' : "InternalTemp", 'state' : "%0.5f" % internalTemp, 'value' : "%0.5f" % internalTemp, 'chType' : "internalTemp"})
         
+        if str(dev.serialNumber) in self.loggingThreads:
+            headers = self.loggingThreads[str(dev.serialNumber)].headers
+        else:
+            headers = []
+            
+        for result in results:
+            if result['connection'] in headers:
+                result['logging'] = True
+            else:
+                result['logging'] = False
         
         return dev.serialNumber, results
 
@@ -597,7 +651,12 @@ class DevicesPage(object):
             t = serve_file2("templates/device-details.tmpl")
             t.device = returnDict
             
+            tScanning = serve_file2("templates/device-scanning.tmpl")
+            tScanning.device = returnDict
+            
             returnDict['html'] = t.respond()
+            
+            returnDict['htmlScanning'] = tScanning.respond()
             
             return returnDict
         else:
@@ -949,7 +1008,7 @@ class LoggingPage(object):
 
         raise cherrypy.HTTPRedirect("/logs/upload/%s" % filename)
     
-    @exposeJsonFunction
+    @exposeRawFunction
     def upload(self, filename):
         if self.gd_client is None:
             self.gd_client = gdata.docs.service.DocsService()
@@ -967,29 +1026,64 @@ class LoggingPage(object):
         csvStringIO = StringIO.StringIO(file(csvPath).read())
         virtual_media_source = gdata.MediaSource(file_handle=csvStringIO, content_type='text/csv', content_length=len(csvStringIO.getvalue()))
         db_entry = self.gd_client.Upload(virtual_media_source, googleDocName)
-        return {"result" : 0, "docName" : googleDocName }
+        
+        message = urlencode({ "message" : "File %s has been successfully uploaded to google docs." % replaceUnderscoresWithColons(filename)})
+        raise cherrypy.HTTPRedirect("/logs?%s" % message)
 
     def getLogFiles(self):
+        activeFiles = []
+        for thread in self.dm.loggingThreads.values():
+            activeFiles.append({ "%s" % thread.filename : thread.serial)
+    
         l = []
-        files = sorted(os.listdir(os.path.join(current_dir,"logfiles")), reverse = True)
+        logfilesDir = os.path.join(current_dir,"logfiles")
+        files = sorted(os.listdir(logfilesDir), reverse = True, key = lambda x: os.stat(os.path.join(logfilesDir,x)).st_ctime)
         for filename in files:
             newName = replaceUnderscoresWithColons(filename)
             
-            aLog = dict(name = newName, url= "/logfiles/%s" % filename, uploadurl = "/logs/upload/%s" % filename)
+            active = False
+            stopurl = ""
+            if filename in activeFiles:
+                active = True
+                stopurl = "/logs/stop?serial=%s" % activeFiles[filename]
+            
+            size = os.stat(os.path.join(logfilesDir,filename)).st_size
+            size = float(size)/1024
+            
+            aLog = dict(name = newName, url= "/logfiles/%s" % filename, uploadurl = "/logs/upload/%s" % filename, removeurl = "/logs/remove/%s" % filename, size = "%.2f" % size, active = active, stopurl = stopurl)
             l.append(aLog)
         return l
 
     @exposeRawFunction
-    def index(self):
+    def index(self, message = ""):
         """ Handles /logs/
         """
         # Tell people (firefox) not to cache this page. 
         cherrypy.response.headers['Cache-Control'] = "no-cache"
+
+        t = serve_file2("templates/index.tmpl")
         
-        t = serve_file2("templates/logfiles.tmpl")
-        t.logfiles = self.getLogFiles()
+        tMainContent = serve_file2("templates/logfiles.tmpl")
+        tMainContent.logfiles = self.getLogFiles()
+        tMainContent.message = message
+        
+        t.mainContent = tMainContent.respond()
 
         return t.respond()
+        
+    @exposeRawFunction
+    def remove(self, filename):
+        logfileDir = os.path.join(current_dir,"logfiles")
+        path = os.path.join(logfileDir, filename)
+        
+        try:
+            os.remove(path)
+            m = "File %s has been successfully deleted." % replaceUnderscoresWithColons(filename)
+        except OSError:
+            m = "Couldn't find a file named %s." % replaceUnderscoresWithColons(filename)
+            
+        message = urlencode({ "message" : m})
+        raise cherrypy.HTTPRedirect("/logs?%s" % message)
     
     @exposeRawFunction
     def test(self):
@@ -1003,6 +1097,15 @@ class LoggingPage(object):
         
         t.devices = devs
 
+        return t.respond()
+
+    @exposeRawFunction
+    def loggingSummary(self):
+        summaries = self.dm.makeLoggingSummary()
+        
+        t = serve_file2("templates/logging-summaries.tmpl")
+        t.summaries = summaries
+        
         return t.respond()
     
     @exposeRawFunction
@@ -1044,11 +1147,16 @@ class RootPage:
         """ if we can talk to LJSocket, renders index.html. Otherwise, 
             it renders connect.html """
         
-        # Tell people (firefox) not to cash this page. 
+        # Tell people (firefox) not to cache this page. 
         cherrypy.response.headers['Cache-Control'] = "no-cache"
         
         if self.dm.connected:
-            return serve_file2("html/index.html")
+            t = serve_file2("templates/index.tmpl")
+            
+            tMainContent = serve_file2("templates/devices-main-content.tmpl")
+            t.mainContent = tMainContent.respond()
+            
+            return t.respond()
         else:
             return serve_file2("html/connect.html")
     

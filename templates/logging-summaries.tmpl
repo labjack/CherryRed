@@ -1,0 +1,5 @@
+<ul>
+  #for $summary in $summaries
+  <li>Logging $summary.headers on $summary.devName ($summary.serial) to <a href="/logfiles/$summary.filename">$summary.logname</a>
+  #end for
+</ul>
