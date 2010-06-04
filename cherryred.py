@@ -463,6 +463,88 @@ class DeviceManager(object):
         
         return infoDict
 
+    def ue9Scan(self, dev):
+        results = list()
+        
+        feedbackResults = dev.feedback(AINMask = 0xff)
+        
+        for i in range(16):
+            c = "AIN%s" % i
+            v = feedbackResults[c]
+            results.append({'connection' : c, 'state' : "%0.5f" % v, 'value' : "%0.5f" % v, 'chType' : ANALOG_TYPE})
+            
+        dirs = feedbackResults["FIODir"]
+        states = feedbackResults["FIOState"]
+        for i in range(8):
+            f = FIO(i, label = "FIO%s" % i)
+            d = (dirs >> i) & 1
+            s = (states >> i) & 1
+            
+            results.append(f.parseFioResults(d, s))
+            
+        dirs = feedbackResults["EIODir"]
+        states = feedbackResults["EIOState"]
+        for i in range(8):
+            f = FIO(i, label = "EIO%s" % i)
+            d = (dirs >> i) & 1
+            s = (states >> i) & 1
+            
+            results.append(f.parseFioResults(d, s))
+            
+        dirs = feedbackResults["CIODir"]
+        states = feedbackResults["CIOState"]
+        for i in range(4):
+            f = FIO(i, label = "CIO%s" % i)
+            d = (dirs >> i) & 1
+            s = (states >> i) & 1
+            
+            results.append(f.parseFioResults(d, s))
+            
+        dirs = feedbackResults["MIODir"]
+        states = feedbackResults["MIOState"]
+        for i in range(3):
+            f = FIO(i, label = "MIO%s" % i)
+            d = (dirs >> i) & 1
+            s = (states >> i) & 1
+            
+            results.append(f.parseFioResults(d, s))
+            
+        
+        # Counter 0
+        counter = feedbackResults["Counter0"]
+        results.append({'connection' : "Counter 0", 'state' : "%s" % counter, 'value' : "%s" % counter, "chType" : "counter"})
+        
+        # Counter 1
+        counter = feedbackResults["Counter1"]
+        results.append({'connection' : "Counter 1", 'state' : "%s" % counter, 'value' : "%s" % counter, "chType" : "counter"})
+        
+        for i, l in enumerate(('A', 'B', 'C')):
+            timer = feedbackResults["Timer%s" % l]
+            results.append({'connection' : "Timer %s" % i, 'state' : "%s" % timer, 'value' : "%s" % timer, "chType" : "timer"})
+        
+        for register, label in DAC_DICT.items():
+            dacState = dev.readRegister(register)
+            results.append({'connection' : label, 'connectionNumber' : register, 'state' : "%0.5f" % dacState, 'value' : "%0.5f" % dacState})
+        
+        # Returns Kelvin, converting to Fahrenheit
+        # F = K * (9/5) - 459.67
+        internalTemp = kelvinToFahrenheit(dev.readRegister(266))
+        results.append({'connection' : "InternalTemp", 'state' : "%0.5f" % internalTemp, 'value' : "%0.5f" % internalTemp, 'chType' : "internalTemp"}) 
+
+        if str(dev.serialNumber) in self.loggingThreads:
+            headers = self.loggingThreads[str(dev.serialNumber)].headers
+        else:
+            headers = []
+            
+        for result in results:
+            if result['connection'] in headers:
+                result['logging'] = True
+            else:
+                result['logging'] = False
+        
+        
+        return dev.serialNumber, results
+
     def u3Scan(self, dev):
         fioAnalog = dev.readRegister(50590)
         eioAnalog = dev.readRegister(50591)
