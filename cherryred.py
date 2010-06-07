@@ -13,7 +13,7 @@ from Cheetah.Template import Template
 
 from threading import Lock
 
-import xmppconnection, logger
+import xmppconnection, logger, scheduler
 from fio import FIO
 
 import os, os.path, zipfile
@@ -139,6 +139,8 @@ class DeviceManager(object):
         
         self.devices = dict()
         self.xmppThreads = dict()
+        
+        self.loggingScheduler = scheduler.Scheduler()
         self.loggingThreads = dict()
         
         self.loggingThreadLock = Lock()
@@ -185,7 +187,8 @@ class DeviceManager(object):
             self.loggingThreadLock.acquire()
             if str(d.serialNumber) not in self.loggingThreads:
                 lt = logger.LoggingThread(self, d.serialNumber, d.getName(), headers)
-                lt.start()
+                e = self.loggingScheduler.addReschedulingEvent(1, lt.log)
+                lt.event = e
                 self.loggingThreads[str(d.serialNumber)] = lt
                 
                 returnValue = True
@@ -196,7 +199,8 @@ class DeviceManager(object):
                     lt.stop()
                     if headers:
                         lt = logger.LoggingThread(self, d.serialNumber, d.getName(), headers)
-                        lt.start()
+                        e = self.loggingScheduler.addReschedulingEvent(1, lt.log)
+                        lt.event = e
                         self.loggingThreads[str(d.serialNumber)] = lt
                         returnValue = True
                     else:
@@ -242,8 +246,7 @@ class DeviceManager(object):
         for s, thread in self.xmppThreads.items():
             thread.stop()
             
-        for s, thread in self.loggingThreads.items():
-            thread.stop()
+        self.loggingScheduler.shutdown()
     
     def getFioInfo(self, serial, inputNumber):
         dev = self.getDevice(serial)

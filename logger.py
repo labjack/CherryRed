@@ -1,7 +1,6 @@
 """
 For logging in CherryRed.
 """
-import threading
 import csv, os
 from time import sleep
 from datetime import datetime
@@ -25,11 +24,12 @@ class LoggingThread(object):
         self.dm = dm
         self.serial = str(serial)
         self.name = sanitize(name)
+        self.event = None
         if headers:
             self.headers = ["Timestamp"] + headers
         else:
             self.headers = None
-        self.logging = False
+        self.first = True
         self.filename = "%%Y-%%m-%%d %%H__%%M__%%S %s %s.csv" % (self.name, self.serial)
         self.filename = datetime.now().strftime(self.filename)
         
@@ -39,37 +39,16 @@ class LoggingThread(object):
         except IOError:
             os.mkdir("./logfiles")
             self.csvWriter = csv.writer(open(self.filepath, "wb", 1))
-            
-        self.interval = 1
-        self.timer = None
         
     def stop(self):
-        print "Stopping logging thread."
-        self.logging = False
-        try:
-            self.timer.cancel()
-        except:
-            pass
+        self.event.reschedule = False
+
+    def log(self):
+        print "log:", datetime.now()
         
-    def start(self):
-        self.logging = True
-        print "Starting logging thread for device %s." % self.serial
-        
-        if self.headers:
+        if self.first and self.headers:
             self.csvWriter.writerow(self.headers)
-            
-        self.rescheduleThenRun()
-       
-    def _rescheduleTimer(self):
-        self.timer = threading.Timer(self.interval, self.rescheduleThenRun)
-        self.timer.start()
-        
-    def rescheduleThenRun(self):
-        print "rescheduleThenRun", datetime.now()
-        if not self.logging:
-            return None
-        
-        self._rescheduleTimer()
+            self.first = False
         
         result = self.dm.scan(self.serial)[1]
         if self.headers:
