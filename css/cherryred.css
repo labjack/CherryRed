@@ -4,14 +4,21 @@
 #device-name-list { list-style-type: none; margin: 0; padding: 0; width: 100%; }
 #device-name-list li { margin: 0px; padding: 0.4em 12% 0.4em 5px; font-size: 1.4em; width: 95%;}
 #device-name-list a { display: block; }
-a { color: black; }
+li#scanning-device-name-list { font-size: 1em; }
+a { color: #222222; }
 
 
-#tabs { display: none ; min-height: 450px; border: 2px solid #A20000; }
+#tabs { 
+    display: none ; 
+    min-height: 450px; 
+    border: 2px solid #A20000; 
+    box-shadow: 5px 5px 5px #AAAAAA;
+    -moz-box-shadow: 5px 5px 5px #AAAAAA;
+    -webkit-box-shadow: 5px 5px 5px #AAAAAA;
+}
 
 #more-info-pane {
   padding: 0.5em;
-  background-color: #aaa;
   min-height: 180px;
 }
 #more-info-pane p { font-size: 110%; margin-bottom: 5px; }
@@ -29,20 +36,27 @@ a { color: black; }
 
 body {
   min-width: 960px;
+  background-color: #E6F3FF;
 }
-#header * {
-  background-color: #333;
+#header {
+  background-color: #222222;
+  color: white;
+  border-radius: 0 0 6px 6px;
+  -moz-border-radius: 0 0 6px 6px;
+  -webkit-border-radius: 0 0 6px 6px;
+}
+#header a {
   color: white;
 }
 #content {
-  background-color: red;
+  margin-top: 12px;
 }
 #footer * {
   background-color: #333;
   color: white;
 }
 #list-pane {
-  background-color: #ccc;
+  background-color:#E6F3FF;
   min-height: 400px;
   padding-left: 0.5em;
 }
@@ -60,17 +74,27 @@ body {
 }
 
 #scan-bar p,
-#scan-bar span {
+#scan-bar span,
+#log-bar p,
+#log-bar span {
     margin: 2px 0;
 }
-#scan-bar span {
+#scan-bar span.indicator,
+#log-bar span.indicator {
     width: 16px;
     float: left;
+    margin-left:0.5em;
 }
 #log-bar ul {
     margin: 0;
+    list-style: none;
 }
-
+#log-bar ul li {
+    margin: 0;
+}
+#log-bar .stop-logging {
+    margin-left: 1em;
+}
 /* Devices */
 /*.test-panel-sparkline { width: 100px; }*/
 

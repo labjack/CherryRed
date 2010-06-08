@@ -5,9 +5,9 @@ $message
     #for $logfile in $logfiles
         <li><span><a href="$logfile.url">$logfile.name</a> --- $logfile.size KB --- </span><span><a href="$logfile.uploadurl">Upload to Google Docs</a> --- 
       #if $logfile.active
-        <a href="$logfile.stopurl">Stop Logging</a>
+        <a href="$logfile.stopurl">Stop logging</a>
       #else
-        <a href="$logfile.removeurl">Delete Forever</a>
+        <a href="$logfile.removeurl">Delete forever</a>
       #end if
       </span></li>
     #end for

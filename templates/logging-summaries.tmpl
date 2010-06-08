@@ -1,5 +1,5 @@
 <ul>
   #for $summary in $summaries
-  <li>Logging $summary.headers on $summary.devName ($summary.serial) to <a href="/logfiles/$summary.filename">$summary.logname</a>
+  <li><p><span class="indicator"></span>Logging $summary.headers on <strong><a href="/#d=$summary.serial">$summary.devName</a></strong> to <a href="/logfiles/$summary.filename">$summary.logname</a><span class="stop-logging"><a href="http://localhost:8080/logs/stop?serial=320032102">Stop logging</a></span></p></li>
   #end for
 </ul>

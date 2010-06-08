@@ -107,7 +107,7 @@ function highlightCheckedCheckboxes() {
 }
 
 function updateLogBar() {
-    $.get("/logs/loggingSummary", {}, function(data) { console.log(data); $("#log-bar").html(data); }, "string");
+    $.get("/logs/loggingSummary", {}, function(data) { $("#log-bar").html(data); }, "string");
 }
 
 function clearSparklineIfNeeded(oldState, newState, fioNumber) {
@@ -309,7 +309,7 @@ function sparklineMinMax(sparklineType) {
 
 
 function callScan() {
-    $("#scan-bar .scanning-indicator").addClass("ui-icon ui-icon-bullet");
+    $(".scanning-indicator").addClass("ui-icon ui-icon-bullet");
     $.ajax({
         url: "/devices/scan", 
         data: {serial : currentSerialNumber}, 
@@ -320,7 +320,7 @@ function callScan() {
 
 function handleScan(data) {
     
-    $("#scan-bar .scanning-indicator").removeClass("ui-icon ui-icon-bullet");
+    $(".scanning-indicator").removeClass("ui-icon ui-icon-bullet");
 
     if (showingTestPanel == false) {
         
