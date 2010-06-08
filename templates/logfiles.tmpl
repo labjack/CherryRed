@@ -1,6 +1,8 @@
+#filter WebSafe
 <p>
 $message
 </p>
+#end filter
 <ul>
     #for $logfile in $logfiles
         <li><span><a href="$logfile.url">$logfile.name</a> --- $logfile.size KB --- </span><span><a href="$logfile.uploadurl">Upload to Google Docs</a> --- 
