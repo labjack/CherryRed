@@ -426,6 +426,7 @@ class DeviceManager(object):
                 raise Exception("Unknown device type")
             
             d.scanCache = (0, None)
+            d.timerCounterCache = None
             self.devices["%s" % dev['serial']] = d
         
         # Remove the disconnected devices
@@ -434,11 +435,12 @@ class DeviceManager(object):
                 print "Removing device with serial = %s" % serial
                 self.devices[str(serial)].close()
                 self.devices.pop(str(serial))
+                
 
-    def scan(self, serial = None):
+    def scan(self, serial = None, noCache = False):
         dev = self.getDevice(serial)
         now = int(time.time())
-        if (now - dev.scanCache[0]) >= 1:
+        if noCache or (now - dev.scanCache[0]) >= 1:
             if dev.devType == 3:
                 result = self.u3Scan(dev)
             elif dev.devType == 6:
@@ -532,7 +534,7 @@ class DeviceManager(object):
         # Returns Kelvin, converting to Fahrenheit
         # F = K * (9/5) - 459.67
         internalTemp = kelvinToFahrenheit(dev.readRegister(266))
-        results.append({'connection' : "InternalTemp", 'state' : "%0.5f" % internalTemp, 'value' : "%0.5f" % internalTemp, 'chType' : "internalTemp"}) 
+        results.append({'connection' : "InternalTemp", 'state' : "%0.5f" % internalTemp, 'value' : "%0.5f" % internalTemp, 'chType' : "internalTemp", "disabled" : True}) 
 
         if str(dev.serialNumber) in self.loggingThreads:
             headers = self.loggingThreads[str(dev.serialNumber)].headers
@@ -540,6 +542,9 @@ class DeviceManager(object):
             headers = []
             
         for result in results:
+            if "disabled" not in result:
+                result['disabled'] = False
+            
             if result['connection'] in headers:
                 result['logging'] = True
             else:
@@ -574,7 +579,7 @@ class DeviceManager(object):
         # Returns Kelvin, converting to Fahrenheit
         # F = K * (9/5) - 459.67
         internalTemp = kelvinToFahrenheit(dev.readRegister(60))
-        results.append({'connection' : "InternalTemp", 'state' : "%0.5f" % internalTemp, 'value' : "%0.5f" % internalTemp, 'chType' : "internalTemp"}) 
+        results.append({'connection' : "InternalTemp", 'state' : "%0.5f" % internalTemp, 'value' : "%0.5f" % internalTemp, 'chType' : "internalTemp", "disabled" : True}) 
 
         if str(dev.serialNumber) in self.loggingThreads:
             headers = self.loggingThreads[str(dev.serialNumber)].headers
@@ -582,6 +587,9 @@ class DeviceManager(object):
             headers = []
             
         for result in results:
+            if "disabled" not in result:
+                result['disabled'] = False
+        
             if result['connection'] in headers:
                 result['logging'] = True
             else:
@@ -591,6 +599,9 @@ class DeviceManager(object):
 
     def u6Scan(self, dev):
         results = list()
+        
+        if dev.timerCounterCache is None:
+            self.readTimerCounterConfig(dev)
         
         analogInputs = dev.getFeedback( dev.analogCommandList )
         
@@ -602,6 +613,24 @@ class DeviceManager(object):
         
         digitalDirections, digitalStates = dev.getFeedback( dev.digitalCommandList )
         
+        offset = dev.timerCounterCache['offset']
+        totalTaken = 0
+        labels = []
+        
+        timers = self._convertTimerSettings(dev.timerCounterCache, onlyEnabled = True)
+        totalTaken += len(timers)
+        for i in range(totalTaken):
+            labels.append("Timer%i" % i)
+        
+        if dev.timerCounterCache['counter0Enabled']:
+            labels.append("Counter0")
+            totalTaken += 1
+            
+        if dev.timerCounterCache['counter1Enabled']:
+            labels.append("Counter1")
+            totalTaken += 1
+        
+        taken = range(0+offset, totalTaken+offset)
         
         for i in range(dev.numberOfDigitalIOs):
             fio = dev.fioList[ i + dev.numberOfAnalogIn ]
@@ -609,14 +638,20 @@ class DeviceManager(object):
             direction = ((digitalDirections[fio.label[:3]]) >> int(fio.label[3:])) & 1
             state = ((digitalStates[fio.label[:3]]) >> int(fio.label[3:])) & 1
             
-            results.append( fio.parseFioResults(direction, state) )
+            dioDict = fio.parseFioResults(direction, state)
+            
+            if i in taken:
+                dioDict['connection'] = labels[taken.index(i)]
+                dioDict['disabled'] = True
+            
+            results.append( dioDict )
         
         for register, label in DAC_DICT.items():
             dacState = dev.readRegister(register)
             results.append({'connection' : label, 'connectionNumber' : register, 'state' : "%0.5f" % dacState, 'value' : "%0.5f" % dacState})
         
         internalTemp = kelvinToFahrenheit(dev.readRegister(28))
-        results.append({'connection' : "InternalTemp", 'state' : "%0.5f" % internalTemp, 'value' : "%0.5f" % internalTemp, 'chType' : "internalTemp"})
+        results.append({'connection' : "InternalTemp", 'state' : "%0.5f" % internalTemp, 'value' : "%0.5f" % internalTemp, 'chType' : "internalTemp", "disabled" : True})
         
         if str(dev.serialNumber) in self.loggingThreads:
             headers = self.loggingThreads[str(dev.serialNumber)].headers
@@ -624,6 +659,9 @@ class DeviceManager(object):
             headers = []
             
         for result in results:
+            if "disabled" not in result:
+                result['disabled'] = False
+        
             if result['connection'] in headers:
                 result['logging'] = True
             else:
@@ -644,6 +682,102 @@ class DeviceManager(object):
         
         return deviceAsDict(dev)
         
+
+    def readTimerCounterConfig(self, serial):
+        if isinstance(serial, str):
+            dev = self.getDevice(serial)
+        else:
+            dev = serial
+        returnDict = dict()
+         
+        TYPE_TO_NUM_TIMERS_MAPPING = { '3' : 2, '6' : 4, '9' : 6 }
+        returnDict['totalTimers'] = TYPE_TO_NUM_TIMERS_MAPPING[str(dev.devType)]
+        for i in range(returnDict['totalTimers']):
+            returnDict["timer%iEnabled" % i] = False
+            returnDict["timer%iMode" % i] = 10
+            returnDict["timer%iValue" % i] = 0
+        
+        tcb, divisor = dev.readRegister(7000, numReg = 4)
+        returnDict['timerClockBase'] = tcb
+        returnDict['timerClockDivisor'] = divisor
+        
+        counter = dev.readRegister(50502)
+        counter0Enabled = bool(counter & 1)
+        counter1Enabled = bool((counter >> 1) & 1)
+        returnDict['counter0Enabled'] = counter0Enabled
+        returnDict['counter1Enabled'] = counter1Enabled
+        
+        offset = dev.readRegister(50500)
+        returnDict['offset'] = offset
+        
+        numTimers = dev.readRegister(50501)
+        returnDict['numTimers'] = offset
+        
+        for i in range(numTimers):
+            mode, value = dev.readRegister(7100 + 2*i, format = ">HH", numReg = 2)
+            returnDict["timer%iEnabled" % i] = True
+            returnDict["timer%iMode" % i] = mode
+            returnDict["timer%iValue" % i] = value
+        
+        dev.timerCounterCache = returnDict
+        
+        return returnDict
+        
+    def _convertTimerSettings(self, timerSettings, onlyEnabled = False):
+        timers = []
+        for i in range(6):
+            if "timer%iEnabled" % i in timerSettings:
+                if onlyEnabled and timerSettings["timer%iEnabled" % i]:
+                    timers.append({"enabled" : timerSettings["timer%iEnabled" % i], "mode" : timerSettings["timer%iMode" % i], "value" : timerSettings["timer%iValue" % i]})
+                elif not onlyEnabled:
+                    timers.append({"enabled" : timerSettings["timer%iEnabled" % i], "mode" : timerSettings["timer%iMode" % i], "value" : timerSettings["timer%iValue" % i]})
+            else:
+                break
+        return timers
+        
+    def updateTimerCounterConfig(self, serial, timerClockBase, timerClockDivisor, pinOffset, counter0Enable, counter1Enable, timerSettings):
+        dev = self.getDevice(serial)
+        
+        currentSettings = dev.timerCounterCache
+        
+        if timerClockBase != currentSettings['timerClockBase'] or timerClockDivisor != currentSettings['timerClockDivisor']:
+            self.updateClock(dev, timerClockBase, timerClockDivisor)
+            currentSettings['timerClockBase'] = timerClockBase
+            currentSettings['timerClockDivisor'] = timerClockDivisor
+            
+        oldTimers = self._convertTimerSettings(currentSettings)
+        newTimers = self._convertTimerSettings(timerSettings)
+        if pinOffset != currentSettings['offset'] or oldTimer != newTimers:
+            self.setupTimers(dev, newTimers, offset)
+            
+        if counter0Enable and currentSettings['timerClockDivisor'] != 1:
+            # Raise an error, this is an invalid configuration
+            raise Exception("When a clock with a divisor is uses, Counter0 is unavailable.")
+            
+        if counter0Enable != currentSettings['counter0Enabled'] or counter1Enable != currentSettings['counter1Enabled']:
+            self.setupCounter(dev, bool(counter0Enable), bool(counter1Enable))
+            currentSettings['counter0Enabled'] = bool(counter0Enable)
+            currentSettings['counter1Enabled'] = bool(counter1Enable)
+        
+    def setupClock(self, dev, timerClockBase = 0, divisor = 0):       
+        dev.writeRegister(7000, timerClockBase)
+        dev.writeRegister(7002, divisor)
+        
+    def setupCounter(self, dev, enableCounter0 = False, enableCounter1 = False):        
+        value = (int(enableCounter1) << 1) + int(enableCounter0)
+        
+        dev.writeRegister(50502, numCountersEnabled)
+    
+    def setupTimers(self, dev, timers = [], offset = 0):
+        numTimers = len(timers)
+        
+        dev.writeRegister(50500, offset)
+        dev.writeRegister(50501, numTimers)
+        
+        for i, timer in enumerate(timers):
+            dev.writeRegister(7100 + 2*i, [timer['mode'], timer['value']])
+        
+    
     def setFioState(self, serial, fioNumber, state):
         dev = self.getDevice(serial)
             
@@ -748,6 +882,34 @@ class DevicesPage(object):
             cmd = cmd.lower()
             return { "result" : self.dm.callDeviceFunction(serial, cmd, pargs, kwargs)[1] }
 
+    @exposeRawFunction
+    def timerCounterConfig(self, serial = None, message = ""):
+        devType = self.dm.getDevice(serial).devType
+        currentConfig = self.dm.readTimerCounterConfig(serial)
+        
+        print currentConfig
+        
+        t = serve_file2("templates/device-configureTimerCounter.tmpl")
+        t.message = message
+        t.devType = devType
+        t.updateUrl = "/devices/updateTimerCounterConfig/%s" % serial
+        t.currentConfig = currentConfig
+        
+        return t.respond()
+        
+    @exposeRawFunction
+    def updateTimerCounterConfig(self, serial, timerClockBase = 0, timerClockDivisor = 1, pinOffset = 0, counter0Enable = 0, counter1Enable = 0,  **timerSettings):
+        print "got: serial =", serial
+        print "timerClockBase =", timerClockBase
+        print "timerClockDivisor =", timerClockDivisor
+        print "pinOffset =", pinOffset
+        print "counter0Enable =", counter0Enable
+        print "counter1Enable =", counter1Enable
+        print "timerSettings =", timerSettings
+        
+        self.dm.updateTimerCounterConfig(serial, int(timerClockBase), int(timerClockDivisor), int(pinOffset), int(counter0Enable), int(counter1Enable), timerSettings)
+        return "Ok."
+
     @exposeJsonFunction
     def inputInfo(self, serial = None, inputNumber = 0):
         """ Returns a JSON of the current state of an input.
@@ -788,16 +950,16 @@ class DevicesPage(object):
             state = not state
             newInputConnection = FIO( int(inputNumber), "FIO%s" % inputNumber, chType, state )
             self.dm.updateFio(serial, newInputConnection)
-            return self.scan(serial)
+            return self.scan(serial, noCache = True)
 
     @exposeJsonFunction
-    def scan(self, serial = None):
+    def scan(self, serial = None, noCache = False):
         """ Scan reads all the inputs and such off the device. Renders the
             result as a JSON.
         """
         
         print "Scan: serial = %s" % serial
-        serialNumber, results = self.dm.scan(serial)
+        serialNumber, results = self.dm.scan(serial, noCache)
         
         return results
 

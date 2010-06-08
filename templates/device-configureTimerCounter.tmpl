@@ -1,0 +1,67 @@
+<h3>Configure Timers and Counters</h3>
+
+#filter WebSafe
+<div>$message</div><br/>
+#end filter
+
+<h4>Global Settings</h4>
+  <form action="$updateUrl" method="get">
+    <div>Timer Clock Base:</div>
+    <select name="timerClockBase">
+#if $devType == 3 or $devType == 6
+        <option #if $currentConfig.timerClockBase == 0 then 'selected="yes"' else ''# value="0">4 MHz</option>
+        <option #if $currentConfig.timerClockBase == 1 then 'selected="yes"' else ''# value="1">12 MHz</option>
+        <option #if $currentConfig.timerClockBase == 2 then 'selected="yes"' else ''# value="2">48 MHz</option>
+        <option #if $currentConfig.timerClockBase == 3 then 'selected="yes"' else ''# value="3">1 MHz /Divisor</option>
+        <option #if $currentConfig.timerClockBase == 4 then 'selected="yes"' else ''# value="4">4 MHz /Divisor</option>
+        <option #if $currentConfig.timerClockBase == 5 then 'selected="yes"' else ''# value="5">12 MHz /Divisor</option>
+        <option #if $currentConfig.timerClockBase == 6 then 'selected="yes"' else ''# value="6">48 MHz /Divisor</option>
+#elif $devType == 9
+        <option #if $currentConfig.timerClockBase == 0 then 'selected="yes"' else ''# value="0">750 kHz</option>
+        <option #if $currentConfig.timerClockBase == 1 then 'selected="yes"' else ''# value="1">48 MHz</option>
+#end if
+    </select>
+    
+    <div>Timer Clock Divisor:</div>
+    <input name="timerClockDivisor" type="text" value="$currentConfig.timerClockDivisor"></input>
+    
+#if $devType != 9
+    <div>Pin Offset:</div>
+    <input name="pinOffset" type="text" value="$currentConfig.offset"></input>
+#end if    
+
+<h4>Individual Timer Settings</h4>
+#for i in range($currentConfig.totalTimers)
+  <div>
+    <div>Enable Timer$i <input type="checkbox" name="timer${i}Enable" value="1" #if $currentConfig["timer%sEnabled" % $i] then 'checked="yes"' else ''# ></input></div>
+
+    <div>Timer$i Mode</div>
+    <select name="timer${i}Mode">
+        <option value="0" #if $currentConfig["timer%sMode" % $i] == 0 then 'selected="yes"' else ''# >16-bit PWM output</option>
+        <option value="1" #if $currentConfig["timer%sMode" % $i] == 1 then 'selected="yes"' else ''#>8-bit PWM output</option>
+        <option value="2" #if $currentConfig["timer%sMode" % $i] == 2 then 'selected="yes"' else ''#>Period input (32-bit, rising edges)</option>
+        <option value="3" #if $currentConfig["timer%sMode" % $i] == 3 then 'selected="yes"' else ''#>Period input (32-bit, falling edges)</option>
+        <option value="4" #if $currentConfig["timer%sMode" % $i] == 4 then 'selected="yes"' else ''#>Duty cycle input</option>
+        <option value="5" #if $currentConfig["timer%sMode" % $i] == 5 then 'selected="yes"' else ''#>Firmware counter input</option>
+        <option value="6" #if $currentConfig["timer%sMode" % $i] == 6 then 'selected="yes"' else ''#>Firmware counter input (with debounce)</option>
+        <option value="7" #if $currentConfig["timer%sMode" % $i] == 7 then 'selected="yes"' else ''#>Frequency output</option>
+        <option value="8" #if $currentConfig["timer%sMode" % $i] == 8 then 'selected="yes"' else ''#>Quadrature input</option>
+        <option value="9" #if $currentConfig["timer%sMode" % $i] == 9 then 'selected="yes"' else ''#>Timer stop input (odd timers only)</option>
+        <option value="10" #if $currentConfig["timer%sMode" % $i] == 10 then 'selected="yes"' else ''#>System timer low read</option>
+        <option value="11" #if $currentConfig["timer%sMode" % $i] == 11 then 'selected="yes"' else ''#>System timer high read</option>
+        <option value="12" #if $currentConfig["timer%sMode" % $i] == 12 then 'selected="yes"' else ''#>Period input (16-bit, rising edges)</option>
+        <option value="13" #if $currentConfig["timer%sMode" % $i] == 13 then 'selected="yes"' else ''#>Period input (16-bit, falling edges)</option>
+    </select>
+    
+    <div>Timer$i Value</div>
+    <input type="text" name="timer${i}Value" value="$currentConfig["timer%sValue" % $i]"></input>
+  </div><br/>
+#end for
+
+<h4>Individual Counter Settings</h4>
+    <div>Enable Counter0 <input type="checkbox" name="counter0Enable" value="1" #if $currentConfig.counter0Enabled then 'checked="yes"' else ''# ></input></div>
+
+    <div>Enable Counter1 <input type="checkbox" name="counter1Enable" value="1" #if $currentConfig.counter1Enabled then 'checked="yes"' else ''#></input></div>
+
+  <input type="submit" value="Submit" />
+  </form>
