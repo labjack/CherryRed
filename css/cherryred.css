@@ -7,27 +7,64 @@
 li#scanning-device-name-list { font-size: 1em; }
 a { color: #222222; }
 
-
-#tabs { 
-    display: none ; 
-    min-height: 450px; 
-    border: 2px solid #A20000; 
+.pop {
     box-shadow: 5px 5px 5px #AAAAAA;
     -moz-box-shadow: 5px 5px 5px #AAAAAA;
     -webkit-box-shadow: 5px 5px 5px #AAAAAA;
 }
 
-#more-info-pane {
+#tabs { 
+    display: none ; 
+    min-height: 450px; 
+    border: 2px solid #A20000; 
+}
+
+#device-summary-list ul {
+    list-style: none;
+}
+
+#device-summary-list li {
+    background-color: white;
+    margin-bottom: 20px;
+    border: 2px solid #A20000; 
+}
+#device-summary-list img {
+    border:2px solid;
+    padding:2px;
+    position:absolute;
+    right:2%;
+    top:8%;
+}
+#device-summary-list a:hover {
+    background-color: #a20000;
+}
+#device-summary-list a {
+    display: block;
+    text-decoration: none;
+    padding: 10px;
+    position: relative;
+}
+#device-summary-list a:hover {
+    color:white;
+    text-shadow: black 1px 1px 3px;
+}
+
+
+
+#device-summary-list, #more-info-pane {
   padding: 0.5em;
   min-height: 180px;
 }
+#device-summary-list p { font-size: 110%; margin-bottom: 0; padding-bottom: 5px;}
 #more-info-pane p { font-size: 110%; margin-bottom: 5px; }
-#more-info-pane h3 { margin-bottom: 5px; }
-#more-info-pane .serial, #more-info-pane .product-name,
-#more-info-pane .firmware-version, #more-info-pane .localId { 
+#device-summary-list h3, #more-info-pane h3 { margin-bottom: 5px; }
+#device-summary-list .serial, #more-info-pane .serial, 
+#device-summary-list .product-name, #more-info-pane .product-name,
+#device-summary-list .firmware-version, #more-info-pane .firmware-version, 
+#device-summary-list .localId, #more-info-pane .localId { 
     padding-left: 5px; 
 }
-#more-info-pane .serial { font-style: italic; }
+#device-summary-list .serial, #more-info-pane .serial { font-style: italic; }
 
 .ui-jqgrid { font-size: 120%; }
 .ui-jqgrid .ui-jqgrid-htable th div { height:27px; }
@@ -95,6 +132,17 @@ body {
 #log-bar .stop-logging {
     margin-left: 1em;
 }
+#logs {
+    width: 95%;
+    padding: 0.4em 12% 0.4em 5px;
+}
+body.logs #logs,
+#log-wrapper {
+    background-color:white;
+}
+#log-wrapper {
+    padding: 10px;
+}
 /* Devices */
 /*.test-panel-sparkline { width: 100px; }*/
 
@@ -106,15 +154,17 @@ body {
 .ui-jqgrid tr.ui-row-ltr td .test-panel-sparkline { 
 position:absolute;
 text-align:right;
-width:130px;
-height: 5px;
+width:20%;
 }
 .ui-jqgrid tr.ui-row-ltr td .test-panel-state {
-    margin-left:140px;
+    margin-left:43%;
 }
 
 .ui-jqgrid tr.ui-row-ltr td .test-panel-sparkline canvas { 
-margin-top:5px;
+margin-top:3px;
+}
+.ui-jqgrid tr.ui-row-ltr td .test-panel-sparkline.analogIn canvas { 
+margin-top:4px;
 }
 
 /* Prevent horizontal scrolling */
@@ -138,7 +188,7 @@ margin-top:5px;
 
 a.digital-out-toggle-link {
     position: absolute;
-    right: 120px;
+    right: 110px;
     display: none;
 }
 

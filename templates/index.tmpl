@@ -1,7 +1,8 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
-    <title>LabJack</title>
+    <title>$title</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 
     <link rel="stylesheet" href="/css/reset.css" />
     <link rel="stylesheet" href="/css/text.css" />
@@ -21,7 +22,7 @@
 
 </head>
 
-<body>
+<body class="$currentPage">
 
 <script type="text/html" id="u3-hv-analog-connection-dialog">
 <![CDATA[
@@ -162,7 +163,7 @@
         <ul id="device-name-list">
             <li id="scanning-device-name-list">Scanning</li>
         </ul>
-        <h2><a href="/logs">Logs</a></h2>
+        <h2 id="logs" class="$getVar('logActive', '')"><a href="/logs">Logs</a></h2>
       </div>
     </div>
   

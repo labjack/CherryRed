@@ -69,6 +69,8 @@ DIGITAL_IN_TYPE = "digitalIn"
 
 DAC_DICT = { 5000: "DAC0", 5002: "DAC1" }
 
+FLOAT_FORMAT = "%0.3f"
+
 if not getattr(sys, 'frozen', ''):
     # not frozen: in regular python interpreter
     IS_FROZEN = False
@@ -100,6 +102,12 @@ def kelvinToFahrenheit(value):
     """Converts Kelvin to Fahrenheit"""
     # F = K * (9/5) - 459.67
     return value * (9.0/5.0) - 459.67
+
+def internalTempDict(kelvinTemp):
+    # Returns Kelvin, converting to Fahrenheit
+    # F = K * (9/5) - 459.67
+    internalTemp = kelvinToFahrenheit(kelvinTemp)
+    return {'connection' : "Internal Temperature", 'state' : (FLOAT_FORMAT + " &deg;F") % internalTemp, 'value' : FLOAT_FORMAT % internalTemp, 'chType' : "internalTemp", "disabled" : True}
 
 def deviceAsDict(dev):
     """ Returns a dictionary representation of a device.
@@ -175,7 +183,7 @@ class DeviceManager(object):
         for serial, thread in self.loggingThreads.items():
             headers = list(thread.headers)
             headers.remove("Timestamp")
-            loggingList.append({ "devName" : thread.name, "headers" : ", ".join(headers), "filename" : thread.filename, "serial" : serial, "logname" : replaceUnderscoresWithColons(thread.filename)})
+            loggingList.append({ "devName" : thread.name, "headers" : ", ".join(headers), "filename" : thread.filename, "serial" : serial, "logname" : replaceUnderscoresWithColons(thread.filename), "stopurl" : "/logs/stop?serial=%s" % serial})
         
         return loggingList
     
@@ -476,7 +484,7 @@ class DeviceManager(object):
         for i in range(16):
             c = "AIN%s" % i
             v = feedbackResults[c]
-            results.append({'connection' : c, 'state' : "%0.5f" % v, 'value' : "%0.5f" % v, 'chType' : ANALOG_TYPE})
+            results.append({'connection' : c, 'state' : FLOAT_FORMAT % v, 'value' : FLOAT_FORMAT % v, 'chType' : ANALOG_TYPE})
             
         dirs = feedbackResults["FIODir"]
         states = feedbackResults["FIOState"]
@@ -529,13 +537,10 @@ class DeviceManager(object):
         
         for register, label in DAC_DICT.items():
             dacState = dev.readRegister(register)
-            results.append({'connection' : label, 'connectionNumber' : register, 'state' : "%0.5f" % dacState, 'value' : "%0.5f" % dacState})
+            results.append({'connection' : label, 'connectionNumber' : register, 'state' : FLOAT_FORMAT % dacState, 'value' : FLOAT_FORMAT % dacState})
         
-        # Returns Kelvin, converting to Fahrenheit
-        # F = K * (9/5) - 459.67
-        internalTemp = kelvinToFahrenheit(dev.readRegister(266))
-        results.append({'connection' : "InternalTemp", 'state' : "%0.5f" % internalTemp, 'value' : "%0.5f" % internalTemp, 'chType' : "internalTemp", "disabled" : True}) 
-
+        results.append(internalTempDict(dev.readRegister(266)))
+        
         if str(dev.serialNumber) in self.loggingThreads:
             headers = self.loggingThreads[str(dev.serialNumber)].headers
         else:
@@ -574,12 +579,9 @@ class DeviceManager(object):
 
         for register, label in DAC_DICT.items():
             dacState = dev.readRegister(register)
-            results.append({'connection' : label, 'connectionNumber' : register, 'state' : "%0.5f" % dacState, 'value' : "%0.5f" % dacState})
+            results.append({'connection' : label, 'connectionNumber' : register, 'state' : FLOAT_FORMAT % dacState, 'value' : FLOAT_FORMAT % dacState})
         
-        # Returns Kelvin, converting to Fahrenheit
-        # F = K * (9/5) - 459.67
-        internalTemp = kelvinToFahrenheit(dev.readRegister(60))
-        results.append({'connection' : "InternalTemp", 'state' : "%0.5f" % internalTemp, 'value' : "%0.5f" % internalTemp, 'chType' : "internalTemp", "disabled" : True}) 
+        results.append(internalTempDict(dev.readRegister(60)))
 
         if str(dev.serialNumber) in self.loggingThreads:
             headers = self.loggingThreads[str(dev.serialNumber)].headers
@@ -648,11 +650,10 @@ class DeviceManager(object):
         
         for register, label in DAC_DICT.items():
             dacState = dev.readRegister(register)
-            results.append({'connection' : label, 'connectionNumber' : register, 'state' : "%0.5f" % dacState, 'value' : "%0.5f" % dacState})
+            results.append({'connection' : label, 'connectionNumber' : register, 'state' : FLOAT_FORMAT % dacState, 'value' : FLOAT_FORMAT % dacState})
         
-        internalTemp = kelvinToFahrenheit(dev.readRegister(28))
-        results.append({'connection' : "InternalTemp", 'state' : "%0.5f" % internalTemp, 'value' : "%0.5f" % internalTemp, 'chType' : "internalTemp", "disabled" : True})
-        
+        results.append(internalTempDict(dev.readRegister(28)))
+
         if str(dev.serialNumber) in self.loggingThreads:
             headers = self.loggingThreads[str(dev.serialNumber)].headers
         else:
@@ -850,8 +851,12 @@ class DevicesPage(object):
         
         t = serve_file2("templates/devices.tmpl")
         t.devices = devices
+
+        t2 = serve_file2("templates/device-summary-list.tmpl")
+        t2.devices = [ deviceAsDict(d) for d in  self.dm.devices.values() ]
         
         devices['html'] = t.respond()
+        devices['htmlSummaryList'] = t2.respond()
         
         return devices
     
@@ -1317,6 +1322,8 @@ class LoggingPage(object):
         tMainContent.message = message
         
         t.mainContent = tMainContent.respond()
+        t.currentPage = "logs"
+        t.title = "Logs | LabJack CloudDot Grounded"
 
         return t.respond()
         
@@ -1377,10 +1384,12 @@ class LoggingPage(object):
                 return "%s" % cherrypy.request.__dict__
         else:
             self.dm.stopDeviceLogging(serial)
-            if cherrypy.request.headers.has_key("Referer"):
-                raise cherrypy.HTTPRedirect(cherrypy.request.headers["Referer"])
-            else:
-                raise cherrypy.HTTPRedirect("/logs")
+            return self.loggingSummary()
+            #if cherrypy.request.headers.has_key("Referer"):
+            #    print "redirecting to", cherrypy.request.headers["Referer"]
+            #    raise cherrypy.HTTPRedirect(cherrypy.request.headers["Referer"])
+            #else:
+            #    raise cherrypy.HTTPRedirect("/logs")
     
 
 class RootPage:
@@ -1411,6 +1420,8 @@ class RootPage:
             
             tMainContent = serve_file2("templates/devices-main-content.tmpl")
             t.mainContent = tMainContent.respond()
+            t.currentPage = "devices"
+            t.title = "LabJack CloudDot Grounded"
             
             return t.respond()
         else:
