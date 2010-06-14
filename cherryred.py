@@ -1326,9 +1326,13 @@ class LoggingPage(object):
             
             size = os.stat(os.path.join(logfilesDir,filename)).st_size
             size = float(size)/1024
-            size = "%.2f KB" % size
+            sizeStr = "%.2f KB" % size
             
-            aLog = dict(name = newName, url= "/logfiles/%s" % filename, uploadurl = "/logs/upload/%s" % filename, removeurl = "/logs/remove/%s" % filename, size = size, active = active, stopurl = stopurl)
+            uploadEnable = True
+            if size > 1024:
+                uploadEnable = False
+            
+            aLog = dict(name = newName, url= "/logfiles/%s" % filename, uploadurl = "/logs/upload/%s" % filename, uploadEnable = uploadEnable, removeurl = "/logs/remove/%s" % filename, size = sizeStr, active = active, stopurl = stopurl)
             l.append(aLog)
         return l
 
