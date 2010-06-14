@@ -1,0 +1,36 @@
+<div class="ui-tabs-panel ui-widget-content ui-corner-bottom" id="support-tab">
+
+  <h3>Need help with your ${device.productName}?</h3>
+<p>
+Start with the <a href="${supportUrl}">${device.productName} Support homepage</a>, including the 
+<a href="${supportUsersGuideUrl}">${device.productName} User's Guide</a>.
+</p>
+
+<p>The <a href="http://forums.labjack.com/">LabJack Forums</a> are also good place to find answers and ask questions.</p>
+
+<p>Answer not in the forums? <a href="http://forums.labjack.com/">Contact us</a> 
+</p>
+
+<p>Please include the following information when contacting us:
+</p><pre><code>
+[Device Information]
+DeviceType: $device.productName
+#if $device.devType == 9
+Control Firmware: $device.firmware[1]
+Communication Firmware: $device.firmware[0]
+#else
+Control Firmware: $device.firmware
+#end if
+
+$config
+[CloudDotGrounded Information]
+CloudDotGrounded Version: $groundedVersion
+LabJackPython Version: $ljpVersion
+LJSocket or Direct USB: #if $usbOrLJSocket then "Direct USB" else "LJSocket" #
+
+[System Information]
+OS: $os
+Exodriver Version: 1.12
+</code></pre>
+
+        </div>

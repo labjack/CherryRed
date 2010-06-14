@@ -52,6 +52,8 @@ def buildLowerDict(aClass):
             d[key.lower()] = key
     return d
 
+CLOUDDOT_GROUNDED_VERSION = "0.01"
+
 CLOUDDOT_GROUNDED_CONF = "./clouddotgrounded.conf"
 GOOGLE_DOCS_SCOPE = 'https://docs.google.com/feeds/'
 
@@ -765,14 +767,14 @@ class DeviceManager(object):
         currentSettings = dev.timerCounterCache
         
         if timerClockBase != currentSettings['timerClockBase'] or timerClockDivisor != currentSettings['timerClockDivisor']:
-            self.updateClock(dev, timerClockBase, timerClockDivisor)
+            self.setupClock(dev, timerClockBase, timerClockDivisor)
             currentSettings['timerClockBase'] = timerClockBase
             currentSettings['timerClockDivisor'] = timerClockDivisor
             
         oldTimers = self._convertTimerSettings(currentSettings)
         newTimers = self._convertTimerSettings(timerSettings)
-        if pinOffset != currentSettings['offset'] or oldTimer != newTimers:
-            self.setupTimers(dev, newTimers, offset)
+        if pinOffset != currentSettings['offset'] or oldTimers != newTimers:
+            self.setupTimers(dev, newTimers, pinOffset)
             
         if counter0Enable and currentSettings['timerClockDivisor'] != 1:
             # Raise an error, this is an invalid configuration
@@ -913,7 +915,7 @@ class DevicesPage(object):
     @exposeRawFunction
     def timerCounterConfig(self, serial = None, message = ""):
         devType = self.dm.getDevice(serial).devType
-        currentConfig = self.dm.readTimerCounterConfig(serial)
+        currentConfig = self.dm.readTimerCounterConfig(serial.encode("ascii", "replace"))
         
         print currentConfig
         
@@ -944,6 +946,48 @@ class DevicesPage(object):
         """
         inputConnection = self.dm.getFioInfo(serial, int(inputNumber))
         return inputConnection
+        
+    @exposeRawFunction
+    def support(self, serial):
+        dev = self.dm.getDevice(serial)
+        
+        print "Headers:", cherrypy.request.headers
+        
+        t = serve_file2("templates/support.tmpl")
+        
+        t.device = deviceAsDict(dev)
+        
+        if dev.devType == 3:
+            t.supportUrl = "http://labjack.com/support/u3"
+            t.supportUsersGuideUrl = "http://labjack.com/support/u3/users-guide"
+        elif dev.devType == 6:
+            t.supportUrl = "http://labjack.com/support/u6"
+            t.supportUsersGuideUrl = "http://labjack.com/support/u6/users-guide"
+        elif dev.devType == 9:
+            t.supportUrl = "http://labjack.com/support/ue9"
+            t.supportUsersGuideUrl = "http://labjack.com/support/ue9/users-guide"
+        
+        # Call the exportConfig function on the device.
+        devDict, result = self.dm.callDeviceFunction(serial, "exportconfig", [], {})
+        
+        # exportConfig returns a ConfigParser object. We need it as a string.
+        fakefile = StringIO.StringIO()
+        result.write(fakefile)
+        
+        t.config = fakefile.getvalue()
+        
+        t.groundedVersion = CLOUDDOT_GROUNDED_VERSION
+        #t.ljpVersion = LabJackPython.LABJACKPYTHON_VERSION
+        t.ljpVersion = "5-18-2010"
+        t.usbOrLJSocket = self.dm.usbOverride
+        
+        userAgent = cherrypy.request.headers['User-Agent']
+        os = userAgent.split("(")[1]
+        os = os.split(")")[0]
+        os = os.split(";")[2].strip()
+        t.os = os
+        
+        return t.respond()
 
     @exposeJsonFunction
     def updateInputInfo(self, serial, inputNumber, chType, negChannel = None, state = None ):
