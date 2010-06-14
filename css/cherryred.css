@@ -1,8 +1,8 @@
 #device-name-list { font-size: 1.4em; }
 #device-name-list .ui-selecting { background: #FECA40; }
 #device-name-list .ui-selected { background: #A20000; color: white; }
-#device-name-list { list-style-type: none; margin: 0; padding: 0; width: 100%; }
-#device-name-list li { margin: 0px; padding: 0.4em 12% 0.4em 5px; font-size: 1.4em; width: 95%;}
+#device-name-list { list-style-type: none; margin: 0 0 1em; padding: 0; width: 100%; }
+#device-name-list li { margin: 0px; padding: 0.4em 12% 0.4em 10px; font-size: 1.4em; width: 95%;}
 #device-name-list a { display: block; }
 li#scanning-device-name-list { font-size: 1em; }
 a { color: #222222; }
@@ -19,6 +19,19 @@ a { color: #222222; }
     border: 2px solid #A20000; 
 }
 
+#logs a,
+#devices a {
+    display:block;
+}
+#logs a:hover,
+#devices a:hover,
+#device-name-list a:hover {
+    background-color: #222222;
+    color: white;
+}
+#device-name-list a.current-name:hover {
+    background-color: transparent;
+}
 #device-summary-list ul {
     list-style: none;
 }
@@ -73,7 +86,8 @@ a { color: #222222; }
 
 body {
   min-width: 960px;
-  background-color: #E6F3FF;
+  /*background-color: #E6F3FF;*/
+  background-color: #a6b3bF;
 }
 #header {
   background-color: #222222;
@@ -93,7 +107,7 @@ body {
   color: white;
 }
 #list-pane {
-  background-color:#E6F3FF;
+  /*background-color:#E6F3FF;*/
   min-height: 400px;
   padding-left: 0.5em;
 }
@@ -132,9 +146,10 @@ body {
 #log-bar .stop-logging {
     margin-left: 1em;
 }
+#devices,
 #logs {
     width: 95%;
-    padding: 0.4em 12% 0.4em 5px;
+    padding: 4px 12% 4px 5px;
 }
 body.logs #logs,
 #log-wrapper {
@@ -142,6 +157,54 @@ body.logs #logs,
 }
 #log-wrapper {
     padding: 10px;
+    min-height: 450px; 
+}
+#log-file-list {
+    list-style: none;
+} 
+#log-file-list li {
+    position: relative;
+    height: 30px;
+    line-height: 30px;
+    padding: 3px;
+    margin: 0 15px;
+}
+#log-file-list li:nth-child(2n) {
+    background-color: #dddddd;
+}
+#log-file-list li .log-file-name,
+#log-file-list li .log-size,
+#log-file-list li .upload-log,
+#log-file-list li .stop-log,
+#log-file-list li .delete-log {
+    position: absolute;
+    text-decoration: none;
+}
+#log-file-list li .log-file-name {
+    left: 20px;
+}
+#log-file-list li .log-size {
+    left: 315px;
+    text-align: right;
+    width: 5em;
+}
+#log-file-list li .upload-log {
+    left: 415px;
+}
+#log-file-list li .stop-log,
+#log-file-list li .delete-log {
+    left: 585px;
+    color: #777777;
+}
+#log-file-list li .log-file-name:hover, 
+#log-file-list li .upload-log:hover {
+    text-decoration: underline;
+    font-weight: bold;
+}
+#log-file-list li .stop-log:hover,
+#log-file-list li .delete-log:hover {
+    color: white;
+    background-color:#a20000;
 }
 /* Devices */
 /*.test-panel-sparkline { width: 100px; }*/

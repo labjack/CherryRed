@@ -1,5 +1,6 @@
     
 var refreshId = null;
+var logFileRefreshId = null;
 var currentSerialNumber = null;
 
 var showingTestPanel = false;
@@ -19,6 +20,7 @@ $(document).ready(function() {
     setupStopLoggingLinks();
     setupDialog();
     setupLogCheckboxes();
+    setupLogFileScanning();
     getDeviceList();
     updateLogBar();
 });
@@ -116,6 +118,27 @@ function highlightCheckedCheckboxes() {
 
 function updateLogBar() {
     $.get("/logs/loggingSummary", {}, function(data) { $("#log-bar").html(data); }, "string");
+}
+
+function setupLogFileScanning() {
+    if ($("body").hasClass("logs")) {
+        if (logFileRefreshId != null) {
+            clearTimeout(logFileRefreshId);
+        }
+        logFileRefreshId = setInterval(callLogFileScan, 1000);
+    }
+}
+
+function callLogFileScan() {
+    $.ajax({
+        url: "/logs/logFileList", 
+        success: handleLogFileScan, 
+        dataType: "string"
+    });
+}
+
+function handleLogFileScan(data) {
+    $("#log-wrapper").html(data);
 }
 
 function clearSparklineIfNeeded(oldState, newState, fioNumber) {
