@@ -11,7 +11,7 @@ import cherrypy.lib
 from cherrypy.lib.static import serve_file
 from Cheetah.Template import Template
 
-from threading import Lock
+from threading import Lock, Event
 
 import xmppconnection, logger, scheduler
 from fio import FIO
@@ -25,7 +25,7 @@ import sys, time
 
 import cStringIO as StringIO, ConfigParser
 
-import LabJackPython, u3, u6, ue9
+import LabJackPython, u3, u6, ue9, bridge
 from Autoconvert import autoConvert
 
 import webbrowser
@@ -152,6 +152,10 @@ class DeviceManager(object):
         self.loggingThreads = dict()
         
         self.loggingThreadLock = Lock()
+        
+        # There are times when we need to pause scans for a moment.
+        self.scanEvent = Event()
+        self.scanEvent.set()
         
         cherrypy.engine.subscribe('stop', self.shutdownThreads)
         
@@ -360,96 +364,103 @@ class DeviceManager(object):
         
     
     def updateDeviceDict(self):
-    
-        if self.usbOverride:
-            ljsocketAddress = None
-            devs = list()
-            
-            devCount = LabJackPython.deviceCount(None)
-            
-            for serial, dev in self.devices.items():
-                dev.close()
-                self.devices.pop(str(serial))
-            
-            devsObj = LabJackPython.listAll(3)
-            for dev in devsObj.values():
-                devs.append({"serial" : dev["serialNumber"], "prodId" : dev["devType"]})
-            
-            devsObj = LabJackPython.listAll(6)
-            for dev in devsObj.values():
-                devs.append({"serial" : dev["serialNumber"], "prodId" : dev["devType"]})
-            
-            devsObj = LabJackPython.listAll(9)
-            for dev in devsObj.values():
-                devs.append({"serial" : dev["serialNumber"], "prodId" : dev["devType"]})
+        try:
+            if self.usbOverride:
+                self.scanEvent.clear()
+                ljsocketAddress = None
+                devs = list()
                 
-            devsObj = LabJackPython.listAll(0x501)
-            for dev in devsObj.values():
-                devs.append({"serial" : dev["serialNumber"], "prodId" : dev["devType"]})
+                devCount = LabJackPython.deviceCount(None)
                 
-            print devs
+                for serial, dev in self.devices.items():
+                    dev.close()
+                    self.devices.pop(str(serial))
                 
-        else:
-            ljsocketAddress = "%s:%s" % (self.address, self.port)
-            devs = LabJackPython.listAll(ljsocketAddress, 200)
-        
-        serials = list()
-        
-        for dev in devs:
-            serials.append(str(dev['serial']))
-        
-            if str(dev['serial']) in self.devices:
-                continue
-            
-            if dev['prodId'] == 3:
-                print "Adding new device with serial = %s" % (dev['serial'])
-                try:
-                    d = u3.U3(LJSocket = ljsocketAddress, serial = dev['serial'])
-                except Exception, e:
-                    raise Exception( "Error opening U3: %s" % e )
+                devsObj = LabJackPython.listAll(3)
+                for dev in devsObj.values():
+                    devs.append({"serial" : dev["serialNumber"], "prodId" : dev["devType"]})
+                
+                devsObj = LabJackPython.listAll(6)
+                for dev in devsObj.values():
+                    devs.append({"serial" : dev["serialNumber"], "prodId" : dev["devType"]})
+                
+                devsObj = LabJackPython.listAll(9)
+                for dev in devsObj.values():
+                    devs.append({"serial" : dev["serialNumber"], "prodId" : dev["devType"]})
                     
-                try:
-                    d.configU3()
-                except Exception, e:
-                    raise Exception( "Error with configU3: %s" % e )
+                devsObj = LabJackPython.listAll(0x501)
+                for dev in devsObj.values():
+                    devs.append({"serial" : dev["serialNumber"], "prodId" : dev["devType"]})
                     
-                try:
-                    #d.debug = True
-                    d.fioList = self.makeU3FioList(d)
-                except Exception, e:
-                    raise Exception( "making u3 fio list: %s" % e )
-                
-            elif dev['prodId'] == 6:
-                try:
-                    d = u6.U6(LJSocket = ljsocketAddress, serial = dev['serial'])
-                    d.configU6()
-                    d.getCalibrationData()
-                    fios, analogCommandList, digitalCommandList = self.makeU6FioList(d)
-                    d.fioList = fios
-                    d.analogCommandList = analogCommandList
-                    d.digitalCommandList = digitalCommandList
-                except Exception, e:
-                    print "In opening a U6: %s" % e
-                
-            elif dev['prodId'] == 9:
-                d = ue9.UE9(LJSocket = ljsocketAddress, serial = dev['serial'])
-                d.controlConfig()
+                print "usbOverride:",devs
+                    
             else:
-                raise Exception("Unknown device type")
+                ljsocketAddress = "%s:%s" % (self.address, self.port)
+                devs = LabJackPython.listAll(ljsocketAddress, 200)
             
-            d.scanCache = (0, None)
-            d.timerCounterCache = None
-            self.devices["%s" % dev['serial']] = d
-        
-        # Remove the disconnected devices
-        for serial in self.devices.keys():
-            if serial not in serials:
-                print "Removing device with serial = %s" % serial
-                self.devices[str(serial)].close()
-                self.devices.pop(str(serial))
+            serials = list()
+            
+            for dev in devs:
+                serials.append(str(dev['serial']))
+            
+                if str(dev['serial']) in self.devices:
+                    continue
                 
+                if dev['prodId'] == 3:
+                    print "Adding new device with serial = %s" % (dev['serial'])
+                    try:
+                        d = u3.U3(LJSocket = ljsocketAddress, serial = dev['serial'])
+                    except Exception, e:
+                        raise Exception( "Error opening U3: %s" % e )
+                        
+                    try:
+                        d.configU3()
+                    except Exception, e:
+                        raise Exception( "Error with configU3: %s" % e )
+                        
+                    try:
+                        #d.debug = True
+                        d.fioList = self.makeU3FioList(d)
+                    except Exception, e:
+                        raise Exception( "making u3 fio list: %s" % e )
+                    
+                elif dev['prodId'] == 6:
+                    try:
+                        d = u6.U6(LJSocket = ljsocketAddress, serial = dev['serial'])
+                        d.configU6()
+                        d.getCalibrationData()
+                        fios, analogCommandList, digitalCommandList = self.makeU6FioList(d)
+                        d.fioList = fios
+                        d.analogCommandList = analogCommandList
+                        d.digitalCommandList = digitalCommandList
+                    except Exception, e:
+                        print "In opening a U6: %s" % e
+                    
+                elif dev['prodId'] == 9:
+                    d = ue9.UE9(LJSocket = ljsocketAddress, serial = dev['serial'])
+                    d.controlConfig()
+                elif dev['prodId'] == 0x501:
+                    print "Got a bridge... opening."
+                    d = bridge.Bridge(LJSocket = ljsocketAddress, serial = dev['serial'])
+                else:
+                    raise Exception("Unknown device type")
+                
+                d.scanCache = (0, None)
+                d.timerCounterCache = None
+                self.devices["%s" % dev['serial']] = d
+            
+            # Remove the disconnected devices
+            for serial in self.devices.keys():
+                if serial not in serials:
+                    print "Removing device with serial = %s" % serial
+                    self.devices[str(serial)].close()
+                    self.devices.pop(str(serial))
+        finally:
+            self.scanEvent.set()
+                   
 
     def scan(self, serial = None, noCache = False):
+        self.scanEvent.wait()
         dev = self.getDevice(serial)
         now = int(time.time())
         if noCache or (now - dev.scanCache[0]) >= 1:
