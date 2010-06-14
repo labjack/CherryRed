@@ -375,6 +375,10 @@ class DeviceManager(object):
             for dev in devsObj.values():
                 devs.append({"serial" : dev["serialNumber"], "prodId" : dev["devType"]})
                 
+            devsObj = LabJackPython.listAll(0x501)
+            for dev in devsObj.values():
+                devs.append({"serial" : dev["serialNumber"], "prodId" : dev["devType"]})
+                
             print devs
                 
         else:
@@ -643,6 +647,14 @@ class DeviceManager(object):
             if i in taken:
                 dioDict['connection'] = labels[taken.index(i)]
                 dioDict['disabled'] = True
+                dioDict['chType'] = "internalTemp"
+                
+                if dioDict['connection'].startswith("Timer"):
+                    t = self.readTimer(dev, int(dioDict['connection'][-1]))
+                    dioDict.update(t)
+                elif dioDict['connection'].startswith("Counter"):
+                    c = self.readCounter(dev, int(dioDict['connection'][-1]))
+                    dioDict.update(c)
             
             results.append( dioDict )
         
