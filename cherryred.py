@@ -765,14 +765,14 @@ class DeviceManager(object):
         currentSettings = dev.timerCounterCache
         
         if timerClockBase != currentSettings['timerClockBase'] or timerClockDivisor != currentSettings['timerClockDivisor']:
-            self.updateClock(dev, timerClockBase, timerClockDivisor)
+            self.setupClock(dev, timerClockBase, timerClockDivisor)
             currentSettings['timerClockBase'] = timerClockBase
             currentSettings['timerClockDivisor'] = timerClockDivisor
             
         oldTimers = self._convertTimerSettings(currentSettings)
         newTimers = self._convertTimerSettings(timerSettings)
-        if pinOffset != currentSettings['offset'] or oldTimer != newTimers:
-            self.setupTimers(dev, newTimers, offset)
+        if pinOffset != currentSettings['offset'] or oldTimers != newTimers:
+            self.setupTimers(dev, newTimers, pinOffset)
             
         if counter0Enable and currentSettings['timerClockDivisor'] != 1:
             # Raise an error, this is an invalid configuration
@@ -913,7 +913,7 @@ class DevicesPage(object):
     @exposeRawFunction
     def timerCounterConfig(self, serial = None, message = ""):
         devType = self.dm.getDevice(serial).devType
-        currentConfig = self.dm.readTimerCounterConfig(serial)
+        currentConfig = self.dm.readTimerCounterConfig(serial.encode("ascii", "replace"))
         
         print currentConfig
         
