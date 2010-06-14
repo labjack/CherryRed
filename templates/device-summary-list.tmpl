@@ -1,0 +1,18 @@
+<ul>
+#for $device in $devices
+    <li class="device-summary pop ui-helper-reset ui-corner-all $device.productName"><a href="#d=$device.serial">
+      <img src="/img/${device.productName}.jpg" alt="$device.productName" />
+      <h3 class="current-name">$device.name</h3>
+      <p class="product-name">$device.productName</p>
+      <p class="serial">$device.serial</p>
+      #if $device.devType == 9
+      <p class="firmware-version">Control Firmware: $device.firmware[1]</p>
+      <p class="firmware-version">Communication Firmware: $device.firmware[0]</p>
+      #else
+      <p class="firmware-version">Firmware Version: $device.firmware</p>
+      #end if
+      <p class="localId">Local ID: $device.localId</p>
+      </a>
+    </li>
+#end for
+</ul>

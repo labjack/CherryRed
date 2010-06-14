@@ -4,6 +4,7 @@ ANALOG_TYPE = "analogIn"
 DIGITAL_OUT_TYPE = "digitalOut"
 DIGITAL_IN_TYPE = "digitalIn"
 
+
 class FIO(object):
     """
     The FIO Class represents a single input. Helps keep track of state.
@@ -140,8 +141,9 @@ class FIO(object):
         infoDict = dict()
         infoDict['connection'] = self.label
         infoDict['connectionNumber'] = self.fioNumber
-        infoDict['state'] = "%0.5f" % state
-        infoDict['value'] = "%0.5f" % state # Use state for 'state' and 'value'
+        # Should use FLOAT_FORMAT
+        infoDict['state'] = "%0.3f" % state
+        infoDict['value'] = "%0.3f" % state # Use state for 'state' and 'value'
         infoDict['chType'] = self.chType
         
         return infoDict

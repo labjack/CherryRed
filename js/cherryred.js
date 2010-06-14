@@ -6,15 +6,17 @@ var showingTestPanel = false;
 
 var sparklineDataMap = {};
 var sparklineMaxPoints = 22;
-var sparklineAnalogInOptions = {height: "15px", minSpotColor: false, maxSpotColor: false, spotColor: "#CC0000", lineColor: "#004276", fillColor: "#E6F3FF" };
-var sparklineDigitalInOptions = {type:'bar', height: "15px", barColor: "#004276" };
-var sparklineDigitalOutOptions = {type:'bar', height: "15px", barColor: "#CC0000" };
+var sparklineAnalogInOptions = {height: "15px", minSpotColor: false, maxSpotColor: false, spotColor: "#A20000", lineColor: "#004276", fillColor: "#E6F3FF" };
+var sparklineDigitalInOptions = {type:'bar', height: "16px", barColor: "#004276" };
+var sparklineDigitalOutOptions = {type:'bar', height: "16px", barColor: "#A20000" };
 
 
 $(document).ready(function() {
     $("#tabs").tabs();
     setupHashChange();    
     setupTestPanelConnectionLinks();
+    setupRenameLinks();
+    setupStopLoggingLinks();
     setupDialog();
     setupLogCheckboxes();
     getDeviceList();
@@ -49,12 +51,18 @@ function urlHashChange(e) {
         handleSelectDevice(serialNumber);
     } else {
         $("#tabs").hide();
+        $("#device-summary-list").show();
     }
 }
 
 function highlightCurrentSerialNumber(serialNumber) {
-    $("#device-name-list li").removeClass("ui-helper-reset ui-widget-header");
-    $("#"+serialNumber).closest("li").addClass("ui-helper-reset ui-widget-header");
+    $("#device-name-list li").removeClass("ui-helper-reset ui-widget-header pop");
+    $("#device-name-list li a").removeClass("current-name");
+    $("#"+serialNumber).addClass("ui-helper-reset ui-widget-header pop");
+    $("#"+serialNumber+" a").addClass("current-name");
+    if ($("#"+serialNumber+" a").text()) {
+      document.title = $("#"+serialNumber+" a").text() + " | LabJack CloudDot Grounded";
+    }
 }
 
 function stopScanning() {
@@ -283,6 +291,42 @@ function setupTestPanelConnectionLinks() {
     });
 }
 
+function setupRenameLinks() {
+    $(".rename-link").live("click", function(e) {
+        $.get("/devices/" + currentSerialNumber + "/getName", {}, function(data) { 
+            $("#dialog").empty();
+            $("#dialog").html('<form id="rename-form"><p><input type="text" id="rename-value" size="30" /></p></form>');
+            $("#rename-form").submit(function() {
+                var newName = $("#rename-value").val();
+                $.get("/devices/" + currentSerialNumber + "/setName", {name : newName}, function(data) { $(".current-name").text(newName); document.title = newName + " | LabJack CloudDot Grounded"; });
+                dialogDone();
+                return false;
+            });
+            $("#dialog").dialog('option', 'title', "Rename " + data.result);
+            $("#dialog").dialog('option', 'width', 425);
+            $("#dialog").dialog('option', 'buttons', { 
+                "Save": function() {
+                    $("#rename-form").submit();
+                },
+                "Cancel": dialogDone
+            });
+            $("#rename-value").val(data.result);
+            $("#dialog").dialog('open');
+        
+        });
+    
+        return false;
+    });
+}
+
+function setupStopLoggingLinks() {
+    $(".stop-link").live("click", function(e) {
+        var stopUrl = $(this).attr("stopurl");
+        $.get(stopUrl, {}, function(data) { $("#log-bar").html(data); $(window).trigger( "hashchange" ); }, "string");
+        return false;
+    });
+}
+
 function sparklineMinMax(sparklineType) {
     minMax = {};
     switch (sparklineType) {
@@ -296,8 +340,8 @@ function sparklineMinMax(sparklineType) {
             minMax.max = 1;
             break;
         case "internalTemp":
-            minMax.min = 20;
-            minMax.max = 35;
+            minMax.min = 60;
+            minMax.max = 90;
             break;
         default:
             minMax.min = 0;
@@ -359,6 +403,9 @@ function handleScan(data) {
             var obj = { connection : "<a href='#' class='test-panel-connection-link' inputConnection='"+connectionNumber+"' title='Configure " + connectionText + "'>"+connectionText+"</a>", state: "<span class='test-panel-sparkline " + thisChType + "'></span>" + "<span class='test-panel-state'>"+thisState + "</span>", log: "<input type='checkbox' class='log-checkbox' />"};
             if (thisLogging) {
                 obj.log = "<input type='checkbox' class='log-checkbox' checked='yes' />";
+            }
+            if (connectionText == "Internal Temperature") {
+                obj.connection = connectionText; // No link
             }
 
             $("#test-panel-table").jqGrid('addRowData', count, obj);
@@ -440,6 +487,7 @@ function handleSelectDevice(serialNumber) {
     if (serialNumber) {
         $.get("/devices/" + serialNumber, {}, handleMoreInfo, "json");
     
+        $("#device-summary-list").hide();
         $("#tabs").show();   
     } else {
         //console.log("no serialNumber");
@@ -448,6 +496,7 @@ function handleSelectDevice(serialNumber) {
   
 function handleDeviceList(data) {
     $("#device-name-list").html(data.html);
+    $("#device-summary-list").html(data.htmlSummaryList);
     if (currentSerialNumber) {
         highlightCurrentSerialNumber(currentSerialNumber);
     }

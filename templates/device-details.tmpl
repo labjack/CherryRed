@@ -1,6 +1,6 @@
-  <h3>$device.name</h3>
-  <p class="serial">$device.productName</p>
-  <p class="product-name">$device.serial</p>
+  <h3><span class="current-name">$device.name</span> (<a href="#" class="rename-link">rename</a>)</h3>
+  <p class="product-name">$device.productName</p>
+  <p class="serial">$device.serial</p>
   #if $device.devType == 9
   <p class="firmware-version">Control Firmware: $device.firmware[1]</p>
   <p class="firmware-version">Communication Firmware: $device.firmware[0]</p>
