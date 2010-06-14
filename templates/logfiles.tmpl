@@ -1,18 +1,22 @@
-#filter WebSafe
+#if $includeWrapper
 <div id="log-wrapper" class="">
+#end if
+    #if $message
     <p>
     $message
     </p>
-    #end filter
-    <ul>
+    #end if
+    <ul id="log-file-list">
         #for $logfile in $logfiles
-            <li><span><a href="$logfile.url">$logfile.name</a> --- $logfile.size KB --- </span><span><a href="$logfile.uploadurl">Upload to Google Docs</a> --- 
+            <li><a href="$logfile.url" class="log-file-name">$logfile.name</a><span class="log-size">$logfile.size</span><a href="$logfile.uploadurl" class="upload-log">Upload to Google Docs</a> 
           #if $logfile.active
-            <a href="#" stopurl="$logfile.stopurl" class="stop-link">Stop logging</a>
+            <a href="#" stopurl="$logfile.stopurl" class="stop-log stop-link">Stop logging</a>
           #else
-            <a href="$logfile.removeurl">Delete forever</a>
+            <a href="$logfile.removeurl" class="delete-log">Delete forever</a>
           #end if
-          </span></li>
+          </li>
         #end for
     </ul>
+#if $includeWrapper
 </div>
+#end if

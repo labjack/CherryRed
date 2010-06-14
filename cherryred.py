@@ -1326,8 +1326,9 @@ class LoggingPage(object):
             
             size = os.stat(os.path.join(logfilesDir,filename)).st_size
             size = float(size)/1024
+            size = "%.2f KB" % size
             
-            aLog = dict(name = newName, url= "/logfiles/%s" % filename, uploadurl = "/logs/upload/%s" % filename, removeurl = "/logs/remove/%s" % filename, size = "%.2f" % size, active = active, stopurl = stopurl)
+            aLog = dict(name = newName, url= "/logfiles/%s" % filename, uploadurl = "/logs/upload/%s" % filename, removeurl = "/logs/remove/%s" % filename, size = size, active = active, stopurl = stopurl)
             l.append(aLog)
         return l
 
@@ -1343,6 +1344,7 @@ class LoggingPage(object):
         tMainContent = serve_file2("templates/logfiles.tmpl")
         tMainContent.logfiles = self.getLogFiles()
         tMainContent.message = message
+        tMainContent.includeWrapper = True
         
         t.mainContent = tMainContent.respond()
         t.currentPage = "logs"
@@ -1350,6 +1352,19 @@ class LoggingPage(object):
 
         return t.respond()
         
+    @exposeRawFunction
+    def logFileList(self):
+        """ Just the list of files. Used for AJAX updating.
+        """
+        cherrypy.response.headers['Cache-Control'] = "no-cache"
+
+        tFileList = serve_file2("templates/logfiles.tmpl")
+        tFileList.logfiles = self.getLogFiles()
+        tFileList.message = ""
+        tFileList.includeWrapper = False
+        
+        return tFileList.respond()
+
     @exposeRawFunction
     def remove(self, filename):
         logfileDir = os.path.join(current_dir,"logfiles")
