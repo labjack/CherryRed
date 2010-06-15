@@ -4,6 +4,10 @@
   #if $device.devType == 9
   <p class="firmware-version">Control Firmware: $device.firmware[1]</p>
   <p class="firmware-version">Communication Firmware: $device.firmware[0]</p>
+  #end if
+  #if $device.devType == 1281
+  <p class="firmware-version">Ethernet Firmware: $device.firmware[0]</p>
+  <p class="firmware-version">USB Firmware: $device.firmware[1]</p>
   #else
   <p class="firmware-version">Firmware Version: $device.firmware</p>
   #end if
