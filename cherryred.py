@@ -266,10 +266,7 @@ class DeviceManager(object):
         dev = self.getDevice(serial)
         
         if inputNumber in DAC_DICT.keys():
-            returnDict = { "state" : dev.readRegister(inputNumber), "label" : DAC_DICT[inputNumber], "connectionNumber" : inputNumber }
-            t = serve_file2("templates/dac.tmpl")
-            t.dac = returnDict
-            returnDict['html'] = t.respond()
+            returnDict = { "state" : dev.readRegister(inputNumber), "label" : DAC_DICT[inputNumber], "connectionNumber" : inputNumber, "chType" : "DAC" }
         else:
             returnDict = dev.fioList[inputNumber].asDict()
         
@@ -939,11 +936,29 @@ class DevicesPage(object):
         self.dm.updateTimerCounterConfig(serial, int(timerClockBase), int(timerClockDivisor), int(pinOffset), int(counter0Enable), int(counter1Enable), timerSettings)
         return "Ok."
 
+    def renderU3Templates(self, inputConnection):
+        if inputConnection['fioNumber'] < 4 and inputConnection['device']['productName'].endswith("HV"):
+            t = serve_file2("templates/u3-hv-analog-connection-dialog.tmpl")
+            return t.respond()
+        else:
+            t = serve_file2("templates/u3-connection-dialog.tmpl")
+            t.isHv = inputConnection['device']['productName'].endswith("HV")
+            return t.respond()
+
     @exposeJsonFunction
     def inputInfo(self, serial = None, inputNumber = 0):
         """ Returns a JSON of the current state of an input.
         """
         inputConnection = self.dm.getFioInfo(serial, int(inputNumber))
+        
+        if inputConnection['chType'] == "DAC":
+            t = serve_file2("templates/dac.tmpl")
+            t.dac = inputConnection
+            inputConnection['html'] = t.respond()
+        elif inputConnection['device']['devType'] == 3:
+            inputConnection['html'] = self.renderU3Templates(inputConnection)
+            
+        
         return inputConnection
         
     @exposeRawFunction
@@ -996,6 +1011,9 @@ class DevicesPage(object):
             chType = ( analogIn, digitalIn, digitalOut )
             negChannel = the negative channel, only matters for analogIn type
             state = 1 for high, 0 for low. Only matters for digitalOut
+            gainIndex = the gain index for the U6/UE9, LongSettling for U3.
+            resolutionIndex = the resolution for U6/UE9, nothing on U3.
+            settlingFactor = for settling time on U6/UE9, QuickSample on U3. 
         """
         if negChannel and int(negChannel) < 30:
             print "Setting %s to analog." % negChannel
