@@ -92,7 +92,7 @@ body {
 #header {
   background-color: #222222;
   color: white;
-  border-radius: 0 0 6px 6px;
+  border-radius: 6px;
   -moz-border-radius: 0 0 6px 6px;
   -webkit-border-radius: 0 0 6px 6px;
 }
@@ -267,6 +267,20 @@ a.digital-out-toggle-link.toggling {
 
 .ui-state-hover a.digital-out-toggle-link {
     display: inline;
+}
+
+#dialog .single-setting {
+    margin-bottom: 1em;
+    position: relative;
+}
+#dialog .single-setting select {
+    position: absolute;
+    left: 100px;
+}
+#dialog .more-info {
+    font-size: 10px;
+    color: #555555;
+    margin: 5px 0;
 }
 
 /* CSS for the "Couldn't Connect" page */
