@@ -298,14 +298,13 @@ class DeviceManager(object):
         analogCommandList = list()
         for i in range(14):
             ain = dev.fioList[i]
-            analogCommandList.append( u6.AIN24(i, ResolutionIndex = ain.resolutionIndex, GainIndex = ain.gainIndex, SettlingFactor = ain.settlingFactor, Differential = ain.negChannel) )
+            analogCommandList.append( ain.makeFeedbackCommand(dev) )
         
         dev.analogCommandList = analogCommandList
 
     def makeU6FioList(self, dev):
         # Make a list to hold the state of all the fios
         fios = list()
-        
         analogCommandList = list()
         for i in range(14):
             fios.append( FIO(i) )
@@ -990,7 +989,7 @@ class DevicesPage(object):
         return t.respond()
 
     @exposeJsonFunction
-    def updateInputInfo(self, serial, inputNumber, chType, negChannel = None, state = None ):
+    def updateInputInfo(self, serial, inputNumber, chType, negChannel = None, state = None, gainIndex = None, resolutionIndex = None, settlingFactor = None ):
         """ For configuring an input.
             serial = serial number of device
             inputNumber = the row number of that input
@@ -1005,6 +1004,12 @@ class DevicesPage(object):
             
         # Make a temp FIO with the new settings.
         inputConnection = FIO( int(inputNumber), "FIO%s" % inputNumber, chType, state, negChannel )
+        if gainIndex is not None:
+            inputConnection.gainIndex = int(gainIndex)
+        if resolutionIndex is not None:
+            inputConnection.resolutionIndex = int(resolutionIndex)
+        if settlingFactor is not None:
+            inputConnection.settlingFactor = int(settlingFactor)
         
         # Tells the device manager to update the input
         self.dm.updateFio(serial, inputConnection)
