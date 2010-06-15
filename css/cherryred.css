@@ -86,8 +86,8 @@ a { color: #222222; }
 
 body {
   min-width: 960px;
-  /*background-color: #E6F3FF;*/
-  background-color: #a6b3bF;
+  background-color: #E6F3FF;
+  /*background-color: #a6b3bF; */
 }
 #header {
   background-color: #222222;
@@ -175,6 +175,7 @@ body.logs #logs,
 #log-file-list li .log-file-name,
 #log-file-list li .log-size,
 #log-file-list li .upload-log,
+#log-file-list li .too-big-log,
 #log-file-list li .stop-log,
 #log-file-list li .delete-log {
     position: absolute;
@@ -186,14 +187,18 @@ body.logs #logs,
 #log-file-list li .log-size {
     left: 315px;
     text-align: right;
-    width: 5em;
+    width: 6em;
 }
-#log-file-list li .upload-log {
+#log-file-list li .upload-log,
+#log-file-list li .too-big-log {
     left: 415px;
 }
 #log-file-list li .stop-log,
 #log-file-list li .delete-log {
     left: 585px;
+    color: #777777;
+}
+#log-file-list li .too-big-log {
     color: #777777;
 }
 #log-file-list li .log-file-name:hover, 

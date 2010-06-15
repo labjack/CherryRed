@@ -21,6 +21,7 @@ $(document).ready(function() {
     setupDialog();
     setupLogCheckboxes();
     setupLogFileScanning();
+    setupSupportTab();
     getDeviceList();
     updateLogBar();
 });
@@ -141,6 +142,19 @@ function handleLogFileScan(data) {
     $("#log-wrapper").html(data);
 }
 
+function setupSupportTab() {
+    var $tabs = $("#tabs").tabs();
+    $tabs.bind( "tabsselect", function(event, ui) {
+        console.log(event);
+        console.log(ui);
+//        var selected = $tabs.tabs('option', 'selected');
+//            console.log(selected);
+        if (ui.index == 3) {
+            $.get("/devices/support/" + currentSerialNumber, {}, function(data)  {$("#support-tab").html(data); });
+        }
+    });
+}
+
 function clearSparklineIfNeeded(oldState, newState, fioNumber) {
     if (oldState != newState) {
         sparklineDataMap[fioNumber] = [];
@@ -195,7 +209,7 @@ function handleInputInfo(inputInfoJson) {
             var newValue = $("#dac-value").val();
             //console.log(newValue);
             if (newValue >=0 && newValue <= 5.0) {
-                $.get("/devices/" + currentSerialNumber + "/writeregister", {addr : inputInfoJson.connectionNumber, value : newValue}, function (data) {console.log(data); return true;}, "json");
+                $.get("/devices/" + currentSerialNumber + "/writeregister", {addr : inputInfoJson.connectionNumber, value : newValue}, function (data) {return true;}, "json");
             }
             restartScanning();
             $("#dialog").dialog('close');
@@ -217,7 +231,8 @@ function handleInputInfo(inputInfoJson) {
     // Device-specific connnections    
     if (inputInfoJson.device.devType == 3) {
         if (inputInfoJson.device.productName == "U3-HV" && inputInfoJson.fioNumber < 4) {
-            $("#u3-hv-analog-connection-dialog").jqote().appendTo($("#dialog"));
+            //$("#u3-hv-analog-connection-dialog").jqote().appendTo($("#dialog"));
+            $("#dialog").html(inputInfoJson.html);
         } else {
             $("#u3-connection-dialog").jqote().appendTo($("#dialog"));
         }
@@ -292,8 +307,21 @@ function handleInputInfo(inputInfoJson) {
         });
         $("#dialog").dialog('open');
         //console.log("U3");    
-    } else {
-        //console.log("Not a U3");
+    }
+    else if (inputInfoJson.device.devType == 6) {
+        //console.log("U6");    
+        $("#dialog").html(inputInfoJson.html);
+        $("#u6-connection-dialog-tabs").tabs();
+        $("#dialog").dialog('option', 'title', inputInfoJson.label);
+        $("#dialog").dialog('option', 'width', 425);
+        $("#dialog").dialog('option', 'buttons', { 
+            "Save": dialogDone,
+            "Cancel": dialogDone
+        });
+        $("#dialog").dialog('open');
+    }
+    else {
+        //console.log("Not a U3 or U6");
     }
 }
 
