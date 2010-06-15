@@ -62,9 +62,9 @@ class FIO(object):
         """
         if inputConnection.chType == ANALOG_TYPE:
             self.negChannel = inputConnection.negChannel
-            self.gainIndex = 0
-            self.resolutionIndex = 1
-            self.settlingFactor = 0
+            self.gainIndex = inputConnection.gainIndex
+            self.resolutionIndex = inputConnection.resolutionIndex
+            self.settlingFactor = inputConnection.settlingFactor
             self.setSelfToAnalog(dev)
         elif inputConnection.chType == DIGITAL_OUT_TYPE:
             self.state = inputConnection.state
