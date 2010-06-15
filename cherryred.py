@@ -282,7 +282,7 @@ class DeviceManager(object):
         current.transform(dev, inputConnection)
         
         if dev.devType == 6:
-            remakeU6AnalogCommandList(dev)
+            self.remakeU6AnalogCommandList(dev)
     
     def remakeFioList(self, serial):
         dev = self.getDevice(serial)
@@ -291,7 +291,7 @@ class DeviceManager(object):
         
         self.devices[str(dev.serialNumber)] = dev
     
-    def remakeU6AnalogCommandList(dev):
+    def remakeU6AnalogCommandList(self, dev):
         analogCommandList = list()
         for i in range(14):
             ain = dev.fioList[i]
@@ -560,6 +560,7 @@ class DeviceManager(object):
             headers = []
             
         for result in results:
+            result['devType'] = dev.devType
             if "disabled" not in result:
                 result['disabled'] = False
             
@@ -602,6 +603,7 @@ class DeviceManager(object):
             headers = []
             
         for result in results:
+            result['devType'] = dev.devType
             if "disabled" not in result:
                 result['disabled'] = False
         
@@ -667,6 +669,8 @@ class DeviceManager(object):
                     c = self.readCounter(dev, int(dioDict['connection'][-1]))
                     dioDict.update(c)
             
+            dioDict['connectionNumber'] = i + dev.numberOfAnalogIn
+            
             results.append( dioDict )
         
         for register, label in DAC_DICT.items():
@@ -681,6 +685,7 @@ class DeviceManager(object):
             headers = []
             
         for result in results:
+            result['devType'] = dev.devType
             if "disabled" not in result:
                 result['disabled'] = False
         
@@ -939,10 +944,27 @@ class DevicesPage(object):
     def renderU3Templates(self, inputConnection):
         if inputConnection['fioNumber'] < 4 and inputConnection['device']['productName'].endswith("HV"):
             t = serve_file2("templates/u3-hv-analog-connection-dialog.tmpl")
+            t.longSettling = bool(inputConnection['gainIndex'])
+            t.quickSample = bool(inputConnection['settlingFactor'])
             return t.respond()
         else:
             t = serve_file2("templates/u3-connection-dialog.tmpl")
+            t.longSettling = bool(inputConnection['gainIndex'])
+            t.quickSample = bool(inputConnection['settlingFactor'])
             t.isHv = inputConnection['device']['productName'].endswith("HV")
+            return t.respond()
+
+    def renderU6Templates(self, inputConnection):
+        print inputConnection
+        if inputConnection['chType'] == ANALOG_TYPE:
+            t = serve_file2("templates/u6-analog-connection-dialog.tmpl")
+            t.inputConnection = inputConnection['label']
+            t.isPro = inputConnection['device']['productName'].endswith("Pro")
+            t.isEvenChannel = not bool(inputConnection['fioNumber'] % 2)
+            t.inputConnectionPair = "AIN%s" % (inputConnection['fioNumber']+1)
+            return t.respond()
+        else:
+            t = serve_file2("templates/u6-digital-connection-dialog.tmpl")
             return t.respond()
 
     @exposeJsonFunction
@@ -957,7 +979,9 @@ class DevicesPage(object):
             inputConnection['html'] = t.respond()
         elif inputConnection['device']['devType'] == 3:
             inputConnection['html'] = self.renderU3Templates(inputConnection)
-            
+        elif inputConnection['device']['devType'] == 6:
+            inputConnection['html'] = self.renderU6Templates(inputConnection)
+
         
         return inputConnection
         
@@ -1015,7 +1039,7 @@ class DevicesPage(object):
             resolutionIndex = the resolution for U6/UE9, nothing on U3.
             settlingFactor = for settling time on U6/UE9, QuickSample on U3. 
         """
-        if negChannel and int(negChannel) < 30:
+        if negChannel and int(negChannel) < 30 and self.dm.getDevice(serial).devType == 3:
             print "Setting %s to analog." % negChannel
             inputConnection = FIO( int(negChannel), "FIO%s" % negChannel, chType, state, 31 )
             self.dm.updateFio(serial, inputConnection)

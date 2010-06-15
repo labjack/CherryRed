@@ -5,21 +5,21 @@
     <div id="u6-connection-dialog-tabs-analog">
       <form class="u6-analog-form">
         <fieldset>
-          <div>
+          <div class="single-setting">
               <label>
-                Gain
+                Gain:
                 <select name="gain">
-                    <option value="1">x1, Range &plusmn;10V</option>
-                    <option value="2">x10, Range &plusmn;1V</option>
-                    <option value="3">x100, Range &plusmn;0.1V</option>
-                    <option value="4">x1000, Range &plusmn;0.01V</option>
+                    <option value="0">x1, Range &plusmn;10V</option>
+                    <option value="1">x10, Range &plusmn;1V</option>
+                    <option value="2">x100, Range &plusmn;0.1V</option>
+                    <option value="3">x1000, Range &plusmn;0.01V</option>
                 </select>
               </label>
-              <div>For more info on gain, see <a href="http://labjack.com/support/u6/users-guide/2.6" target="_blank">Section 2.6</a> of the U6 User's Guide.</div>
+              <div class="more-info">See <a href="http://labjack.com/support/u6/users-guide/2.6" target="_blank">Section 2.6</a> of the U6 User's Guide for more info on gain.</div>
           </div>
-          <div>
+          <div class="single-setting">
               <label>
-                Resolution
+                Resolution:
                 <select name="resolution">
                     <option value="0">Default</option>
                     <option value="1">1</option>
@@ -30,19 +30,23 @@
                     <option value="6">6</option>
                     <option value="7">7</option>
                     <option value="8">8</option>
+                    #if $isPro
                     <option value="9">9</option>
                     <option value="10">10</option>
                     <option value="11">11</option>
                     <option value="12">12</option>
+                    #end if
                 </select>
               </label>
-              <div>Resolution applies to all analog inputs, not just $AIN0. For more info on resolution, see <a href="http://labjack.com/support/u6/users-guide/appendix-b" target="_blank">Appendix B</a> of the U6 User's Guide.</div>
+              <div class="more-info">See <a href="http://labjack.com/support/u6/users-guide/appendix-b" target="_blank">Appendix&nbsp;B</a> of the U6 User's Guide for more info on resolution.</div>
           </div>
-          <div>
+          #if $isEvenChannel
+          <div class="single-setting">
             <label>
-            <input type="checkbox" name="differential" />Differential with negative channel $AIN1
+            <input type="checkbox" name="differential" />Differential with negative channel ${inputConnectionPair}
             </label>
           </div>
+          #end if
         </fieldset>
       </form>
   </div>

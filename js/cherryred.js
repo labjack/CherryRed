@@ -145,8 +145,6 @@ function handleLogFileScan(data) {
 function setupSupportTab() {
     var $tabs = $("#tabs").tabs();
     $tabs.bind( "tabsselect", function(event, ui) {
-        console.log(event);
-        console.log(ui);
 //        var selected = $tabs.tabs('option', 'selected');
 //            console.log(selected);
         if (ui.index == 3) {
@@ -161,7 +159,7 @@ function clearSparklineIfNeeded(oldState, newState, fioNumber) {
     }
 }
 
-function getUpdateInputInfo(inputConnection, chType, negChannel, state) {
+function callU6UpdateInputInfo(inputConnection, chType, negChannel, state, gainIndex, resolutionIndex) {
     var updateInputInfoOptions = {serial : currentSerialNumber, inputNumber : inputConnection, chType : chType};
     if (negChannel != undefined) {
         updateInputInfoOptions.negChannel = negChannel;
@@ -169,7 +167,24 @@ function getUpdateInputInfo(inputConnection, chType, negChannel, state) {
     if (state != undefined) {
         updateInputInfoOptions.state = state;
     }
-    //console.log("getUpdateInputInfo");
+    if (gainIndex != undefined) {
+        updateInputInfoOptions.gainIndex = gainIndex;
+    }
+    if (resolutionIndex != undefined) {
+        updateInputInfoOptions.resolutionIndex = resolutionIndex;
+    }
+    $.get("/devices/updateInputInfo", updateInputInfoOptions, dialogDone);
+}
+
+function callU3UpdateInputInfo(inputConnection, chType, negChannel, state) {
+    var updateInputInfoOptions = {serial : currentSerialNumber, inputNumber : inputConnection, chType : chType};
+    if (negChannel != undefined) {
+        updateInputInfoOptions.negChannel = negChannel;
+    }
+    if (state != undefined) {
+        updateInputInfoOptions.state = state;
+    }
+    //console.log("callU3UpdateInputInfo");
     //console.log(updateInputInfoOptions);
     $.get("/devices/updateInputInfo", updateInputInfoOptions, dialogDone);
 }
@@ -230,12 +245,7 @@ function handleInputInfo(inputInfoJson) {
 
     // Device-specific connnections    
     if (inputInfoJson.device.devType == 3) {
-        if (inputInfoJson.device.productName == "U3-HV" && inputInfoJson.fioNumber < 4) {
-            //$("#u3-hv-analog-connection-dialog").jqote().appendTo($("#dialog"));
-            $("#dialog").html(inputInfoJson.html);
-        } else {
-            $("#u3-connection-dialog").jqote().appendTo($("#dialog"));
-        }
+        $("#dialog").html(inputInfoJson.html);
 
         $("#u3-connection-dialog-tabs").tabs();
         var removeSelector = "select[name='neg-channel'] option[value=" + inputInfoJson.fioNumber + "]";
@@ -277,9 +287,9 @@ function handleInputInfo(inputInfoJson) {
                     if (analogSelection == "single-special") {
                         negChannel = 32;
                     } else if (analogSelection == "differential") {
-                        negChannel = $("select[name='neg-channel']").val()
+                        negChannel = $("select[name='neg-channel']").val();
                     }
-                    getUpdateInputInfo(inputInfoJson.fioNumber, newChType, negChannel, null);
+                    callU3UpdateInputInfo(inputInfoJson.fioNumber, newChType, negChannel, null);
                 } else {
                     //console.log("digital selected");
                     var digitalSelection = $("input[name='digital']:checked").val();
@@ -300,7 +310,7 @@ function handleInputInfo(inputInfoJson) {
 
                     clearSparklineIfNeeded(inputInfoJson.chType, newChType, inputInfoJson.fioNumber);
 
-                    getUpdateInputInfo(inputInfoJson.fioNumber, newChType, null, newState);
+                    callU3UpdateInputInfo(inputInfoJson.fioNumber, newChType, null, newState);
                 }
             },
             "Cancel": dialogDone
@@ -309,13 +319,56 @@ function handleInputInfo(inputInfoJson) {
         //console.log("U3");    
     }
     else if (inputInfoJson.device.devType == 6) {
-        //console.log("U6");    
         $("#dialog").html(inputInfoJson.html);
+        if (inputInfoJson.chType == "analogIn") {
+            $("select[name='gain']").val(inputInfoJson.gainIndex);
+            $("select[name='resolution']").val(inputInfoJson.resolutionIndex);
+            if (inputInfoJson.negChannel != 31) {
+                $("input[name='differential']").attr("checked", "checked");
+            }
+        } else {
+            if (inputInfoJson.chType == "digitalIn") {
+                $("input[name='digital']:nth(0)").attr("checked","checked");        
+            } else {
+                if (inputInfoJson.state == 0) {
+                    $("input[name='digital']:nth(1)").attr("checked","checked");
+                } else {
+                    $("input[name='digital']:nth(2)").attr("checked","checked");
+                }
+            }
+        }
         $("#u6-connection-dialog-tabs").tabs();
         $("#dialog").dialog('option', 'title', inputInfoJson.label);
         $("#dialog").dialog('option', 'width', 425);
         $("#dialog").dialog('option', 'buttons', { 
-            "Save": dialogDone,
+            "Save": function () {
+                
+                var newNegChannel = $("input[name='differential']:checked").val();
+                if (newNegChannel) {
+                    newNegChannel = 1;
+                }
+                var newGainIndex = $("select[name='gain']").val();
+                var newResolutionIndex = $("select[name='resolution']").val();
+
+                var newChType = '';
+                var newState = null;
+                if (inputInfoJson.chType == "analogIn") {
+                    newChType = inputInfoJson.chType;
+                }
+                else {
+                    var digitalSelection = $("input[name='digital']:checked").val();
+                    if (digitalSelection == "digital-input") {
+                        newChType = "digitalIn";
+                    } else if (digitalSelection == "digital-output-low") {
+                        newChType = "digitalOut";
+                        newState = 0;
+                    } else if (digitalSelection == "digital-output-high") {
+                        newChType = "digitalOut";
+                        newState = 1;
+                    }
+                }
+                callU6UpdateInputInfo(inputInfoJson.fioNumber, newChType, newNegChannel, newState, newGainIndex, newResolutionIndex);
+            },
             "Cancel": dialogDone
         });
         $("#dialog").dialog('open');
@@ -378,12 +431,17 @@ function setupStopLoggingLinks() {
     });
 }
 
-function sparklineMinMax(sparklineType) {
+function sparklineMinMax(sparklineType, deviceType) {
     minMax = {};
     switch (sparklineType) {
         case "analogIn":
-            minMax.min = 0;
-            minMax.max = 3.3;
+            if (deviceType == 6) {
+                minMax.min = -10;
+                minMax.max = 10;
+            } else {
+                minMax.min = 0;
+                minMax.max = 3.3;
+            }
             break;
         case "digitalIn":
         case "digitalOut":
@@ -499,7 +557,8 @@ function handleScan(data) {
 
     $('.test-panel-sparkline').each(function(i) {
         var connectionText = data[i].connection;
-        var chartMinMax = sparklineMinMax(data[i].chType);
+        //console.log(data);
+        var chartMinMax = sparklineMinMax(data[i].chType, data[i].devType);
         var sparklineOptions;
         if ($(this).hasClass("analogIn")) {
             sparklineOptions = sparklineAnalogInOptions;
