@@ -44,7 +44,10 @@ class FIO(object):
     def makeFeedbackCommand(self, dev):
         if self.chType == ANALOG_TYPE:
             if dev.devType == 3:
-                return u3.AIN(self.fioNumber, NegativeChannel = self.negChannel, LongSettling = self.gainIndex, QuickSample = self.settlingFactor)
+                nc = self.negChannel
+                if nc == 32:
+                    nc = 30
+                return u3.AIN(self.fioNumber, NegativeChannel = nc, LongSettling = self.gainIndex, QuickSample = self.settlingFactor)
             elif dev.devType == 6:
                 diff = False
                 if self.negChannel != 31:

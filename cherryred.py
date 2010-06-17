@@ -279,19 +279,27 @@ class DeviceManager(object):
         
     def updateFio(self, serial, inputConnection):
         dev = self.getDevice(serial)
-        
-        current = dev.fioList[ inputConnection.fioNumber ]
-        current.transform(dev, inputConnection)
-        
-        if dev.devType == 6:
-            self.remakeU6AnalogCommandList(dev)
+        try:
+            self.scanEvent.clear()
+            current = dev.fioList[ inputConnection.fioNumber ]
+            current.transform(dev, inputConnection)
+            
+            if dev.devType == 6:
+                self.remakeU6AnalogCommandList(dev)
+            elif dev.devType == 3:
+                self.remakeFioList(dev)
+        finally:
+            self.scanEvent.set()
     
     def remakeFioList(self, serial):
-        dev = self.getDevice(serial)
+        if isinstance(serial, str):
+            dev = self.getDevice(serial)
+        else:
+            dev = serial
         
-        dev.fioList = self.makeU3FioList(dev)
-        
-        self.devices[str(dev.serialNumber)] = dev
+        fioList, fioFeedbackCommands = self.makeU3FioList(dev)
+        dev.fioList = fioList
+        dev.fioFeedbackCommands = fioFeedbackCommands
     
     def remakeU6AnalogCommandList(self, dev):
         analogCommandList = list()
@@ -359,8 +367,12 @@ class DeviceManager(object):
                 fioState = dev.readRegister(6000 + i)
                 
                 fios.append( FIO(i, label % (i + labelOffset), (DIGITAL_IN_TYPE if fioDir == 0 else DIGITAL_OUT_TYPE), fioState) )
-            
-        return fios
+        
+        fioFeedbackCommands = list()
+        for fio in fios:
+            fioFeedbackCommands.append(fio.makeFeedbackCommand(dev))
+        
+        return fios, fioFeedbackCommands
         
     
     def updateDeviceDict(self):
@@ -420,8 +432,11 @@ class DeviceManager(object):
                         
                     try:
                         #d.debug = True
-                        d.fioList = self.makeU3FioList(d)
+                        fioList, fioFeedbackCommands = self.makeU3FioList(d)
+                        d.fioList = fioList
+                        d.fioFeedbackCommands = fioFeedbackCommands
                     except Exception, e:
+                        print "making u3 fio list: %s" % e
                         raise Exception( "making u3 fio list: %s" % e )
                     
                 elif dev['prodId'] == 6:
@@ -496,6 +511,24 @@ class DeviceManager(object):
         
         return infoDict
 
+    def _appendExtraDataToScanResults(self, dev, results):
+        if str(dev.serialNumber) in self.loggingThreads:
+            headers = self.loggingThreads[str(dev.serialNumber)].headers
+        else:
+            headers = []
+            
+        for result in results:
+            result['devType'] = dev.devType
+            if "disabled" not in result:
+                result['disabled'] = False
+            
+            if result['connection'] in headers:
+                result['logging'] = True
+            else:
+                result['logging'] = False
+                
+        return results
+
     def ue9Scan(self, dev):
         results = list()
         
@@ -561,23 +594,7 @@ class DeviceManager(object):
         
         results.append(internalTempDict(dev.readRegister(266)))
         
-        if str(dev.serialNumber) in self.loggingThreads:
-            headers = self.loggingThreads[str(dev.serialNumber)].headers
-        else:
-            headers = []
-            
-        for result in results:
-            result['devType'] = dev.devType
-            if "disabled" not in result:
-                result['disabled'] = False
-            
-            if result['connection'] in headers:
-                result['logging'] = True
-            else:
-                result['logging'] = False
-        
-        
-        return dev.serialNumber, results
+        return dev.serialNumber, self._appendExtraDataToScanResults(dev, results)
 
     def u3Scan(self, dev):
         fioAnalog = dev.readRegister(50590)
@@ -585,8 +602,32 @@ class DeviceManager(object):
         
         results = list()
         
-        for fio in dev.fioList:
-            results.append( fio.readResult(dev) )
+        rawResponse = dev.getFeedback(dev.fioFeedbackCommands)
+        for i, bits in enumerate(rawResponse):
+            fio = dev.fioList[i]
+            
+            if fio.chType == ANALOG_TYPE:
+                isLowVoltage = True
+                if dev.deviceName.endswith("HV") and i < 4:
+                    isLowVoltage = False
+                
+                isSingleEnded = True
+                isSpecialChannel = False
+                if fio.negChannel == 32:
+                    isSpecialChannel = True
+                elif fio.negChannel != 31:
+                    isSingleEnded = False
+                    
+                value = dev.binaryToCalibratedAnalogVoltage(bits, isLowVoltage, isSingleEnded, isSpecialChannel, i)
+                results.append( fio.parseAinResults(value) )
+            elif fio.chType == DIGITAL_IN_TYPE:
+                #value = bits["%ss" % (fio.label[:3])]
+                #value = (value >> int(fio.label[3:])) & 1
+                results.append( fio.parseFioResults(0, bits) )
+            else:
+                #value = bits["%ss" % (fio.label[:3])]
+                #value = (value >> int(fio.label[3:])) & 1
+                results.append( fio.parseFioResults(1, bits) )
         
         ioResults = dev.configIO()
         for i in range(ioResults['NumberOfTimersEnabled']):
@@ -603,23 +644,8 @@ class DeviceManager(object):
             results.append({'connection' : label, 'connectionNumber' : register, 'state' : FLOAT_FORMAT % dacState, 'value' : FLOAT_FORMAT % dacState})
         
         results.append(internalTempDict(dev.readRegister(60)))
-
-        if str(dev.serialNumber) in self.loggingThreads:
-            headers = self.loggingThreads[str(dev.serialNumber)].headers
-        else:
-            headers = []
-            
-        for result in results:
-            result['devType'] = dev.devType
-            if "disabled" not in result:
-                result['disabled'] = False
         
-            if result['connection'] in headers:
-                result['logging'] = True
-            else:
-                result['logging'] = False
-        
-        return dev.serialNumber, results
+        return dev.serialNumber, self._appendExtraDataToScanResults(dev, results)
 
     def u6Scan(self, dev):
         results = list()
@@ -685,23 +711,8 @@ class DeviceManager(object):
             results.append({'connection' : label, 'connectionNumber' : register, 'state' : FLOAT_FORMAT % dacState, 'value' : FLOAT_FORMAT % dacState})
         
         results.append(internalTempDict(dev.readRegister(28)))
-
-        if str(dev.serialNumber) in self.loggingThreads:
-            headers = self.loggingThreads[str(dev.serialNumber)].headers
-        else:
-            headers = []
-            
-        for result in results:
-            result['devType'] = dev.devType
-            if "disabled" not in result:
-                result['disabled'] = False
         
-            if result['connection'] in headers:
-                result['logging'] = True
-            else:
-                result['logging'] = False
-        
-        return dev.serialNumber, results
+        return dev.serialNumber, self._appendExtraDataToScanResults(dev, results)
 
     def listAll(self):
         devices = dict()
@@ -1338,7 +1349,12 @@ class UsersPage:
         self.dm.apikey = apikey
         
         raise cherrypy.HTTPRedirect("/users/")
-    
+
+class ConfigPage(object):
+    """ A class for handling all things /config/
+    """
+    def __init__(self, dm):
+        self.dm = dm   
 
 class LoggingPage(object):
     """ A class for handling all things /logs/
@@ -1544,6 +1560,7 @@ class RootPage:
         self.devices = DevicesPage(dm)
         
         self.logs = LoggingPage(dm)
+        self.configs = ConfigPage(dm)
         
         self.users = UsersPage(dm)
     
@@ -1628,6 +1645,9 @@ if __name__ == '__main__':
     
     if not os.path.isdir("./logfiles"):
         os.mkdir("./logfiles")
+        
+    #if not os.path.isdir("./configfiles"):
+    #    os.mkdir("./configfiles")
     
     if not IS_FROZEN:
         # not frozen: in regular python interpreter
