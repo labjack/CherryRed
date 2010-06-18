@@ -149,6 +149,8 @@ function setupSupportTab() {
 //            console.log(selected);
         if (ui.index == 3) {
             $.get("/devices/support/" + currentSerialNumber, {}, function(data)  {$("#support-tab").html(data); });
+        } else if(ui.index == 1) {
+            $.get("/config/filelist/" + currentSerialNumber, {}, function(data)  {$("#config-file-list").html(data); });
         }
     });
 }
@@ -596,7 +598,7 @@ function handleMoreInfo(data) {
 function handleSelectDevice(serialNumber) {
     if (serialNumber) {
         $.get("/devices/" + serialNumber, {}, handleMoreInfo, "json");
-    
+        $("#save-config-link").attr("href", "/config/exportConfigToFile/" + serialNumber);
         $("#device-summary-list").hide();
         $("#tabs").show();   
     } else {

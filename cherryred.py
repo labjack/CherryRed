@@ -10,6 +10,7 @@ import cherrypy
 import cherrypy.lib
 from cherrypy.lib.static import serve_file
 from Cheetah.Template import Template
+from datetime import datetime
 
 from threading import Lock, Event
 
@@ -360,7 +361,7 @@ class DeviceManager(object):
                 label = "CIO%s"
                 labelOffset = -16            
         
-            if i < 16 and (( analog >> i) & 1):
+            if i < 16 and (( analog >> (i + labelOffset)) & 1):
                 fios.append( FIO(i) )
             else:
                 fioDir = dev.readRegister(6100 + i)
@@ -427,6 +428,7 @@ class DeviceManager(object):
                         
                     try:
                         d.configU3()
+                        d.getCalibrationData()
                     except Exception, e:
                         raise Exception( "Error with configU3: %s" % e )
                         
@@ -903,7 +905,7 @@ class DevicesPage(object):
         devices['htmlSummaryList'] = t2.respond()
         
         return devices
-    
+        
     @exposeJsonFunction
     def default(self, serial, cmd = None, *pargs, **kwargs):
         """ Handles URLs like: /devices/<serial number>/
@@ -1042,6 +1044,9 @@ class DevicesPage(object):
         os = os.split(")")[0]
         os = os.split(";")[2].strip()
         t.os = os
+        t.isWindows = (LabJackPython.os.name == 'nt')
+        t.driverVersion = LabJackPython.GetDriverVersion()
+        t.userAgent = userAgent
         
         return t.respond()
 
@@ -1157,26 +1162,6 @@ class DevicesPage(object):
         # Redirect them away because there's nothing to be rendered.
         # TODO: Return JSON for Mike C.
         raise cherrypy.HTTPRedirect("/")
-    
-    @exposeRawFunction    
-    def exportConfigToFile(self, serial):
-        """ Allows people to download the configuration of their LabJack.
-        """
-        
-        # Call the exportConfig function on the device.
-        devDict, result = self.dm.callDeviceFunction(serial, "exportconfig", [], {})
-        
-        # exportConfig returns a ConfigParser object. We need it as a string.
-        fakefile = StringIO.StringIO()
-        result.write(fakefile)
-        
-        # Set the headers
-        cherrypy.response.headers['Content-Type'] = "application/x-download"
-        cd = '%s; filename="%s"' % ("attachment", "labjack-%s-%s-conf.txt" % (devDict['productName'], devDict['serial']) )
-        cherrypy.response.headers["Content-Disposition"] = cd
-        
-        # Send the data
-        return fakefile.getvalue()
 
 
 if IS_FROZEN:
@@ -1354,7 +1339,73 @@ class ConfigPage(object):
     """ A class for handling all things /config/
     """
     def __init__(self, dm):
-        self.dm = dm   
+        self.dm = dm
+    
+    def getConfigFiles(self):
+        l = []
+        logfilesDir = os.path.join(current_dir,"configfiles")
+        files = sorted(os.listdir(logfilesDir), reverse = True, key = lambda x: os.stat(os.path.join(logfilesDir,x)).st_ctime)
+        for filename in files:
+            newName = replaceUnderscoresWithColons(filename)
+                     
+            size = os.stat(os.path.join(logfilesDir,filename)).st_size
+            size = float(size)/1024
+            sizeStr = "%.2f KB" % size
+            
+            aLog = dict(name = newName, url= "/configfiles/%s" % filename, removeurl = "/config/remove/%s" % filename, size = sizeStr)
+            l.append(aLog)
+        return l
+
+    @exposeRawFunction
+    def filelist(self, serial):
+        t = serve_file2("templates/config-file-list.tmpl")
+        t.configfiles = self.getConfigFiles()
+        
+        return t.respond()
+        
+    @exposeRawFunction    
+    def exportConfigToFile(self, serial):
+        """ Allows people to download the configuration of their LabJack.
+        """
+        
+        # Call the exportConfig function on the device.
+        devDict, result = self.dm.callDeviceFunction(serial, "exportconfig", [], {})
+        
+        filename = "%%Y-%%m-%%d %%H__%%M__%%S %s %s conf.txt" % (devDict['productName'], devDict['serial'])
+        filename = datetime.now().strftime(filename)
+        filepath = "./configfiles/%s" % filename
+        configfile = file(filepath, "w")
+        result.write(configfile)
+        configfile.close()
+        
+        return "Ok"
+        
+        # exportConfig returns a ConfigParser object. We need it as a string.
+        #fakefile = StringIO.StringIO()
+        #result.write(fakefile)
+        
+        # Set the headers
+        #cherrypy.response.headers['Content-Type'] = "application/x-download"
+        #cd = '%s; filename="%s"' % ("attachment", "labjack-%s-%s-conf.txt" % (devDict['productName'], devDict['serial']) )
+        #cherrypy.response.headers["Content-Disposition"] = cd
+        
+        # Send the data
+        #return fakefile.getvalue()
+        
+    @exposeRawFunction
+    def remove(self, filename):
+        logfileDir = os.path.join(current_dir,"logfiles")
+        path = os.path.join(logfileDir, filename)
+        
+        try:
+            os.remove(path)
+            m = "File %s has been successfully deleted." % replaceUnderscoresWithColons(filename)
+        except OSError:
+            m = "Couldn't find a file named %s." % replaceUnderscoresWithColons(filename)
+            
+        #TODO: Do something else here. Maybe some sort of response for AJAX?
+        return "Ok."
+        
 
 class LoggingPage(object):
     """ A class for handling all things /logs/
@@ -1560,7 +1611,7 @@ class RootPage:
         self.devices = DevicesPage(dm)
         
         self.logs = LoggingPage(dm)
-        self.configs = ConfigPage(dm)
+        self.config = ConfigPage(dm)
         
         self.users = UsersPage(dm)
     
@@ -1646,8 +1697,8 @@ if __name__ == '__main__':
     if not os.path.isdir("./logfiles"):
         os.mkdir("./logfiles")
         
-    #if not os.path.isdir("./configfiles"):
-    #    os.mkdir("./configfiles")
+    if not os.path.isdir("./configfiles"):
+        os.mkdir("./configfiles")
     
     if not IS_FROZEN:
         # not frozen: in regular python interpreter
