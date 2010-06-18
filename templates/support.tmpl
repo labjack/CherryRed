@@ -30,7 +30,12 @@ LJSocket or Direct USB: #if $usbOrLJSocket then "Direct USB" else "LJSocket" #
 
 [System Information]
 OS: $os
-Exodriver Version: 1.12
+#if $isWindows
+UD Driver Version: $driverVersion
+#else
+Exodriver Version: $driverVersion
+#end if
+User Agent: $userAgent
 </code></pre>
 
         </div>
