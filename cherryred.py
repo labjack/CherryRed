@@ -298,9 +298,12 @@ class DeviceManager(object):
         else:
             dev = serial
         
-        fioList, fioFeedbackCommands = self.makeU3FioList(dev)
-        dev.fioList = fioList
-        dev.fioFeedbackCommands = fioFeedbackCommands
+        if dev.devType == 3:
+            fioList, fioFeedbackCommands = self.makeU3FioList(dev)
+            dev.fioList = fioList
+            dev.fioFeedbackCommands = fioFeedbackCommands
+        elif dev.devType == 6:
+            self.remakeU6AnalogCommandList(dev)
     
     def remakeU6AnalogCommandList(self, dev):
         analogCommandList = list()
@@ -332,7 +335,7 @@ class DeviceManager(object):
         
             fioDir = dev.readRegister(6100 + i)
             fioState = dev.readRegister(6000 + i)                
-            fios.append( FIO(i, label % (i + labelOffset), (DIGITAL_IN_TYPE if fioDir == 0 else DIGITAL_OUT_TYPE), fioState) )
+            fios.append( FIO(i+14, label = label % (i + labelOffset), chType = (DIGITAL_IN_TYPE if fioDir == 0 else DIGITAL_OUT_TYPE), state = fioState) )
         dev.numberOfDigitalIOs = 20
         
         digitalCommandList = [ u6.PortDirRead(), u6.PortStateRead() ]
@@ -1066,6 +1069,7 @@ class DevicesPage(object):
             print "Setting %s to analog." % negChannel
             inputConnection = FIO( int(negChannel), "FIO%s" % negChannel, chType, state, 31 )
             self.dm.updateFio(serial, inputConnection)
+        
             
         # Make a temp FIO with the new settings.
         inputConnection = FIO( int(inputNumber), "FIO%s" % inputNumber, chType, state, negChannel )
@@ -1341,9 +1345,9 @@ class ConfigPage(object):
     def __init__(self, dm):
         self.dm = dm
     
-    def getConfigFiles(self):
+    def getConfigFiles(self, serial):
         l = []
-        logfilesDir = os.path.join(current_dir,"configfiles")
+        logfilesDir = os.path.join(current_dir,"configfiles/%s" % serial)
         files = sorted(os.listdir(logfilesDir), reverse = True, key = lambda x: os.stat(os.path.join(logfilesDir,x)).st_ctime)
         for filename in files:
             newName = replaceUnderscoresWithColons(filename)
@@ -1352,14 +1356,35 @@ class ConfigPage(object):
             size = float(size)/1024
             sizeStr = "%.2f KB" % size
             
-            aLog = dict(name = newName, url= "/configfiles/%s" % filename, removeurl = "/config/remove/%s" % filename, size = sizeStr)
+            aLog = dict(name = newName, url= "/configfiles/%s/%s" % (serial, filename), loadurl = "/config/load/%s/%s" % (serial, filename), removeurl = "/config/remove/%s/%s" % (serial, filename), size = sizeStr)
+            l.append(aLog)
+        return l
+        
+    def getBasicConfigFiles(self, serial):
+        l = []
+        dev = self.dm.getDevice(serial)
+        logfilesDir = os.path.join(current_dir,"configfiles/%s" % dev.deviceName)
+        
+        if not os.path.isdir(logfilesDir):
+            os.mkdir(logfilesDir)
+        
+        files = sorted(os.listdir(logfilesDir), reverse = True, key = lambda x: os.stat(os.path.join(logfilesDir,x)).st_ctime)
+        for filename in files:
+            newName = filename
+                     
+            size = os.stat(os.path.join(logfilesDir,filename)).st_size
+            size = float(size)/1024
+            sizeStr = "%.2f KB" % size
+            
+            aLog = dict(name = newName, url= "/configfiles/%s/%s" % (dev.deviceName, filename), loadurl = "/config/load/%s/%s" % (serial, filename), size = sizeStr)
             l.append(aLog)
         return l
 
     @exposeRawFunction
     def filelist(self, serial):
         t = serve_file2("templates/config-file-list.tmpl")
-        t.configfiles = self.getConfigFiles()
+        t.configfiles = self.getConfigFiles(serial)
+        t.basicconfigfiles = self.getBasicConfigFiles(serial)
         
         return t.respond()
         
@@ -1368,12 +1393,18 @@ class ConfigPage(object):
         """ Allows people to download the configuration of their LabJack.
         """
         
+        # Save current config as power-up default
+        devDict, result = self.dm.callDeviceFunction(serial, "setdefaults", [], {})
+        
         # Call the exportConfig function on the device.
         devDict, result = self.dm.callDeviceFunction(serial, "exportconfig", [], {})
         
         filename = "%%Y-%%m-%%d %%H__%%M__%%S %s %s conf.txt" % (devDict['productName'], devDict['serial'])
         filename = datetime.now().strftime(filename)
-        filepath = "./configfiles/%s" % filename
+        dirpath = "./configfiles/%s" % serial
+        if not os.path.isdir(dirpath):
+            os.mkdir(dirpath)
+        filepath = "%s/%s" % (dirpath, filename)
         configfile = file(filepath, "w")
         result.write(configfile)
         configfile.close()
@@ -1391,10 +1422,44 @@ class ConfigPage(object):
         
         # Send the data
         #return fakefile.getvalue()
-        
+    
     @exposeRawFunction
-    def remove(self, filename):
-        logfileDir = os.path.join(current_dir,"logfiles")
+    def load(self, serial, filename):
+        configfileDir = os.path.join(current_dir,"configfiles/%s" % serial)
+        path = os.path.join(configfileDir, filename)
+        
+        dev = self.dm.getDevice(serial)
+        configfileDir = os.path.join(current_dir,"configfiles/%s" % dev.deviceName)
+        basicpath = os.path.join(configfileDir, filename)
+        
+        try:
+            try:
+                configFile = file(path, 'r')
+            except IOError:
+                configFile = file(basicpath, 'r')
+            
+            # loadConfig takes a ConfigParser object, so we need to make one.
+            parserobj = ConfigParser.SafeConfigParser()
+            parserobj.readfp(configFile)
+            
+            # Have to device load in the configuration.
+            devDict, result = self.dm.callDeviceFunction(serial, "loadconfig", [parserobj], {})
+            
+            # Save current config as power-up default
+            devDict, result = self.dm.callDeviceFunction(serial, "setdefaults", [], {})
+            
+            # Rebuild the FioList because settings could have changed.
+            self.dm.remakeFioList(serial)
+            m = "File %s has been successfully loaded." % replaceUnderscoresWithColons(filename)
+        except OSError:
+            m = "Couldn't find a file named %s." % replaceUnderscoresWithColons(filename)
+            
+        #TODO: Do something else here. Maybe some sort of response for AJAX?
+        return "Ok. %s" % m
+    
+    @exposeRawFunction
+    def remove(self, serial, filename):
+        logfileDir = os.path.join(current_dir,"configfiles/%s" % serial)
         path = os.path.join(logfileDir, filename)
         
         try:

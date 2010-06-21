@@ -77,31 +77,36 @@ class FIO(object):
     
     
     def setSelfToDigital(self, dev, chType):
+        if dev.devType == 6:
+            fioNumber = self.fioNumber - 14
+        else:
+            fioNumber = self.fioNumber
+        
         # FIO or EIO
-        if self.fioNumber < 16:
-            if self.fioNumber < 8:
+        if fioNumber < 16:
+            if fioNumber < 8:
                 reg = 50590
-                self.label = "FIO%s" % self.fioNumber
+                self.label = "FIO%s" % fioNumber
             else:
                 reg = 50591
-                self.label = "EIO%s" % ( self.fioNumber % 8 )
+                self.label = "EIO%s" % ( fioNumber % 8 )
             
             analog = dev.readRegister(reg)  
             
-            digitalMask = 0xffff - ( 1 << (self.fioNumber % 8) )
+            digitalMask = 0xffff - ( 1 << (fioNumber % 8) )
             
             analog = analog & digitalMask
             
             # Set pin to digital.
             dev.writeRegister(reg, analog)
         else:
-            self.label = "CIO%s" % ( self.fioNumber % 16 )
+            self.label = "CIO%s" % ( fioNumber % 16 )
         
         if chType == DIGITAL_OUT_TYPE:
-            dev.writeRegister(6100 + self.fioNumber, 1)
-            dev.writeRegister(6000 + self.fioNumber, self.state)
+            dev.writeRegister(6100 + fioNumber, 1)
+            dev.writeRegister(6000 + fioNumber, self.state)
         else:
-            dev.writeRegister(6100 + self.fioNumber, 0)
+            dev.writeRegister(6100 + fioNumber, 0)
         
         print "Setting self to be %s" % chType
         self.chType = chType
