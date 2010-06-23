@@ -33,7 +33,7 @@
 <h4>Individual Timer Settings</h4>
 #for i in range($currentConfig.totalTimers)
   <div>
-    <div>Enable Timer$i <input type="checkbox" name="timer${i}Enable" value="1" #if $currentConfig["timer%sEnabled" % $i] then 'checked="yes"' else ''# ></input></div>
+    <div>Enable Timer$i <input type="checkbox" name="timer${i}Enabled" value="1" #if $currentConfig["timer%sEnabled" % $i] then 'checked="yes"' else ''# ></input></div>
 
     <div>Timer$i Mode</div>
     <select name="timer${i}Mode">
