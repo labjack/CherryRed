@@ -1,10 +1,14 @@
-  <div>Your Saved Configurations</div>
-  <ul>
-  #for $configfile in $configfiles
-    <li><a href="$configfile.url">$configfile.name</a> --- <a href="$configfile.loadurl">Load configuration onto Device</a> --- <a href="$configfile.removeurl" class="delete-log">Delete forever</a></li>
-  #end for
-  </ul>
-  <div>Basic Configurations</div>
+  <h4>Your Saved Configurations</h4>
+  #if $configfiles
+      <ul>
+      #for $configfile in $configfiles
+        <li><a href="$configfile.url">$configfile.name</a> --- <a href="$configfile.loadurl">Load configuration onto Device</a> --- <a href="$configfile.removeurl" class="delete-log">Delete forever</a></li>
+      #end for
+      </ul>
+  #else
+      <p>No saved configurations yet. Click "Save current config" on the Test Panel to save.</p>
+  #end if
+  <h4>Basic Configurations</h4>
   <ul>
   #for $configfile in $basicconfigfiles
     <li><a href="$configfile.url">$configfile.name</a> --- <a href="$configfile.loadurl">Load configuration onto Device</a></li>

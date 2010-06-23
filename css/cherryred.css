@@ -74,8 +74,13 @@ a { color: #222222; }
 #device-summary-list .serial, #more-info-pane .serial, 
 #device-summary-list .product-name, #more-info-pane .product-name,
 #device-summary-list .firmware-version, #more-info-pane .firmware-version, 
-#device-summary-list .localId, #more-info-pane .localId { 
-    padding-left: 5px; 
+#device-summary-list .localId, #more-info-pane .localId,
+#more-info-pane p  { 
+    padding-left: 25px; 
+}
+#more-info-pane h4 { 
+    font-size: 16px;
+    margin-bottom: 10px;
 }
 #device-summary-list .serial, #more-info-pane .serial { font-style: italic; }
 
