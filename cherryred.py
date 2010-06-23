@@ -775,12 +775,15 @@ class DeviceManager(object):
         
     def _convertTimerSettings(self, timerSettings, onlyEnabled = False):
         timers = []
+        print "timerSettings =", timerSettings
         for i in range(6):
             if "timer%iEnabled" % i in timerSettings:
+                print "timer%iEnabled found." % i
                 if onlyEnabled and timerSettings["timer%iEnabled" % i]:
-                    timers.append({"enabled" : timerSettings["timer%iEnabled" % i], "mode" : timerSettings["timer%iMode" % i], "value" : timerSettings["timer%iValue" % i]})
+                    timers.append({"enabled" : int(timerSettings["timer%iEnabled" % i]), "mode" : int(timerSettings["timer%iMode" % i]), "value" : int(timerSettings["timer%iValue" % i])})
                 elif not onlyEnabled:
-                    timers.append({"enabled" : timerSettings["timer%iEnabled" % i], "mode" : timerSettings["timer%iMode" % i], "value" : timerSettings["timer%iValue" % i]})
+                    print "timer%i appended." % i
+                    timers.append({"enabled" : int(timerSettings["timer%iEnabled" % i]), "mode" : int(timerSettings["timer%iMode" % i]), "value" : int(timerSettings["timer%iValue" % i])})
             else:
                 break
         return timers
@@ -794,15 +797,17 @@ class DeviceManager(object):
             self.setupClock(dev, timerClockBase, timerClockDivisor)
             currentSettings['timerClockBase'] = timerClockBase
             currentSettings['timerClockDivisor'] = timerClockDivisor
-            
+        
+        print "Old timers:"
         oldTimers = self._convertTimerSettings(currentSettings)
+        print "New Timers"
         newTimers = self._convertTimerSettings(timerSettings)
         if pinOffset != currentSettings['offset'] or oldTimers != newTimers:
             self.setupTimers(dev, newTimers, pinOffset)
             
-        if counter0Enable and currentSettings['timerClockDivisor'] != 1:
+        if counter0Enable and currentSettings['timerClockDivisor'] > 2:
             # Raise an error, this is an invalid configuration
-            raise Exception("When a clock with a divisor is uses, Counter0 is unavailable.")
+            raise Exception("When a clock with a divisor is used, Counter0 is unavailable.")
             
         if counter0Enable != currentSettings['counter0Enabled'] or counter1Enable != currentSettings['counter1Enabled']:
             self.setupCounter(dev, bool(counter0Enable), bool(counter1Enable))
@@ -816,9 +821,12 @@ class DeviceManager(object):
     def setupCounter(self, dev, enableCounter0 = False, enableCounter1 = False):        
         value = (int(enableCounter1) << 1) + int(enableCounter0)
         
-        dev.writeRegister(50502, numCountersEnabled)
+        dev.writeRegister(50502, value)
     
     def setupTimers(self, dev, timers = [], offset = 0):
+        print "setupTimers:"
+        print "timers =", timers
+        print "offset =", offset
         numTimers = len(timers)
         
         dev.writeRegister(50500, offset)
