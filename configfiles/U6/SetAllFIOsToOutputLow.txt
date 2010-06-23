@@ -1,0 +1,8 @@
+[FIOs]
+fios directions = 255
+cios directions = 15
+eios states = 0
+eios directions = 255
+fios states = 0
+cios states = 0
+
