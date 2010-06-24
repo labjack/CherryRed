@@ -1,0 +1,51 @@
+  <div id="ue9-connection-dialog-tabs">
+    <ul>
+      <li><a href="#ue9-connection-dialog-tabs-analog">Analog</a></li>
+    </ul>
+    <div id="ue9-connection-dialog-tabs-analog">
+      <form class="ue9-analog-form">
+        <fieldset>
+          <div class="single-setting">
+              <label>
+                Gain:
+                <select name="gain">
+                    <option value="0">x1, Unipolar</option>
+                    <option value="1">x2, Unipolar</option>
+                    <option value="2">x4, Unipolar</option>
+                    <option value="3">x8, Unipolar</option>
+                    <option value="8">x1, Bipolar</option>
+                </select>
+              </label>
+              <div class="more-info">See <a href="http://labjack.com/support/ue9/users-guide/2.7" target="_blank">Section 2.7</a> of the UE9 User's Guide for more info on gain.</div>
+          </div>
+          <div class="single-setting">
+              <label>
+                Resolution:
+                <select name="resolution">
+                    <option value="12">12-Bit Resolution</option>
+                    <option value="13">13-Bit Resolution</option>
+                    <option value="14">14-Bit Resolution</option>
+                    <option value="15">15-Bit Resolution</option>
+                    <option value="16">16-Bit Resolution</option>
+                    <option value="17">16-Bit Resolution (Minimum Noise)</option>
+                </select>
+              </label>
+              <div class="more-info">See <a href="http://labjack.com/support/ue9/users-guide/2.7" target="_blank">Section 2.7</a> of the UE9 User's Guide for more info on resolution. Resolution is a device-wide setting.</div>
+          </div>
+          <div class="single-setting">
+              <label>
+                SettlingTime:
+                <select name="settlingFactor">
+                    <option value="0">0 &micro;Seconds</option>
+                    <option value="1">5 &micro;Seconds</option>
+                    <option value="2">10 &micro;Seconds</option>
+                    <option value="3">15 &micro;Seconds</option>
+                    <option value="4">20 &micro;Seconds</option>
+                    <option value="5">25 &micro;Seconds</option>
+                </select>
+              </label>
+              <div class="more-info">SettlingTime will add extra time between sampling a channel. SettlingTime is a device-wide setting.</div>
+          </div>
+        </fieldset>
+      </form>
+  </div>
