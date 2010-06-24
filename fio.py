@@ -4,7 +4,66 @@ ANALOG_TYPE = "analogIn"
 DIGITAL_OUT_TYPE = "digitalOut"
 DIGITAL_IN_TYPE = "digitalIn"
 
-
+class UE9FIO(object):
+    """
+    A class to hold help functions for dealing with UE9 inputs/outputs.
+    """
+    @staticmethod
+    def getBipGain(dev, inputNumber):
+        ainNumber = inputNumber
+        ainNumber = ainNumber - (ainNumber % 2)
+        
+        attrName = "AIN%s_%s_BipGain" % (ainNumber + 1, ainNumber)
+        print "Computed name =", attrName
+        currentGain = dev.__getattribute__(attrName)
+        
+        inputsGain = (currentGain >> (4 * (ainNumber % 2))) & 0xf
+        
+        return currentGain, attrName, inputsGain
+    
+    @staticmethod
+    def setupNewDevice(dev):
+        # Add feedback options to UE9 object
+        dev.AIN14ChannelNumber = 0
+        dev.AIN15ChannelNumber = 0
+        dev.Resolution = 0
+        dev.SettlingTime = 0
+        dev.AIN1_0_BipGain = 0
+        dev.AIN3_2_BipGain = 0
+        dev.AIN5_4_BipGain  = 0
+        dev.AIN7_6_BipGain = 0
+        dev.AIN9_8_BipGain = 0
+        dev.AIN11_10_BipGain = 0
+        dev.AIN13_12_BipGain = 0
+        
+    @staticmethod
+    def updateFIO(dev):
+        if inputConnection.fioNumber < 14:
+            print "Got an update for an AIN"
+            dev.Resolution = inputConnection.resolutionIndex
+            dev.SettlingTime = inputConnection.settlingFactor
+            
+            currentGain, atterName, inputsGain = getBipGain(dev, inputConnection.fioNumber)
+            
+            if inputConnection.fioNumber % 2 == 1:
+                # Replacing the higher nibble
+                otherGain = currentGain & 0xf
+                newGain = ((inputConnection.gainIndex & 0xf) << 4) + otherGain
+            else:
+                otherGain = (currentGain >> 4) & 0xf
+                newGain = (otherGain << 4) + (inputConnection.gainIndex & 0xf)
+                
+            dev.__setattr__(attrName, newGain)
+        else:
+            print "Not AIN"
+    
+    @staticmethod
+    def getFioInfo(dev, inputNumber):
+        if inputNumber < 14:
+            currentGain, atterName, inputsGain = getBipGain(dev, inputConnection.fioNumber)
+            return { "label" : "AIN%s" % inputNumber, "connectionNumber" : inputNumber, "chType" : "ANALOG_TYPE", "settlingFactor" : dev.SettlingTime, "resolutionIndex" : dev.Resolution, "gainIndex" : inputsGain}        
+    
+    
 class FIO(object):
     """
     The FIO Class represents a single input. Helps keep track of state.

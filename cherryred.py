@@ -15,7 +15,7 @@ from datetime import datetime
 from threading import Lock, Event
 
 import xmppconnection, logger, scheduler
-from fio import FIO
+from fio import FIO, UE9FIO
 
 import os, os.path, zipfile
 
@@ -270,6 +270,8 @@ class DeviceManager(object):
         
         if inputNumber in DAC_DICT.keys():
             returnDict = { "state" : dev.readRegister(inputNumber), "label" : DAC_DICT[inputNumber], "connectionNumber" : inputNumber, "chType" : "DAC" }
+        elif dev.devType == 9:
+            returnDict = UE9FIO.getFioInfo(dev, inputNumber)
         else:
             returnDict = dev.fioList[inputNumber].asDict()
         
@@ -282,13 +284,16 @@ class DeviceManager(object):
         dev = self.getDevice(serial)
         try:
             self.scanEvent.clear()
-            current = dev.fioList[ inputConnection.fioNumber ]
-            current.transform(dev, inputConnection)
-            
-            if dev.devType == 6:
-                self.remakeU6AnalogCommandList(dev)
-            elif dev.devType == 3:
-                self.remakeFioList(dev)
+            if dev.devType == 9:
+                UE9FIO.updateFIO(dev)
+            else:
+                current = dev.fioList[ inputConnection.fioNumber ]
+                current.transform(dev, inputConnection)
+                
+                if dev.devType == 6:
+                    self.remakeU6AnalogCommandList(dev)
+                elif dev.devType == 3:
+                    self.remakeFioList(dev)
         finally:
             self.scanEvent.set()
     
@@ -459,6 +464,9 @@ class DeviceManager(object):
                 elif dev['prodId'] == 9:
                     d = ue9.UE9(LJSocket = ljsocketAddress, serial = dev['serial'])
                     d.controlConfig()
+                    
+                    UE9FIO.setupNewDevice(d)
+                    
                 elif dev['prodId'] == 0x501:
                     print "Got a bridge... opening."
                     d = bridge.Bridge(LJSocket = ljsocketAddress, serial = dev['serial'])
@@ -537,9 +545,9 @@ class DeviceManager(object):
     def ue9Scan(self, dev):
         results = list()
         
-        feedbackResults = dev.feedback(AINMask = 0xff)
+        feedbackResults = dev.feedback(AINMask = 0xef, AIN14ChannelNumber = dev.AIN14ChannelNumber, AIN15ChannelNumber = dev.AIN15ChannelNumber, Resolution = dev.Resolution, SettlingTime = dev.SettlingTime, AIN1_0_BipGain = dev.AIN1_0_BipGain, AIN3_2_BipGain = dev.AIN3_2_BipGain, AIN5_4_BipGain  = dev.AIN5_4_BipGain, AIN7_6_BipGain = dev.AIN7_6_BipGain, AIN9_8_BipGain = dev.AIN9_8_BipGain, AIN11_10_BipGain = dev.AIN11_10_BipGain, AIN13_12_BipGain = dev.AIN13_12_BipGain)
         
-        for i in range(16):
+        for i in range(14):
             c = "AIN%s" % i
             v = feedbackResults[c]
             results.append({'connection' : c, 'state' : FLOAT_FORMAT % v, 'value' : FLOAT_FORMAT % v, 'chType' : ANALOG_TYPE})
@@ -986,7 +994,6 @@ class DevicesPage(object):
             return t.respond()
 
     def renderU6Templates(self, inputConnection):
-        print inputConnection
         if inputConnection['chType'] == ANALOG_TYPE:
             t = serve_file2("templates/u6-analog-connection-dialog.tmpl")
             t.inputConnection = inputConnection['label']
@@ -996,6 +1003,16 @@ class DevicesPage(object):
             return t.respond()
         else:
             t = serve_file2("templates/u6-digital-connection-dialog.tmpl")
+            return t.respond()
+
+    def renderUE9Templates(self, inputConnection):
+        if inputConnection['chType'] == ANALOG_TYPE:
+            t = serve_file2("templates/ue9-analog-connection-dialog.tmpl")
+            t.inputConnection = inputConnection['label']
+            t.isPro = inputConnection['device']['productName'].endswith("Pro")
+            return t.respond()
+        else:
+            t = serve_file2("templates/ue9-digital-connection-dialog.tmpl")
             return t.respond()
 
     @exposeJsonFunction
@@ -1012,6 +1029,8 @@ class DevicesPage(object):
             inputConnection['html'] = self.renderU3Templates(inputConnection)
         elif inputConnection['device']['devType'] == 6:
             inputConnection['html'] = self.renderU6Templates(inputConnection)
+        elif inputConnection['device']['devType'] == 9:
+            inputConnection['html'] = self.renderUE9Templates(inputConnection)
 
         
         return inputConnection
@@ -1695,6 +1714,12 @@ class RootPage:
         
         # Tell people (firefox) not to cache this page. 
         cherrypy.response.headers['Cache-Control'] = "no-cache"
+        
+        #Check for IE
+        userAgent = cherrypy.request.headers['User-Agent']
+        if userAgent.lower().find("msie") != -1:
+            return serve_file2("html/choose-better.html")
+            
         
         if self.dm.connected:
             t = serve_file2("templates/index.tmpl")
