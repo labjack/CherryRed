@@ -15,6 +15,7 @@ from datetime import datetime
 from threading import Lock, Event
 
 import xmppconnection, logger, scheduler
+from groundedutils import sanitize
 from fio import FIO
 
 import os, os.path, zipfile
@@ -1410,7 +1411,7 @@ class ConfigPage(object):
         # Call the exportConfig function on the device.
         devDict, result = self.dm.callDeviceFunction(serial, "exportconfig", [], {})
         
-        filename = "%%Y-%%m-%%d %%H__%%M__%%S %s %s conf.txt" % (devDict['productName'], devDict['serial'])
+        filename = "%%Y-%%m-%%d %%H__%%M %s conf.txt" % (sanitize(devDict['name']),)
         filename = datetime.now().strftime(filename)
         dirpath = "./configfiles/%s" % serial
         if not os.path.isdir(dirpath):
