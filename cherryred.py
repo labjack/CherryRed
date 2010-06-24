@@ -286,7 +286,7 @@ class DeviceManager(object):
         try:
             self.scanEvent.clear()
             if dev.devType == 9:
-                UE9FIO.updateFIO(dev)
+                UE9FIO.updateFIO(dev, inputConnection)
             else:
                 current = dev.fioList[ inputConnection.fioNumber ]
                 current.transform(dev, inputConnection)
@@ -551,12 +551,12 @@ class DeviceManager(object):
         for i in range(14):
             c = "AIN%s" % i
             v = feedbackResults[c]
-            results.append({'connection' : c, 'state' : FLOAT_FORMAT % v, 'value' : FLOAT_FORMAT % v, 'chType' : ANALOG_TYPE})
+            results.append({'connection' : c, 'state' : FLOAT_FORMAT % v, 'value' : FLOAT_FORMAT % v, 'chType' : ANALOG_TYPE, 'connectionNumber' : i})
             
         dirs = feedbackResults["FIODir"]
         states = feedbackResults["FIOState"]
         for i in range(8):
-            f = FIO(i, label = "FIO%s" % i)
+            f = FIO(i+14, label = "FIO%s" % i)
             d = (dirs >> i) & 1
             s = (states >> i) & 1
             
@@ -565,7 +565,7 @@ class DeviceManager(object):
         dirs = feedbackResults["EIODir"]
         states = feedbackResults["EIOState"]
         for i in range(8):
-            f = FIO(i, label = "EIO%s" % i)
+            f = FIO(i+14+8, label = "EIO%s" % i)
             d = (dirs >> i) & 1
             s = (states >> i) & 1
             
@@ -574,7 +574,7 @@ class DeviceManager(object):
         dirs = feedbackResults["CIODir"]
         states = feedbackResults["CIOState"]
         for i in range(4):
-            f = FIO(i, label = "CIO%s" % i)
+            f = FIO(i+14+16, label = "CIO%s" % i)
             d = (dirs >> i) & 1
             s = (states >> i) & 1
             
@@ -583,7 +583,7 @@ class DeviceManager(object):
         dirs = feedbackResults["MIODir"]
         states = feedbackResults["MIOState"]
         for i in range(3):
-            f = FIO(i, label = "MIO%s" % i)
+            f = FIO(i+34, label = "MIO%s" % i)
             d = (dirs >> i) & 1
             s = (states >> i) & 1
             

@@ -37,13 +37,13 @@ class UE9FIO(object):
         dev.AIN13_12_BipGain = 0
         
     @staticmethod
-    def updateFIO(dev):
+    def updateFIO(dev, inputConnection):
         if inputConnection.fioNumber < 14:
             print "Got an update for an AIN"
             dev.Resolution = inputConnection.resolutionIndex
             dev.SettlingTime = inputConnection.settlingFactor
             
-            currentGain, atterName, inputsGain = getBipGain(dev, inputConnection.fioNumber)
+            currentGain, atterName, inputsGain = UE9FIO.getBipGain(dev, inputConnection.fioNumber)
             
             if inputConnection.fioNumber % 2 == 1:
                 # Replacing the higher nibble
@@ -55,13 +55,21 @@ class UE9FIO(object):
                 
             dev.__setattr__(attrName, newGain)
         else:
-            print "Not AIN"
+            fioNumber = inputConnection.fioNumber - 14
+            direction = 0 if inputConnection.chType == DIGITAL_IN_TYPE else 1
+            dev.singleIO(1, fioNumber, Dir = direction, State = inputConnection.state )
     
     @staticmethod
     def getFioInfo(dev, inputNumber):
         if inputNumber < 14:
-            currentGain, atterName, inputsGain = getBipGain(dev, inputConnection.fioNumber)
-            return { "label" : "AIN%s" % inputNumber, "connectionNumber" : inputNumber, "chType" : "ANALOG_TYPE", "settlingFactor" : dev.SettlingTime, "resolutionIndex" : dev.Resolution, "gainIndex" : inputsGain}        
+            currentGain, atterName, inputsGain = UE9FIO.getBipGain(dev, inputNumber)
+            return { "label" : "AIN%s" % inputNumber, "connectionNumber" : inputNumber, "chType" : "ANALOG_TYPE", "settlingFactor" : dev.SettlingTime, "resolutionIndex" : dev.Resolution, "gainIndex" : inputsGain}
+        else:
+            fioNumber = inputNumber - 14
+            direction = dev.readRegister(6100 + fioNumber)
+            direction = DIGITAL_IN_TYPE if direction == 0 else DIGITAL_OUT_TYPE
+            state = dev.readRegister(6000 + fioNumber)
+            return { "label" : "FIO%s" % fioNumber, "connectionNumber" : inputNumber, "chType" : direction, "state": state }
     
     
 class FIO(object):
