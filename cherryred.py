@@ -417,7 +417,7 @@ class DeviceManager(object):
                     
             else:
                 ljsocketAddress = "%s:%s" % (self.address, self.port)
-                devs = LabJackPython.listAll(ljsocketAddress, 200)
+                devs = LabJackPython.listAll(ljsocketAddress, LabJackPython.LJ_ctLJSOCKET)
             
             serials = list()
             
@@ -1375,7 +1375,10 @@ class ConfigPage(object):
     def getConfigFiles(self, serial):
         l = []
         logfilesDir = os.path.join(current_dir,"configfiles/%s" % serial)
-        files = sorted(os.listdir(logfilesDir), reverse = True, key = lambda x: os.stat(os.path.join(logfilesDir,x)).st_ctime)
+        try:
+            files = sorted(os.listdir(logfilesDir), reverse = True, key = lambda x: os.stat(os.path.join(logfilesDir,x)).st_ctime)
+        except OSError:
+            return []
         for filename in files:
             newName = replaceUnderscoresWithColons(filename)
                      
