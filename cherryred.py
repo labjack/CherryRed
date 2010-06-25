@@ -117,14 +117,26 @@ def deviceAsDict(dev):
     """
     name = dev.getName()
     
+    returnDict = {'devType' : dev.devType, 'name' : name, 'serial' : dev.serialNumber, 'productName' : dev.deviceName, 'firmware' : None, 'localId' : dev.localId}
+    
     if dev.devType == 9:
+        returnDict['DHCPEnabled'] = dev.DHCPEnabled
+        returnDict['ipAddress'] = dev.ipAddress
+        returnDict['subnet'] = dev.subnet
+        returnDict['gateway'] = dev.gateway
+        returnDict['portA'] = dev.portA
+        returnDict['portB'] = dev.portB
+        returnDict['macAddress'] = dev.macAddress
+        
         firmware = [dev.commFWVersion, dev.controlFWVersion]
     elif dev.devType == 0x501:
         firmware = [dev.ethernetFWVersion, dev.usbFWVersion]
     else:
-        firmware = dev.firmwareVersion 
+        firmware = dev.firmwareVersion
+        
+    returnDict['firmware'] = firmware
     
-    return {'devType' : dev.devType, 'name' : name, 'serial' : dev.serialNumber, 'productName' : dev.deviceName, 'firmware' : firmware, 'localId' : dev.localId}
+    return returnDict
 
 
 def replaceUnderscoresWithColons(filename):
@@ -463,6 +475,7 @@ class DeviceManager(object):
                     
                 elif dev['prodId'] == 9:
                     d = ue9.UE9(LJSocket = ljsocketAddress, serial = dev['serial'])
+                    d.commConfig()
                     d.controlConfig()
                     
                     UE9FIO.setupNewDevice(d)

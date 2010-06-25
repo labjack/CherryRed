@@ -4,8 +4,13 @@
   #if $device.devType == 9
   <p class="firmware-version">Control Firmware: $device.firmware[1]</p>
   <p class="firmware-version">Communication Firmware: $device.firmware[0]</p>
-  #end if
-  #if $device.devType == 1281
+  <p>DHCP Enabled: $device.DHCPEnabled</p>
+  <p>IP Address: $device.ipAddress</p>
+  <p>Subnet Mask: $device.subnet</p>
+  <p>Gateway: $device.gateway</p>
+  <p>Port A (Port B): $device.portA (${device.portB})</p>
+  <p>MAC Address: $device.macAddress</p>
+  #elif $device.devType == 1281
   <p class="firmware-version">Ethernet Firmware: $device.firmware[0]</p>
   <p class="firmware-version">USB Firmware: $device.firmware[1]</p>
   #else
