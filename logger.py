@@ -5,19 +5,7 @@ import csv, os
 from time import sleep
 from datetime import datetime
 
-import re
-
-def sanitize(name):
-    """
-    >>> sanitize("My U3-HV")
-    'My U3-HV'
-    >>> sanitize("My U3-HV%$#@!")
-    'My U3-HV'
-    >>> sanitize("My_Underscore_Name")
-    'My_Underscore_Name'
-    """
-    p = re.compile('[^a-zA-Z0-9_ -]')
-    return p.sub('', name)
+from groundedutils import sanitize
 
 class LoggingThread(object):
     def __init__(self, dm, serial, name, headers = None):

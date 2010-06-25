@@ -15,6 +15,7 @@ from datetime import datetime
 from threading import Lock, Event
 
 import xmppconnection, logger, scheduler
+from groundedutils import sanitize
 from fio import FIO, UE9FIO
 
 import os, os.path, zipfile
@@ -1428,6 +1429,8 @@ class ConfigPage(object):
         t = serve_file2("templates/config-file-list.tmpl")
         t.configfiles = self.getConfigFiles(serial)
         t.basicconfigfiles = self.getBasicConfigFiles(serial)
+        dev = self.dm.getDevice(serial)
+        t.productName = dev.deviceName
         
         return t.respond()
         
@@ -1442,7 +1445,7 @@ class ConfigPage(object):
         # Call the exportConfig function on the device.
         devDict, result = self.dm.callDeviceFunction(serial, "exportconfig", [], {})
         
-        filename = "%%Y-%%m-%%d %%H__%%M__%%S %s %s conf.txt" % (devDict['productName'], devDict['serial'])
+        filename = "%%Y-%%m-%%d %%H__%%M %s conf.txt" % (sanitize(devDict['name']),)
         filename = datetime.now().strftime(filename)
         dirpath = "./configfiles/%s" % serial
         if not os.path.isdir(dirpath):
@@ -1451,8 +1454,9 @@ class ConfigPage(object):
         configfile = file(filepath, "w")
         result.write(configfile)
         configfile.close()
+        m = "Configuration &quot;%s&quot; saved." % replaceUnderscoresWithColons(filename)
         
-        return "Ok"
+        return m
         
         # exportConfig returns a ConfigParser object. We need it as a string.
         #fakefile = StringIO.StringIO()
@@ -1493,12 +1497,11 @@ class ConfigPage(object):
             
             # Rebuild the FioList because settings could have changed.
             self.dm.remakeFioList(serial)
-            m = "File %s has been successfully loaded." % replaceUnderscoresWithColons(filename)
+            m = "Configuration &quot;%s&quot; loaded." % replaceUnderscoresWithColons(filename)
         except OSError:
-            m = "Couldn't find a file named %s." % replaceUnderscoresWithColons(filename)
+            m = "Couldn't find a file named &quot;%s&quot;." % replaceUnderscoresWithColons(filename)
             
-        #TODO: Do something else here. Maybe some sort of response for AJAX?
-        return "Ok. %s" % m
+        return m
     
     @exposeRawFunction
     def remove(self, serial, filename):
@@ -1507,12 +1510,12 @@ class ConfigPage(object):
         
         try:
             os.remove(path)
-            m = "File %s has been successfully deleted." % replaceUnderscoresWithColons(filename)
+            m = "Configuration &quot;%s&quot; deleted." % replaceUnderscoresWithColons(filename)
         except OSError:
-            m = "Couldn't find a file named %s." % replaceUnderscoresWithColons(filename)
+            m = "Couldn't find a file named &quot;%s&quot;." % replaceUnderscoresWithColons(filename)
             
         #TODO: Do something else here. Maybe some sort of response for AJAX?
-        return "Ok."
+        return m
         
 
 class LoggingPage(object):
