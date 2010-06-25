@@ -82,6 +82,9 @@ a { color: #222222; }
     font-size: 16px;
     margin-bottom: 10px;
 }
+#more-info-pane .localId { 
+    margin-bottom: 2em;
+}
 #device-summary-list .serial, #more-info-pane .serial { font-style: italic; }
 
 .ui-jqgrid { font-size: 120%; }
@@ -128,7 +131,9 @@ body {
 .submit-wrapper input {
     float: right;
 }
-
+#support-tab {
+    overflow: auto;
+}
 #scan-bar p,
 #scan-bar span,
 #log-bar p,
@@ -164,17 +169,25 @@ body.logs #logs,
     padding: 10px;
     min-height: 450px; 
 }
-#log-file-list {
+#log-file-list,
+.config-file-list {
     list-style: none;
 } 
-#log-file-list li {
+#log-file-list li,
+.config-file-list li {
     position: relative;
     height: 30px;
     line-height: 30px;
     padding: 3px;
     margin: 0 15px;
 }
-#log-file-list li:nth-child(2n) {
+.config-file-list li {
+    height: 50px;
+    line-height: 50px;
+    padding: 10px;
+}
+#log-file-list li:nth-child(2n),
+.config-file-list li:nth-child(2n) {
     background-color: #dddddd;
 }
 #log-file-list li .log-file-name,
@@ -182,7 +195,11 @@ body.logs #logs,
 #log-file-list li .upload-log,
 #log-file-list li .too-big-log,
 #log-file-list li .stop-log,
-#log-file-list li .delete-log {
+#log-file-list li .delete-log,
+.load-config-link,
+.view-config-link,
+.delete-config-link
+ {
     position: absolute;
     text-decoration: none;
 }
@@ -213,6 +230,26 @@ body.logs #logs,
 }
 #log-file-list li .stop-log:hover,
 #log-file-list li .delete-log:hover {
+    color: white;
+    background-color:#a20000;
+}
+.load-config-link {
+    top: 18px;
+}
+.ui-widget-content a.view-config-link,
+.ui-widget-content a.delete-config-link {
+    font-size: 85%;
+    left: 440px;
+    color: #777777;
+}
+.ui-widget-content a.delete-config-link {
+    left: 585px;
+}
+.ui-widget-content a.view-config-link:hover {
+    color: black;
+    text-decoration: underline;
+}
+.ui-widget-content a.delete-config-link:hover {
     color: white;
     background-color:#a20000;
 }
@@ -257,6 +294,11 @@ margin-top:4px;
     text-decoration: underline;
     font-weight: bold;
 /*    color:#A20000;*/
+}
+
+#save-config-link {
+    display: inline-block;
+    margin-top: 2em;
 }
 
 a.digital-out-toggle-link {

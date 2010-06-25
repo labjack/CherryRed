@@ -43,7 +43,7 @@ class UE9FIO(object):
             dev.Resolution = inputConnection.resolutionIndex
             dev.SettlingTime = inputConnection.settlingFactor
             
-            currentGain, atterName, inputsGain = UE9FIO.getBipGain(dev, inputConnection.fioNumber)
+            currentGain, attrName, inputsGain = UE9FIO.getBipGain(dev, inputConnection.fioNumber)
             
             if inputConnection.fioNumber % 2 == 1:
                 # Replacing the higher nibble
@@ -62,14 +62,14 @@ class UE9FIO(object):
     @staticmethod
     def getFioInfo(dev, inputNumber):
         if inputNumber < 14:
-            currentGain, atterName, inputsGain = UE9FIO.getBipGain(dev, inputNumber)
-            return { "label" : "AIN%s" % inputNumber, "connectionNumber" : inputNumber, "chType" : "ANALOG_TYPE", "settlingFactor" : dev.SettlingTime, "resolutionIndex" : dev.Resolution, "gainIndex" : inputsGain}
+            currentGain, attrName, inputsGain = UE9FIO.getBipGain(dev, inputNumber)
+            return { "label" : "AIN%s" % inputNumber, "fioNumber" : inputNumber, "chType" : ANALOG_TYPE, "settlingFactor" : dev.SettlingTime, "resolutionIndex" : dev.Resolution, "gainIndex" : inputsGain}
         else:
             fioNumber = inputNumber - 14
             direction = dev.readRegister(6100 + fioNumber)
             direction = DIGITAL_IN_TYPE if direction == 0 else DIGITAL_OUT_TYPE
             state = dev.readRegister(6000 + fioNumber)
-            return { "label" : "FIO%s" % fioNumber, "connectionNumber" : inputNumber, "chType" : direction, "state": state }
+            return { "label" : "FIO%s" % fioNumber, "fioNumber" : inputNumber, "chType" : direction, "state": state }
     
     
 class FIO(object):

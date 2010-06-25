@@ -1,16 +1,21 @@
+  <h3>Configuration files</h3>
+  <p>Configuration files save the state of your $productName for reloading later. The files are stored in the configfiles/ subfolder of the CloudDot Grounded folder.</p>
+
   <h4>Your Saved Configurations</h4>
   #if $configfiles
-      <ul>
+      <p>Click "Save current config" on the Test Panel to save more configurations.</p>
+      <ul class="config-file-list">
       #for $configfile in $configfiles
-        <li><a href="$configfile.url">$configfile.name</a> --- <a href="$configfile.loadurl">Load configuration onto Device</a> --- <a href="$configfile.removeurl" class="delete-log">Delete forever</a></li>
+        <li><a href="$configfile.loadurl" class="button load-config-link">Load $configfile.name</a><a href="$configfile.url" class="view-config-link">View configuration</a><a href="$configfile.removeurl" class="delete-config-link">Delete forever</a></li>
       #end for
       </ul>
   #else
       <p>No saved configurations yet. Click "Save current config" on the Test Panel to save.</p>
   #end if
   <h4>Basic Configurations</h4>
-  <ul>
+  <p>These configurations are provided by LabJack.</p>
+  <ul class="config-file-list">
   #for $configfile in $basicconfigfiles
-    <li><a href="$configfile.url">$configfile.name</a> --- <a href="$configfile.loadurl">Load configuration onto Device</a></li>
+    <li><a href="$configfile.loadurl" class="button load-config-link">Load $configfile.name</a><a href="$configfile.url" class="view-config-link">View configuration</a></li>
   #end for
   </ul>

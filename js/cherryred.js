@@ -21,7 +21,8 @@ $(document).ready(function() {
     setupDialog();
     setupLogCheckboxes();
     setupLogFileScanning();
-    setupSupportTab();
+    setupTabSelect();
+    setupSaveLoadDeleteConfigLinks();
     getDeviceList();
     updateLogBar();
 });
@@ -45,7 +46,6 @@ function urlHashChange(e) {
     sparklineDataMap = {};
     showingTestPanel = false;
     $("#test-panel-table").empty();
-    // In jQuery 1.4, use e.getState( "url" );
     var serialNumber = e.getState( "d" );
     highlightCurrentSerialNumber(serialNumber);
 
@@ -79,6 +79,10 @@ function restartScanning() {
         clearTimeout(refreshId);
     }
     refreshId = setTimeout(callScan, 1000);
+}
+
+function showTopMessage(message) {
+    $("#latest-message-bar").html(message).show().delay(5000).hide("fast");
 }
 
 function setupDialog() {
@@ -131,27 +135,60 @@ function setupLogFileScanning() {
 }
 
 function callLogFileScan() {
-    $.ajax({
-        url: "/logs/logFileList", 
-        success: handleLogFileScan, 
-        dataType: "string"
+    $("#log-wrapper").load("/logs/logFileList");
+}
+
+function setupTabSelect() {
+    var $tabs = $("#tabs").tabs();
+    $tabs.bind( "tabsselect", function(event, ui) {
+        updateTabContent(ui.index);    
     });
 }
 
-function handleLogFileScan(data) {
-    $("#log-wrapper").html(data);
+function updateTabContent(tabIndex) {
+    if (currentSerialNumber == null) {
+        return;
+    }
+    if (tabIndex == undefined) {
+        var $tabs = $("#tabs").tabs();
+        tabIndex = $tabs.tabs('option', 'selected');
+    }
+    if (tabIndex == 3) {
+        $.get("/devices/support/" + currentSerialNumber, {}, function(data)  {$("#support-tab").html(data); });
+    } else if(tabIndex == 1) {
+        $.get("/config/filelist/" + currentSerialNumber, {}, function(data) {
+            $("#config-file-list").html(data); 
+            $("a.button").button();
+        });
+    }
 }
 
-function setupSupportTab() {
-    var $tabs = $("#tabs").tabs();
-    $tabs.bind( "tabsselect", function(event, ui) {
-//        var selected = $tabs.tabs('option', 'selected');
-//            console.log(selected);
-        if (ui.index == 3) {
-            $.get("/devices/support/" + currentSerialNumber, {}, function(data)  {$("#support-tab").html(data); });
-        } else if(ui.index == 1) {
-            $.get("/config/filelist/" + currentSerialNumber, {}, function(data)  {$("#config-file-list").html(data); });
-        }
+function setupSaveLoadDeleteConfigLinks() {
+    $("#save-config-link").live("click", function() {
+        var targetUrl = $(this).attr("href");
+        $.get(targetUrl, function(data) {
+            $("#tabs").tabs("select", 1);
+            showTopMessage(data);
+        });
+        return false;
+    });
+    $("a.load-config-link").live("click", function() {
+        var targetUrl = $(this).attr("href");
+        $.get(targetUrl, function(data) {
+            $("#tabs").tabs("select", 0);
+            showTopMessage(data);
+            $(window).trigger( "hashchange" );
+        });
+        return false;
+    });
+    $("a.delete-config-link").live("click", function() {
+        var targetUrl = $(this).attr("href");
+        var configRow = $(this).closest("li");
+        $.get(targetUrl, function(data) {
+            showTopMessage(data);
+            $(configRow).fadeOut(500);
+        });
+        return false;
     });
 }
 
@@ -320,7 +357,7 @@ function handleInputInfo(inputInfoJson) {
         $("#dialog").dialog('open');
         //console.log("U3");    
     }
-    else if (inputInfoJson.device.devType == 6) {
+    else if (inputInfoJson.device.devType == 6 || inputInfoJson.device.devType == 9) {
         $("#dialog").html(inputInfoJson.html);
         if (inputInfoJson.chType == "analogIn") {
             $("select[name='gain']").val(inputInfoJson.gainIndex);
@@ -523,8 +560,8 @@ function handleScan(data) {
             highlightCheckedCheckboxes();
             count++;
         }
+        $("#save-config-link").button().show();
         showingTestPanel = true;
-
     } else {
         var count = 0;
         for (var d in data) {          
@@ -591,6 +628,7 @@ function handleMoreInfo(data) {
 
     currentSerialNumber = data.serial;
     highlightCurrentSerialNumber(currentSerialNumber);
+    updateTabContent();
 
     callScan();
 }
