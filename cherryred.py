@@ -1002,7 +1002,7 @@ class DevicesPage(object):
         t.devType = devType
         t.updateUrl = "/devices/updateTimerCounterConfig/%s" % serial
         t.currentConfig = currentConfig
-        t.offsetChoices = createTimerChoicesList()
+        t.offsetChoices = createTimerChoicesList(devType)
         tcPinLocationHtml = self.tcPinLocationSummary(serial)
 
         returnDict = dict(html = t.respond(), serial = serial, counterSelected = counterSelected, tcPinLocationHtml = tcPinLocationHtml)        
