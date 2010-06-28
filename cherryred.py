@@ -626,7 +626,7 @@ class DeviceManager(object):
         for i in range(nte):
             if i < 3:
                 timer = feedbackResults["Timer%s" % (('A', 'B', 'C')[i]) ]
-                results[offset] = {'connection' : "Timer %s" % i, 'state' : "%s" % timer, 'value' : "%s" % timer, "chType" : "timer"}
+                results[offset] = {'connection' : "Timer %s" % i, 'state' : "%s" % timer, 'value' : "%s" % timer, "chType" : "timer", 'connectionNumber' : i}
             else:
                 results[offset] = self.readTimer(dev, i)
             offset += 1
@@ -634,13 +634,13 @@ class DeviceManager(object):
         # Counter 0
         if bool(cm & 1):
             counter = feedbackResults["Counter0"]
-            results[offset] = {'connection' : "Counter 0", 'state' : "%s" % counter, 'value' : "%s" % counter, "chType" : "counter"}
+            results[offset] = {'connection' : "Counter 0", 'state' : "%s" % counter, 'value' : "%s" % counter, "chType" : "counter", 'connectionNumber' : 0}
             offset += 1
         
         # Counter 1
         if bool(cm & 2):
             counter = feedbackResults["Counter1"]
-            results[offset] = {'connection' : "Counter 1", 'state' : "%s" % counter, 'value' : "%s" % counter, "chType" : "counter"}
+            results[offset] = {'connection' : "Counter 1", 'state' : "%s" % counter, 'value' : "%s" % counter, "chType" : "counter", 'connectionNumber' : 1}
             offset += 1
         
         for register, label in DAC_DICT.items():
@@ -688,18 +688,22 @@ class DeviceManager(object):
         offset = ioResults['TimerCounterPinOffset']
         for i in range(ioResults['NumberOfTimersEnabled']):
             results[offset] = self.readTimer(dev, i)
+            results['connectionNumber'] = i
             offset += 1
             
         if ioResults['EnableCounter0']:
             results[offset] = self.readCounter(dev, 0)
+            results['connectionNumber'] = 0
             offset += 1
         elif dev.configTimerClock()['TimerClockBase'] > 2:
             results[offset] = self.readCounter(dev, 0)
             results[offset]['connection'] = "Counter 0 (divisor)"
+            results[offset]['connectionNumber'] = 0
             offset += 1
         
         if ioResults['EnableCounter1']:
             results[offset] = self.readCounter(dev, 1)
+            results[offset]['connectionNumber'] = 1
             offset += 1
 
         for register, label in DAC_DICT.items():
@@ -761,18 +765,24 @@ class DeviceManager(object):
                 dioDict['disabled'] = True
                 dioDict['chType'] = "internalTemp"
                 
+                dioDict['connectionNumber'] = i + dev.numberOfAnalogIn
+                
                 if dioDict['connection'].startswith("Timer"):
                     t = self.readTimer(dev, int(dioDict['connection'][-1]))
                     dioDict.update(t)
+                    dioDict['connectionNumber'] = int(dioDict['connection'][-1])
                 elif dioDict['connection'].startswith("Counter"):
                     if dioDict['connection'][-1].endswith(')'):
                         c = self.readCounter(dev, 0)
                         c['connection'] = "Counter 0 (divisor)"
+                        counterNumber = 0
                     else:
-                        c = self.readCounter(dev, int(dioDict['connection'][-1]))
+                        counterNumber = int(dioDict['connection'][-1])
+                        c = self.readCounter(dev, counterNumber)
+                        
                     dioDict.update(c)
+                    dioDict['connectionNumber'] = counterNumber
             
-            dioDict['connectionNumber'] = i + dev.numberOfAnalogIn
             
             results.append( dioDict )
         
@@ -876,6 +886,11 @@ class DeviceManager(object):
             currentSettings['counter0Enabled'] = bool(counter0Enable)
             currentSettings['counter1Enabled'] = bool(counter1Enable)
         
+    def resetCounter(self, serial, counterNumber):
+        dev = self.getDevice(serial)
+        
+        dev.writeRegister(7300 + (counterNumber * 2), 0)
+    
     def setupClock(self, dev, timerClockBase = 0, divisor = 0):       
         dev.writeRegister(7000, timerClockBase)
         dev.writeRegister(7002, divisor)
@@ -1061,6 +1076,12 @@ class DevicesPage(object):
         
         t.tcPins = tcPins
         return t.respond()
+
+    @exposeRawFunction
+    def resetCounter(self, serial, inputNumber = 0):
+        self.dm.resetCounter(serial, int(inputNumber))
+        
+        return self.scan(serial, noCache = True)
 
     @exposeRawFunction
     def updateTimerCounterConfig(self, serial, timerClockBase = 0, timerClockDivisor = 1, pinOffset = 0, counter0Enable = 0, counter1Enable = 0,  **timerSettings):
