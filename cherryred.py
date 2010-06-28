@@ -966,21 +966,28 @@ class DevicesPage(object):
             cmd = cmd.lower()
             return { "result" : self.dm.callDeviceFunction(serial, cmd, pargs, kwargs)[1] }
 
-    @exposeRawFunction
-    def timerCounterConfig(self, serial = None, message = ""):
+    @exposeJsonFunction
+    def timerCounterConfig(self, serial, counterSelected = False):
         devType = self.dm.getDevice(serial).devType
         currentConfig = self.dm.readTimerCounterConfig(serial.encode("ascii", "replace"))
         
         print currentConfig
         
         t = serve_file2("templates/device-configureTimerCounter.tmpl")
-        t.message = message
         t.devType = devType
         t.updateUrl = "/devices/updateTimerCounterConfig/%s" % serial
         t.currentConfig = currentConfig
-        
+        t.offsetChoices = ((4, "FIO4"), (5, "FIO5"), (6, "FIO6"), (7, "FIO7"), (8, "EIO0"))
+        tcPinLocationHtml = self.tcPinLocationSummary(serial)
+
+        returnDict = dict(html = t.respond(), serial = serial, counterSelected = counterSelected, tcPinLocationHtml = tcPinLocationHtml)        
+        return returnDict
+
+    @exposeRawFunction
+    def tcPinLocationSummary(self, serial):
+        t = serve_file2("templates/tc-pin-location-summary.tmpl")
         return t.respond()
-        
+
     @exposeRawFunction
     def updateTimerCounterConfig(self, serial, timerClockBase = 0, timerClockDivisor = 1, pinOffset = 0, counter0Enable = 0, counter1Enable = 0,  **timerSettings):
         print "got: serial =", serial

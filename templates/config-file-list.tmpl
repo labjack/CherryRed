@@ -3,14 +3,14 @@
 
   <h4>Your Saved Configurations</h4>
   #if $configfiles
-      <p>Click "Save current config" on the Test Panel to save more configurations.</p>
+      <p>Click "Save current configuration" on the Test Panel to save more configurations.</p>
       <ul class="config-file-list">
       #for $configfile in $configfiles
         <li><a href="$configfile.loadurl" class="button load-config-link">Load $configfile.name</a><a href="$configfile.url" class="view-config-link">View configuration</a><a href="$configfile.removeurl" class="delete-config-link">Delete forever</a></li>
       #end for
       </ul>
   #else
-      <p>No saved configurations yet. Click "Save current config" on the Test Panel to save.</p>
+      <p>No saved configurations yet. Click "Save current configuration" on the Test Panel to save.</p>
   #end if
   <h4>Basic Configurations</h4>
   <p>These configurations are provided by LabJack.</p>

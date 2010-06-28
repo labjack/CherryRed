@@ -282,7 +282,9 @@ margin-top:4px;
     overflow: hidden;
 }
 
-#test-panel-table a.test-panel-connection-link {
+
+#test-panel-table a.test-panel-connection-link,
+#test-panel-table a.timer-counter-config-link {
     text-decoration: none;
     display:block;
     width: 100%;
@@ -290,17 +292,34 @@ margin-top:4px;
 
 
 #test-panel-table .ui-state-hover a,
-#test-panel-table .ui-state-hover a:hover {
+#test-panel-table .ui-state-hover a:hover,
+a.timer-counter-config-link:hover {
     text-decoration: underline;
     font-weight: bold;
 /*    color:#A20000;*/
 }
 
-#save-config-link {
-    display: inline-block;
-    margin-top: 2em;
+.timer-counter-config-wrapper {
+    margin:1em 0;
 }
 
+#timer-counter-config-link:hover {
+    font-weight: bold;
+}
+#tc-connection-dialog-pin-location-summary p {
+    margin: 1em;
+}
+
+.timer-config-inputs {
+    padding-left: 2em;
+}
+
+#save-config-link {
+    display: inline-block;
+    margin-top: 1em;
+}
+
+a.reset-counter-link,
 a.digital-out-toggle-link {
     position: absolute;
     right: 110px;
@@ -312,6 +331,7 @@ a.digital-out-toggle-link.toggling {
     font-style: italic;
 }
 
+.ui-state-hover a.reset-counter-link,
 .ui-state-hover a.digital-out-toggle-link {
     display: inline;
 }

@@ -23,6 +23,7 @@ $(document).ready(function() {
     setupLogFileScanning();
     setupTabSelect();
     setupSaveLoadDeleteConfigLinks();
+    setupTimerCounterLink();
     getDeviceList();
     updateLogBar();
 });
@@ -140,7 +141,7 @@ function callLogFileScan() {
 
 function setupTabSelect() {
     var $tabs = $("#tabs").tabs();
-    $tabs.bind( "tabsselect", function(event, ui) {
+    $tabs.bind("tabsselect", function(event, ui) {
         updateTabContent(ui.index);    
     });
 }
@@ -188,6 +189,51 @@ function setupSaveLoadDeleteConfigLinks() {
             showTopMessage(data);
             $(configRow).fadeOut(500);
         });
+        return false;
+    });
+}
+
+
+function updateTCPinLocationSummary() {
+    $("#tc-connection-dialog-pin-location-summary").load("/devices/tcPinLocationSummary/" + currentSerialNumber);
+}
+
+function setupTimerCounterLink() {
+
+    $("select[name='pinOffset']").live("change", updateTCPinLocationSummary);
+
+    $(".timer-counter-config-link").live("click", function() {
+        stopScanning();
+        var targetUrl = $(this).attr("href");
+        $.get(targetUrl, function(returnJson) {
+            $("#dialog").html(returnJson.html);
+            $("#tc-connection-dialog-tabs").tabs();
+            $("#tc-connection-dialog-tabs").bind("tabsselect", function(event, ui) {
+                if (ui.index == 2) {
+                    updateTCPinLocationSummary();    
+                }
+            });
+            if (returnJson.counterSelected == "true") {
+                $("#tc-connection-dialog-tabs").tabs("select", 1);
+            }
+            $("#tc-connection-dialog-pin-location-summary").html(returnJson.tcPinLocationHtml);
+            $("#dialog").dialog('option', 'title', "Timers & Counters");
+            $("#dialog").dialog('option', 'width', 525);
+            $("#dialog").dialog('option', 'buttons', { 
+                "Save": function() {
+                    var updateTimerCounterOptions = {};
+                    updateTimerCounterOptions.serial = returnJson.serial;
+                    updateTimerCounterOptions.timerClockBase    = $("select[name='timerClockBase']").val();
+                    updateTimerCounterOptions.timerClockDivisor = $("input[name='timerClockDivisor']").val();
+                    updateTimerCounterOptions.pinOffset         = $("select[name='pinOffset']").val();
+                    updateTimerCounterOptions.counter0Enable    = $("input[name='counter0Enable']:checked").val();
+                    updateTimerCounterOptions.counter1Enable    = $("input[name='counter1Enable']:checked").val();
+                    $.get("/devices/updateTimerCounterConfig", updateTimerCounterOptions, function() { dialogDone(); $(window).trigger( "hashchange" ); });
+                },
+                "Cancel": dialogDone
+            });
+            $("#dialog").dialog('open');
+        }, "json");
         return false;
     });
 }
@@ -265,8 +311,7 @@ function handleInputInfo(inputInfoJson) {
             if (newValue >=0 && newValue <= 5.0) {
                 $.get("/devices/" + currentSerialNumber + "/writeregister", {addr : inputInfoJson.connectionNumber, value : newValue}, function (data) {return true;}, "json");
             }
-            restartScanning();
-            $("#dialog").dialog('close');
+            dialogDone();
             return false;
         });
 
@@ -432,6 +477,14 @@ function setupTestPanelConnectionLinks() {
         $.get("/devices/toggleDigitalOutput", {serial : currentSerialNumber, inputNumber : inputConnection}, function (data) {handleScan(data); toggleLink.removeClass("toggling");}, "json");
         return false;
     });
+    $(".reset-counter-link").live("click", function(e) {
+        stopScanning();
+        $(this).addClass("toggling");
+        var toggleLink = $(this);
+        var inputConnection = $(this).attr("inputConnection");
+        $.get("/devices/resetCounter", {serial : currentSerialNumber, inputNumber : inputConnection}, function (data) {handleScan(data); toggleLink.removeClass("toggling");}, "json");
+        return false;
+    });
 }
 
 function setupRenameLinks() {
@@ -555,12 +608,20 @@ function handleScan(data) {
             if (connectionText == "Internal Temperature") {
                 obj.connection = connectionText; // No link
             }
+            // Special link and class for timers and counters
+            if (thisChType == "timer") {
+                obj.connection = "<a href='/devices/timerCounterConfig/" + currentSerialNumber + "' class='timer-counter-config-link' inputConnection='"+connectionNumber+"' title='Configure " + connectionText + "'>"+connectionText+"</a>";            
+            }
+            else if (thisChType == "counter") {
+                obj.connection = "<a href='/devices/timerCounterConfig/" + currentSerialNumber + "?counterSelected=true' class='timer-counter-config-link' inputConnection='"+connectionNumber+"' title='Configure " + connectionText + "'>"+connectionText+"</a>";            
+            }
 
             $("#test-panel-table").jqGrid('addRowData', count, obj);
             highlightCheckedCheckboxes();
             count++;
         }
         $("#save-config-link").button().show();
+        $("#bottom-timer-counter-config-link").show();
         showingTestPanel = true;
     } else {
         var count = 0;
@@ -581,6 +642,10 @@ function handleScan(data) {
             if (thisChType == "digitalOut") {
                 thisState = thisState + "<a href='#' class='digital-out-toggle-link' inputConnection='"+connectionNumber+"' title='Toggle the state of this output'>Toggle</a>";
             }
+            else if (thisChType == "counter") {
+                thisState = thisState + "<a href='#' class='reset-counter-link' inputConnection='"+connectionNumber+"' title='Reset this counter to 0'>Reset</a>";
+            }
+
             
             
 
@@ -637,6 +702,7 @@ function handleSelectDevice(serialNumber) {
     if (serialNumber) {
         $.get("/devices/" + serialNumber, {}, handleMoreInfo, "json");
         $("#save-config-link").attr("href", "/config/exportConfigToFile/" + serialNumber);
+        $(".timer-counter-config-link").attr("href", "/devices/timerCounterConfig/" + serialNumber);
         $("#device-summary-list").hide();
         $("#tabs").show();   
     } else {
