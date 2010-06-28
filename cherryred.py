@@ -621,24 +621,27 @@ class DeviceManager(object):
             results.append(f.parseFioResults(d, s))
             
         nte, cm = dev.readRegister(50501, numReg = 2)
-        
-        
-        # Counter 0
-        if bool(cm & 1):
-            counter = feedbackResults["Counter0"]
-            results.append({'connection' : "Counter 0", 'state' : "%s" % counter, 'value' : "%s" % counter, "chType" : "counter"})
-        
-        # Counter 1
-        if bool(cm & 2):
-            counter = feedbackResults["Counter1"]
-            results.append({'connection' : "Counter 1", 'state' : "%s" % counter, 'value' : "%s" % counter, "chType" : "counter"})
+        offset = 14
         
         for i in range(nte):
             if i < 3:
                 timer = feedbackResults["Timer%s" % (('A', 'B', 'C')[i]) ]
-                results.append({'connection' : "Timer %s" % i, 'state' : "%s" % timer, 'value' : "%s" % timer, "chType" : "timer"})
+                results[offset] = {'connection' : "Timer %s" % i, 'state' : "%s" % timer, 'value' : "%s" % timer, "chType" : "timer"}
             else:
-                results.append(self.readTimer(dev, i))
+                results[offset] = self.readTimer(dev, i)
+            offset += 1
+                
+        # Counter 0
+        if bool(cm & 1):
+            counter = feedbackResults["Counter0"]
+            results[offset] = {'connection' : "Counter 0", 'state' : "%s" % counter, 'value' : "%s" % counter, "chType" : "counter"}
+            offset += 1
+        
+        # Counter 1
+        if bool(cm & 2):
+            counter = feedbackResults["Counter1"]
+            results[offset] = {'connection' : "Counter 1", 'state' : "%s" % counter, 'value' : "%s" % counter, "chType" : "counter"}
+            offset += 1
         
         for register, label in DAC_DICT.items():
             dacState = dev.readRegister(register)
@@ -682,14 +685,22 @@ class DeviceManager(object):
                 results.append( fio.parseFioResults(1, bits) )
         
         ioResults = dev.configIO()
+        offset = ioResults['TimerCounterPinOffset']
         for i in range(ioResults['NumberOfTimersEnabled']):
-            results.append( self.readTimer(dev, i) )
+            results[offset] = self.readTimer(dev, i)
+            offset += 1
             
         if ioResults['EnableCounter0']:
-            results.append( self.readCounter(dev, 0) )
-            
+            results[offset] = self.readCounter(dev, 0)
+            offset += 1
+        elif dev.configTimerClock()['TimerClockBase'] > 2:
+            results[offset] = self.readCounter(dev, 0)
+            results[offset]['connection'] = "Counter 0 (divisor)"
+            offset += 1
+        
         if ioResults['EnableCounter1']:
-            results.append( self.readCounter(dev, 1) )
+            results[offset] = self.readCounter(dev, 1)
+            offset += 1
 
         for register, label in DAC_DICT.items():
             dacState = dev.readRegister(register)
@@ -727,6 +738,9 @@ class DeviceManager(object):
         if dev.timerCounterCache['counter0Enabled']:
             labels.append("Counter0")
             totalTaken += 1
+        elif dev.configTimerClock()['TimerClockBase'] > 2:
+            labels.append("Counter 0 (divisor)")
+            totalTaken += 1
             
         if dev.timerCounterCache['counter1Enabled']:
             labels.append("Counter1")
@@ -751,7 +765,11 @@ class DeviceManager(object):
                     t = self.readTimer(dev, int(dioDict['connection'][-1]))
                     dioDict.update(t)
                 elif dioDict['connection'].startswith("Counter"):
-                    c = self.readCounter(dev, int(dioDict['connection'][-1]))
+                    if dioDict['connection'][-1].endswith(')'):
+                        c = self.readCounter(dev, 0)
+                        c['connection'] = "Counter 0 (divisor)"
+                    else:
+                        c = self.readCounter(dev, int(dioDict['connection'][-1]))
                     dioDict.update(c)
             
             dioDict['connectionNumber'] = i + dev.numberOfAnalogIn
@@ -822,14 +840,11 @@ class DeviceManager(object):
         
     def _convertTimerSettings(self, timerSettings, onlyEnabled = False):
         timers = []
-        print "timerSettings =", timerSettings
         for i in range(6):
             if "timer%iEnabled" % i in timerSettings:
-                print "timer%iEnabled found." % i
                 if onlyEnabled and timerSettings["timer%iEnabled" % i]:
                     timers.append({"enabled" : int(timerSettings["timer%iEnabled" % i]), "mode" : int(timerSettings["timer%iMode" % i]), "value" : int(timerSettings["timer%iValue" % i])})
                 elif not onlyEnabled:
-                    print "timer%i appended." % i
                     timers.append({"enabled" : int(timerSettings["timer%iEnabled" % i]), "mode" : int(timerSettings["timer%iMode" % i]), "value" : int(timerSettings["timer%iValue" % i])})
             else:
                 break
