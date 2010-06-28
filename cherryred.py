@@ -116,7 +116,7 @@ def internalTempDict(kelvinTemp):
 def createTimerChoicesList(devType):
     if devType == 9:
         return ((0, 'FIO0'), )
-    elif devType == 6:
+    elif devType == 3:
         return ((4, "FIO4"), (5, "FIO5"), (6, "FIO6"), (7, "FIO7"), (8, "EIO0"))
     else:
         return ((0, "FIO0"), (1, "FIO1"), (2, "FIO2"), (3, "FIO3"), (4, "FIO4"), (5, "FIO5"), (6, "FIO6"), (7, "FIO7"), (8, "EIO0"))
@@ -1012,7 +1012,7 @@ class DevicesPage(object):
         if offset < 8:
             return "FIO%i" % offset
         else:
-            return "EIO%i" % offset
+            return "EIO%i" % (offset - 8)
 
     @exposeRawFunction
     def tcPinLocationSummary(self, serial, timerClockBase = 0, timerClockDivisor = 1, pinOffset = 0, counter0Enable = 0, counter1Enable = 0, **timerSettings):

@@ -1,5 +1,9 @@
       <p>
+      #if $tcPins.length == 0
+      No Timers or Counters enabled.
+      #else
       #for $pin in $tcPins
         $pin[1] on $pin[0] <br />
       #end for
+      #end if
       </p>
