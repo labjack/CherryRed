@@ -1,0 +1,21 @@
+<h2>Connect $device.name to CloudDot</h2>
+<p>Hello, $username</p>
+
+#if $isConnected
+<div id="$device.serial">$device.name is connected to CloudDot. You can confirm this on your <a href="http://cloud.labjack.com/$username/wp-admin/admin.php?page=labjackMenus.php">Devices Page</a>.</div>
+
+<div><a href="#" onclick="disconnectFromClouddot( $device.serial ); return false;">Disconnect $device.name from CloudDot</a></div>
+#else
+<div id="$device.serial"><a href="#" onclick="connectToClouddot( $device.serial ); return false;">Connect To CloudDot</a></div>
+#end if
+
+<br/>
+
+<h3>CloudDot Quick Links</h3>
+<ul>
+  <li><a href="http://cloud.labjack.com/$username/wp-admin/admin.php?page=labjackMenus.php">Devices Page</a></li>
+  <li><a href="http://cloud.labjack.com/$username/wp-admin/admin.php?page=Converters">Converters Page</a></li>
+  <li><a href="http://cloud.labjack.com/$username/wp-admin/admin.php?page=Channels">Channels Page</a></li>
+  <li><a href="http://cloud.labjack.com/$username/wp-admin/admin.php?page=Scripts">Scripts Page</a></li>
+  <li><a href="http://cloud.labjack.com/$username/wp-admin/admin.php?page=Account">Account Page</a></li>
+</ul>
