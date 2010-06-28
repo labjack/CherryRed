@@ -23,12 +23,15 @@ class CloudDotConnection(sleekxmpp.ClientXMPP):
         self.looping = True
         
         self.heartbeatThread = threading.Thread(target = self.pingLoop)
+        self.shutdownEvent = threading.Event()
 
     def pingLoop(self):
         print "Started pingLoop"
         while self.looping:
             print "Sleeping for 14 seconds."
-            sleep(14)
+            self.shutdownEvent.wait(14)
+            if self.shutdownEvent.isSet():
+                break
             print "Sending ping."
             self.plugin['xep_0199'].sendPing("beanstalk@cloud.labjack.com")
         print "Finished pingLoop"
@@ -42,6 +45,7 @@ class CloudDotConnection(sleekxmpp.ClientXMPP):
     def stop(self):
         print "Called CloudDotConnection stop"
         self.looping = False
+        self.shutdownEvent.set()
         self.disconnect()
     
     def message(self, msg):
@@ -82,9 +86,9 @@ class XmppThread(threading.Thread):
         threading.Thread.__init__(self)
         self.xmpp = CloudDotConnection("private-%s@cloud.labjack.com" % device.serialNumber, password, device)
         #self.xmpp.registerPlugin('xep_0004')
-        #self.xmpp.registerPlugin('xep_0030')
+        self.xmpp.registerPlugin('xep_0030')
         #self.xmpp.registerPlugin('xep_0060')
-        #self.xmpp.registerPlugin('xep_0199')
+        self.xmpp.registerPlugin('xep_0199')
         
     def stop(self):
         print "Called XmppThread stop"
