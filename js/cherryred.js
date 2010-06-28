@@ -155,7 +155,12 @@ function updateTabContent(tabIndex) {
     }
     if (tabIndex == 3) {
         $.get("/devices/support/" + currentSerialNumber, {}, function(data)  {$("#support-tab").html(data); });
-    } else if(tabIndex == 1) {
+    }
+    else if(tabIndex == 2) {
+        $("#clouddot-tab").load("/clouddot/info/"+currentSerialNumber);
+        $.get("/clouddot/fetch", {}, handleFetch, "json");
+    }
+    else if(tabIndex == 1) {
         $.get("/config/filelist/" + currentSerialNumber, {}, function(data) {
             $("#config-file-list").html(data); 
             $("a.button").button();
@@ -657,3 +662,119 @@ function getDeviceList() {
     $.get("/devices/", {}, handleDeviceList, "json");
 }
   
+/* Stuff For CloudDot Page */
+var LastUsername = "";
+var LastApikey = "";
+
+function handleFetch(data, textStatus, XMLHttpRequest) {
+    if( data.username != null ) {
+      $("#username-field").attr( "value", data.username);
+      checkUsernameValidity();
+    }
+    
+    if( data.apikey != null ) {
+      $("#apikey-field").attr("value", data.apikey);
+      checkApikeyValidity();
+    }
+}
+
+function handleAjaxError(XMLHttpRequest, textStatus, errorThrown) {
+    $('#username-field').removeClass("fieldWithNoErrors");
+    $('#username-field').addClass("fieldWithErrors");
+}
+
+function handleConnect(data, textStatus, XMLHttpRequest) {
+    console.log("handleConnect: success");
+    
+    return false;
+}
+
+function connectToClouddot(serial) {
+    $.get("/clouddot/connect/"+serial, {}, handleConnect, "json");
+    
+    return false;
+}
+
+function disconnectFromClouddot(serial) {
+    $.get("/clouddot/disconnect/"+serial, {}, handleConnect, "json");
+    
+    return false;
+}
+
+function handleUsernameCheck(data, textStatus) {
+    if(data['username'] == 0) {
+      $('#username-field').removeClass("fieldWithErrors");
+      $('#username-field').addClass("fieldWithNoErrors");
+    }
+    else {
+      $('#username-field').removeClass("fieldWithNoErrors");
+      $('#username-field').addClass("fieldWithErrors");
+    }
+}
+
+function handleApikeyCheck(data, textStatus) {
+    if(data['username'] == 0) {
+      $('#username-field').removeClass("fieldWithErrors");
+      $('#username-field').addClass("fieldWithNoErrors");
+    }
+    else {
+      $('#username-field').removeClass("fieldWithNoErrors");
+      $('#username-field').addClass("fieldWithErrors");
+    }
+    
+    if(data['apikey'] == 0) {
+      $('#apikey-field').removeClass("fieldWithErrors");
+      $('#apikey-field').addClass("fieldWithNoErrors");
+    }
+    else {
+      $('#apikey-field').removeClass("fieldWithNoErrors");
+      $('#apikey-field').addClass("fieldWithErrors");
+    }
+}
+
+function checkUsernameValidity() {
+    var name = $('#username-field').attr('value');
+    
+    if(name == LastUsername) {
+      return false;
+    }
+    
+    $.ajax({
+            url : "/clouddot/check",
+            dataType: 'json',
+            success: handleUsernameCheck,
+            error: handleAjaxError,
+            type: "GET",
+            data: { label : "username", username : name, apikey : "crap" }
+            });
+            
+    LastUsername = name;
+    
+    return false;
+}
+
+function checkApikeyValidity() {
+    var name = $('#username-field').attr('value');
+    var apikey = $('#apikey-field').attr('value');
+    
+    if(apikey == LastApikey) {
+      return false;
+    }
+    
+    if( name != undefined && name != null && apikey != undefined && apikey != null) {
+          
+          $.ajax({
+            url : "/clouddot/check",
+            dataType: 'json',
+            success: handleApikeyCheck,
+            error: handleAjaxError,
+            data: { label : "apikey", username: name, apikey : apikey },
+            type: "GET"
+            });
+            
+          LastUsername = name;
+          LastApikey = apikey;
+    }
+    
+    return false;
+}

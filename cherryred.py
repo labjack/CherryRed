@@ -271,6 +271,16 @@ class DeviceManager(object):
             return True
         else:
             return False
+            
+    def disconnectDeviceFromCloudDot(self, serial):
+        d = self.getDevice(serial)
+        
+        if str(d.serialNumber) in self.xmppThreads:
+            xt = self.xmppThreads.pop(str(d.serialNumber))
+            xt.stop()
+            return True
+        else:
+            return False
         
     def shutdownThreads(self):
         for s, thread in self.xmppThreads.items():
@@ -602,18 +612,25 @@ class DeviceManager(object):
             
             results.append(f.parseFioResults(d, s))
             
+        nte, cm = dev.readRegister(50501, numReg = 2)
+        
         
         # Counter 0
-        counter = feedbackResults["Counter0"]
-        results.append({'connection' : "Counter 0", 'state' : "%s" % counter, 'value' : "%s" % counter, "chType" : "counter"})
+        if bool(cm & 1):
+            counter = feedbackResults["Counter0"]
+            results.append({'connection' : "Counter 0", 'state' : "%s" % counter, 'value' : "%s" % counter, "chType" : "counter"})
         
         # Counter 1
-        counter = feedbackResults["Counter1"]
-        results.append({'connection' : "Counter 1", 'state' : "%s" % counter, 'value' : "%s" % counter, "chType" : "counter"})
+        if bool(cm & 2):
+            counter = feedbackResults["Counter1"]
+            results.append({'connection' : "Counter 1", 'state' : "%s" % counter, 'value' : "%s" % counter, "chType" : "counter"})
         
-        for i, l in enumerate(('A', 'B', 'C')):
-            timer = feedbackResults["Timer%s" % l]
-            results.append({'connection' : "Timer %s" % i, 'state' : "%s" % timer, 'value' : "%s" % timer, "chType" : "timer"})
+        for i in range(nte):
+            if i < 3:
+                timer = feedbackResults["Timer%s" % (('A', 'B', 'C')[i]) ]
+                results.append({'connection' : "Timer %s" % i, 'state' : "%s" % timer, 'value' : "%s" % timer, "chType" : "timer"})
+            else:
+                results.append(self.readTimer(dev, i))
         
         for register, label in DAC_DICT.items():
             dacState = dev.readRegister(register)
@@ -1149,14 +1166,6 @@ class DevicesPage(object):
         serialNumber, results = self.dm.scan(serial, noCache)
         
         return results
-
-    @exposeJsonFunction
-    def connectToCloudDot(self, serial = None):
-        print "Connecting %s to CloudDot." % serial
-        
-        self.dm.connectDeviceToCloudDot(serial)
-        
-        return {'result' : "connected"}
     
 
     # ---------------- Deprecated ----------------
@@ -1313,26 +1322,70 @@ def serve_file2(path):
         else:
             return serve_file(os.path.join(current_dir,path))
 
-class UsersPage:
-    """ A class for handling all things /users/
+class CloudDotPage:
+    """ A class for handling all things /clouddot/
     """
     def __init__(self, dm):
         self.dm = dm
-    
-    def header(self):
-        return "<html><body>"
-    
-    def footer(self):
-        return "</body></html>"
+        self.parser = ConfigParser.SafeConfigParser()
+        
+        self.readConfigFile()
+        
+    def readConfigFile(self):
+        self.parser.read(CLOUDDOT_GROUNDED_CONF)
+        
+        if self.parser.has_section("CloudDot"):
+            if self.parser.has_option("CloudDot", "username"):
+                self.dm.username = self.parser.get("CloudDot", "username")
+                
+            if self.parser.has_option("CloudDot", "api key"):
+                self.dm.apikey = self.parser.get("CloudDot", "api key")
+                
+    def saveConfigFile(self):
+        self.parser.read(CLOUDDOT_GROUNDED_CONF)
+        
+        if not self.parser.has_section("CloudDot"):
+            self.parser.add_section("CloudDot")
+        
+        self.parser.set("CloudDot", "username", self.dm.username)
+        self.parser.set("CloudDot", "api key", self.dm.apikey)
+        
+        with open(CLOUDDOT_GROUNDED_CONF, 'wb') as configfile:
+            self.parser.write(configfile)
 
     @exposeRawFunction
-    def index(self):
-        """ Handles /users/, returns a JSON list of all known devices.
+    def info(self, serial):
+        """ Handles /clouddot/info/<serial>
         """
         # Tell people (firefox) not to cash this page. 
         cherrypy.response.headers['Cache-Control'] = "no-cache"
         
-        return serve_file2("html/user.html")
+        if self.dm.username is None or self.dm.apikey is None:
+            t = serve_file2("templates/clouddot-user-page.tmpl")
+        else:
+            t = serve_file2("templates/clouddot-connect.tmpl")
+            t.isConnected = (str(serial) in self.dm.xmppThreads)
+            
+        t.username = self.dm.username
+        t.device = deviceAsDict(self.dm.getDevice(serial))
+        
+        return t.respond()
+    
+    @exposeJsonFunction
+    def connect(self, serial):
+        print "Connecting %s to CloudDot." % serial
+        
+        self.dm.connectDeviceToCloudDot(serial)
+        
+        return {'result' : "connected"}
+    
+    @exposeJsonFunction
+    def disconnect(self, serial):
+        print "Disconnecting %s from CloudDot." % serial
+        
+        self.dm.disconnectDeviceFromCloudDot(serial)
+        
+        return {'result' : "Connected"}
     
     @exposeJsonFunction
     def fetch(self):
@@ -1378,7 +1431,9 @@ class UsersPage:
         self.dm.username = username
         self.dm.apikey = apikey
         
-        raise cherrypy.HTTPRedirect("/users/")
+        self.saveConfigFile()
+        
+        raise cherrypy.HTTPRedirect("/")
 
 class ConfigPage(object):
     """ A class for handling all things /config/
@@ -1724,7 +1779,7 @@ class RootPage:
         self.logs = LoggingPage(dm)
         self.config = ConfigPage(dm)
         
-        self.users = UsersPage(dm)
+        self.clouddot = CloudDotPage(dm)
     
     @exposeRawFunction
     def index(self):
