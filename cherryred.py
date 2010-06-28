@@ -71,7 +71,7 @@ ANALOG_TYPE = "analogIn"
 DIGITAL_OUT_TYPE = "digitalOut"
 DIGITAL_IN_TYPE = "digitalIn"
 
-DAC_DICT = { 5000: "DAC0", 5002: "DAC1" }
+DAC_DICT = { 5000: "DAC0", 5002: "DAC1" } 
 
 FLOAT_FORMAT = "%0.3f"
 
@@ -112,6 +112,14 @@ def internalTempDict(kelvinTemp):
     # F = K * (9/5) - 459.67
     internalTemp = kelvinToFahrenheit(kelvinTemp)
     return {'connection' : "Internal Temperature", 'state' : (FLOAT_FORMAT + " &deg;F") % internalTemp, 'value' : FLOAT_FORMAT % internalTemp, 'chType' : "internalTemp", "disabled" : True}
+    
+def createTimerChoicesList(devType):
+    if devType == 9:
+        return ((0, 'FIO0'), )
+    elif devType == 6:
+        return ((4, "FIO4"), (5, "FIO5"), (6, "FIO6"), (7, "FIO7"), (8, "EIO0"))
+    else:
+        return ((0, "FIO0"), (1, "FIO1"), (2, "FIO2"), (3, "FIO3"), (4, "FIO4"), (5, "FIO5"), (6, "FIO6"), (7, "FIO7"), (8, "EIO0"))
 
 def deviceAsDict(dev):
     """ Returns a dictionary representation of a device.
@@ -844,7 +852,7 @@ class DeviceManager(object):
         if pinOffset != currentSettings['offset'] or oldTimers != newTimers:
             self.setupTimers(dev, newTimers, pinOffset)
             
-        if counter0Enable and currentSettings['timerClockDivisor'] > 2:
+        if counter0Enable and currentSettings['timerClockBase'] > 2:
             # Raise an error, this is an invalid configuration
             raise Exception("When a clock with a divisor is used, Counter0 is unavailable.")
             
@@ -994,15 +1002,44 @@ class DevicesPage(object):
         t.devType = devType
         t.updateUrl = "/devices/updateTimerCounterConfig/%s" % serial
         t.currentConfig = currentConfig
-        t.offsetChoices = ((4, "FIO4"), (5, "FIO5"), (6, "FIO6"), (7, "FIO7"), (8, "EIO0"))
+        t.offsetChoices = createTimerChoicesList()
         tcPinLocationHtml = self.tcPinLocationSummary(serial)
 
         returnDict = dict(html = t.respond(), serial = serial, counterSelected = counterSelected, tcPinLocationHtml = tcPinLocationHtml)        
         return returnDict
 
+    def offsetToLabel(self, offset):
+        if offset < 8:
+            return "FIO%i" % offset
+        else:
+            return "EIO%i" % offset
+
     @exposeRawFunction
-    def tcPinLocationSummary(self, serial):
+    def tcPinLocationSummary(self, serial, timerClockBase = 0, timerClockDivisor = 1, pinOffset = 0, counter0Enable = 0, counter1Enable = 0, **timerSettings):
         t = serve_file2("templates/tc-pin-location-summary.tmpl")
+        
+        tcPins = []
+        numTimersEnabled = 0
+        for i in range(6):
+            if "timer%iEnabled" % i in timerSettings:
+                if timerSettings["timer%iEnabled" % i]:
+                    tcPins.append((self.offsetToLabel(pinOffset), "Timer %i" % i))
+                    pinOffset += 1
+            else:
+                break
+        
+        if timerClockBase > 2:
+            tcPins.append((self.offsetToLabel(pinOffset), "Counter 0 (Taken by  clock divisor)"))
+            pinOffset += 1
+        elif counter0Enable:
+            tcPins.append((self.offsetToLabel(pinOffset), "Counter 0"))
+            pinOffset += 1
+            
+        if counter1Enable:
+            tcPins.append((self.offsetToLabel(pinOffset), "Counter 1"))
+            pinOffset += 1
+        
+        t.tcPins = tcPins
         return t.respond()
 
     @exposeRawFunction

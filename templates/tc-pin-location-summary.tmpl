@@ -1,5 +1,5 @@
       <p>
-        Timer0 on FIO4<br />      
-        Timer1 on FIO5<br />      
-        Counter0 on FIO6<br />      
+      #for $pin in $tcPins
+        $pin[1] on $pin[0] <br />
+      #end for
       </p>
