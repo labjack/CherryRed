@@ -1019,12 +1019,15 @@ class DevicesPage(object):
         t = serve_file2("templates/tc-pin-location-summary.tmpl")
         
         pinOffset = int(pinOffset)
+        timerClockBase = int(timerClockBase)
+        counter0Enable = int(counter0Enable)
+        counter1Enable = int(counter1Enable)
         
         tcPins = []
         numTimersEnabled = 0
         for i in range(6):
             if "timer%iEnabled" % i in timerSettings:
-                if timerSettings["timer%iEnabled" % i]:
+                if int(timerSettings["timer%iEnabled" % i]):
                     tcPins.append((self.offsetToLabel(pinOffset), "Timer %i" % i))
                     pinOffset += 1
             else:
