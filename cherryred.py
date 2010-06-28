@@ -1018,6 +1018,8 @@ class DevicesPage(object):
     def tcPinLocationSummary(self, serial, timerClockBase = 0, timerClockDivisor = 1, pinOffset = 0, counter0Enable = 0, counter1Enable = 0, **timerSettings):
         t = serve_file2("templates/tc-pin-location-summary.tmpl")
         
+        pinOffset = int(pinOffset)
+        
         tcPins = []
         numTimersEnabled = 0
         for i in range(6):
