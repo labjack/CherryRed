@@ -1066,7 +1066,7 @@ class DevicesPage(object):
                 break
         
         if timerClockBase > 2:
-            tcPins.append((self.offsetToLabel(pinOffset), "Counter 0 (taken by clock divisor)"))
+            tcPins.append((self.offsetToLabel(pinOffset), "Counter 0 (taken by timer clock divisor)"))
             pinOffset += 1
         elif counter0Enable:
             tcPins.append((self.offsetToLabel(pinOffset), "Counter 0"))

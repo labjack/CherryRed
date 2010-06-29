@@ -202,7 +202,7 @@ function setupSaveLoadDeleteConfigLinks() {
 // Return the input value, with 0 if undefined
 function  getFormInputValue(selectorString) {
     var selectedValue = $(selectorString).val();
-    if (selectedValue == undefined) {
+    if (selectedValue == undefined || selectedValue == "") {
         selectedValue = 0;
     }
     return selectedValue;
@@ -237,12 +237,77 @@ function updateTCPinLocationSummary() {
     $("#tc-connection-dialog-pin-location-summary").load("/devices/tcPinLocationSummary/", updateTimerCounterOptions);
 }
 
-function disableCounter0IfNeeded() {
+function updateTimerValueInput() {
+    var inputsThatRequireValue = [1, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0];
+    var defaultValues = [32768, 32768, "", "", "", "", 1, 1, "", 5, "", "", "", ""];
+
+    var $nearestValueInput = $(this).closest(".timer-wrapper").find(".timer-value");
+    $nearestValueInput.val(defaultValues[$(this).val()]);
+
+    if (inputsThatRequireValue[$(this).val()]) {
+        $nearestValueInput.removeAttr("disabled").closest("label").show();
+    } else {
+        $nearestValueInput.attr("disabled", "disabled").closest("label").hide("fast");
+    }
+}
+
+
+function disableClockDivisorOrCounter0IfNeeded() {
     if ($("select[name='timerClockBase']").val() > 2) {
-        $("input[name='counter0Enable']").attr("disabled", "disabled").removeAttr("checked").next(".enable-counter-text").addClass("counter0-taken").text("Counter0 taken by clock divisor");
+        $("input[name='counter0Enable']").attr("disabled", "disabled").removeAttr("checked").next(".enable-counter-text").addClass("counter0-taken").text("Counter0 taken by timer clock divisor");
+        $("input[name='timerClockDivisor']").removeAttr("disabled").closest("label").show();
+        if($("input[name='timerClockDivisor']").val() == "") {
+            $("input[name='timerClockDivisor']").val(1);
+        }
     }
     else {
         $("input[name='counter0Enable']").removeAttr("disabled").next(".enable-counter-text").removeClass("counter0-taken").text("Enable Counter0");
+        $("input[name='timerClockDivisor']").attr("disabled", "disabled").val("").closest("label").hide("fast");
+    }
+}
+
+function disableTimerInputChildren(timerWrapper) {
+    $(timerWrapper).find(".timer-config-inputs select, .timer-config-inputs input").attr("disabled","disabled").closest("label").hide("fast");
+}
+
+function enableTimerInputChildren(timerWrapper) {
+    $(timerWrapper).closest(".timer-wrapper").find(".timer-config-inputs select").removeAttr("disabled").closest("label").show();
+}
+
+function disableTimerInputSelection(timerInput) {
+    disableTimerInputChildren($(timerInput).closest(".timer-wrapper"));
+    $(timerInput).attr("disabled","disabled").removeAttr("checked").closest("label").addClass("weak");
+}
+
+function enableTimerInputSelection(timerInput) {
+    $(timerInput).removeAttr("disabled").closest("label").removeClass("weak");
+}
+
+
+function timerCounterEnabledRules() {
+    var firstUnchecked = null;
+
+    // Hide the extra inputs for unchecked timers
+    // Also, remember the firstUnchecked timer for the next loop
+    $(".timer-enable-box").each(function() {
+        if($(this).is(':checked')) {
+            enableTimerInputChildren($(this).closest(".timer-wrapper"));
+        } else {
+            disableTimerInputChildren($(this).closest(".timer-wrapper"));
+            if (firstUnchecked == null) {
+                firstUnchecked = $(this).attr("timer-number");
+            }
+        }
+    });
+    if (firstUnchecked != null) {
+        $(".timer-enable-box").each(function() {
+            if ($(this).attr("timer-number") > firstUnchecked) {
+                disableTimerInputSelection($(this));
+            }
+            else if ($(this).attr("timer-number") == firstUnchecked) {
+                enableTimerInputSelection($(this));
+            }
+        });
     }
 }
 
@@ -250,19 +315,12 @@ function setupTimerCounterLink() {
 
     $("select[name='pinOffset']").live("change", updateTCPinLocationSummary);
 
-    $(".timer-enable-box").live("change", function() {
-        if($(this).is(':checked')) {
-            $(this).closest(".timer-wrapper").find(".timer-config-inputs select, .timer-config-inputs input").removeAttr("disabled");
-        } else {
-            $(this).closest(".timer-wrapper").find(".timer-config-inputs select, .timer-config-inputs input").attr("disabled","disabled");
-        }
-    });
+    $("select.timer-mode-select").live("change", updateTimerValueInput);
+
+    $(".timer-enable-box").live("change", timerCounterEnabledRules);
 
     // A timerClockBase with a divisor (>2 in the list) requires Counter0
-    $("select[name='timerClockBase']").live("change", function() {
-        disableCounter0IfNeeded();
-    });
-
+    $("select[name='timerClockBase']").live("change", disableClockDivisorOrCounter0IfNeeded);
 
     $(".timer-counter-config-link").live("click", function() {
         stopScanning();
@@ -278,7 +336,6 @@ function setupTimerCounterLink() {
             if (returnJson.counterSelected == "true") {
                 $("#tc-connection-dialog-tabs").tabs("select", 1);
             }
-            disableCounter0IfNeeded();
             $("#tc-connection-dialog-pin-location-summary").html(returnJson.tcPinLocationHtml);
             $("#dialog").dialog('option', 'title', "Timers & Counters");
             $("#dialog").dialog('option', 'width', 525);
@@ -290,6 +347,9 @@ function setupTimerCounterLink() {
                 "Cancel": dialogDone
             });
             $("#dialog").dialog('open');
+            timerCounterEnabledRules();
+            disableClockDivisorOrCounter0IfNeeded();
+            $("select.timer-mode-select").each(updateTimerValueInput);
         }, "json");
         return false;
     });
@@ -790,6 +850,11 @@ function setupCloudDotLinks() {
     $(".disconnect-from-clouddot-link").live("click", function() {
         var serialNumber = $(this).attr("device-serial");
         disconnectFromClouddot(serialNumber);   
+        return false;
+    });
+    $("#clouddot-api-key-example-link").live("click", function() {
+        $("#clouddot-api-key-example").show();
+        $(this).hide();
         return false;
     });
 }
