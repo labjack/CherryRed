@@ -935,6 +935,8 @@ class DeviceManager(object):
             self.setupCounter(dev, bool(counter0Enable), bool(counter1Enable))
             currentSettings['counter0Enabled'] = bool(counter0Enable)
             currentSettings['counter1Enabled'] = bool(counter1Enable)
+            
+        self.readTimerCounterConfig(dev)
         
     def resetCounter(self, serial, counterNumber):
         dev = self.getDevice(serial)
