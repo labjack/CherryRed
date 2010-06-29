@@ -1,7 +1,7 @@
 """
 
 Name: cherryred.py
-Desc:
+Desc: A cross-platform program for getting started with your LabJack.
 
 """
 
