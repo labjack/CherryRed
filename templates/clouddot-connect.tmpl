@@ -4,9 +4,9 @@
 #if $isConnected
 <div id="$device.serial">$device.name is connected to CloudDot. You can confirm this on your <a href="http://cloud.labjack.com/$username/wp-admin/admin.php?page=labjackMenus.php">Devices Page</a>.</div>
 
-<div><a href="#" onclick="disconnectFromClouddot( $device.serial ); return false;">Disconnect $device.name from CloudDot</a></div>
+<div><a href="#" device-serial="$device.serial" class="disconnect-from-clouddot-link">Disconnect $device.name from CloudDot</a></div>
 #else
-<div id="$device.serial"><a href="#" onclick="connectToClouddot( $device.serial ); return false;">Connect To CloudDot</a></div>
+<div id="$device.serial"><a href="#" device-serial="$device.serial" class="connect-to-clouddot-link">Connect To CloudDot</a></div>
 #end if
 
 <br/>

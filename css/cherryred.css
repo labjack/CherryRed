@@ -23,6 +23,8 @@ a { color: #222222; }
 #devices a {
     display:block;
 }
+#support-tab a:hover,
+a.rename-link:hover,
 #logs a:hover,
 #devices a:hover,
 #device-name-list a:hover {
@@ -309,9 +311,16 @@ a.timer-counter-config-link:hover {
 #tc-connection-dialog-pin-location-summary p {
     margin: 1em;
 }
-
+#tc-connection-dialog-tabs h5 {
+    margin-bottom: 5px;
+}
 .timer-config-inputs {
     padding-left: 2em;
+}
+
+.counter0-taken {
+    font-style: italic;
+    color: #888888;
 }
 
 #save-config-link {
@@ -384,12 +393,6 @@ a.digital-out-toggle-link.toggling {
     border: 2px solid #000000
 }
 
-.users-page-content {
-    background-color: white !important;
-    border: 5px solid #ccc;
-    padding: 0 30px 20px;
-}
-
 .fieldWithNoErrors {
   padding: 2px;
   background-color: rgba(0, 150, 0, 0.3);
@@ -404,6 +407,18 @@ a.digital-out-toggle-link.toggling {
     font-size: 14pt;
 }
 
+#user-form > div {
+    position: relative;
+    height: 3em;
+    line-height: 2em;
+}
+
+#username-field,
+#apikey-field
+{
+    position: absolute;
+    left: 100px;
+}
 /*
  Weak Style
 */
@@ -418,4 +433,12 @@ a.digital-out-toggle-link.toggling {
 
 .weak a:hover{
     color: #FFFFFF;
+    background-color: #444444;
+}
+.users-page-content .clouddot-account-page {
+    color: #333333;
+}
+.users-page-content .clouddot-account-page:hover {
+    color: #FFFFFF;
+    background-color: #333333;
 }
