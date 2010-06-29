@@ -121,6 +121,57 @@ def createTimerChoicesList(devType):
     else:
         return ((0, "FIO0"), (1, "FIO1"), (2, "FIO2"), (3, "FIO3"), (4, "FIO4"), (5, "FIO5"), (6, "FIO6"), (7, "FIO7"), (8, "EIO0"))
 
+
+def createTimerModeToHelpUrlList(devType):
+    urllist = []
+    if devType == 9:
+        urllist.append("http://labjack.com/support/ue9/users-guide/2.10.1.1")
+        urllist.append("http://labjack.com/support/ue9/users-guide/2.10.1.2")
+        urllist.append("http://labjack.com/support/ue9/users-guide/2.10.1.3")
+        urllist.append("http://labjack.com/support/ue9/users-guide/2.10.1.3")
+        urllist.append("http://labjack.com/support/ue9/users-guide/2.10.1.4")
+        urllist.append("http://labjack.com/support/ue9/users-guide/2.10.1.5")
+        urllist.append("http://labjack.com/support/ue9/users-guide/2.10.1.6")
+        urllist.append("http://labjack.com/support/ue9/users-guide/2.10.1.7")
+        urllist.append("http://labjack.com/support/ue9/users-guide/2.10.1.8")
+        urllist.append("http://labjack.com/support/ue9/users-guide/2.10.1.9")
+        urllist.append("http://labjack.com/support/ue9/users-guide/2.10.1.10")
+        urllist.append("http://labjack.com/support/ue9/users-guide/2.10.1.10")
+        urllist.append("http://labjack.com/support/ue9/users-guide/2.10.1.11")
+        urllist.append("http://labjack.com/support/ue9/users-guide/2.10.1.11")
+    elif devType == 6:
+        urllist.append("http://labjack.com/support/u6/users-guide/2.9.1.1")
+        urllist.append("http://labjack.com/support/u6/users-guide/2.9.1.2")
+        urllist.append("http://labjack.com/support/u6/users-guide/2.9.1.3")
+        urllist.append("http://labjack.com/support/u6/users-guide/2.9.1.3")
+        urllist.append("http://labjack.com/support/u6/users-guide/2.9.1.4")
+        urllist.append("http://labjack.com/support/u6/users-guide/2.9.1.5")
+        urllist.append("http://labjack.com/support/u6/users-guide/2.9.1.6")
+        urllist.append("http://labjack.com/support/u6/users-guide/2.9.1.7")
+        urllist.append("http://labjack.com/support/u6/users-guide/2.9.1.8")
+        urllist.append("http://labjack.com/support/u6/users-guide/2.9.1.9")
+        urllist.append("http://labjack.com/support/u6/users-guide/2.9.1.10")
+        urllist.append("http://labjack.com/support/u6/users-guide/2.9.1.10")
+        urllist.append("http://labjack.com/support/u6/users-guide/2.9.1.11")
+        urllist.append("http://labjack.com/support/u6/users-guide/2.9.1.11")
+    else:
+        urllist.append("http://labjack.com/support/u3/users-guide/2.9.1.1")
+        urllist.append("http://labjack.com/support/u3/users-guide/2.9.1.2")
+        urllist.append("http://labjack.com/support/u3/users-guide/2.9.1.3")
+        urllist.append("http://labjack.com/support/u3/users-guide/2.9.1.3")
+        urllist.append("http://labjack.com/support/u3/users-guide/2.9.1.4")
+        urllist.append("http://labjack.com/support/u3/users-guide/2.9.1.5")
+        urllist.append("http://labjack.com/support/u3/users-guide/2.9.1.6")
+        urllist.append("http://labjack.com/support/u3/users-guide/2.9.1.7")
+        urllist.append("http://labjack.com/support/u3/users-guide/2.9.1.8")
+        urllist.append("http://labjack.com/support/u3/users-guide/2.9.1.9")
+        urllist.append("http://labjack.com/support/u3/users-guide/2.9.1.10")
+        urllist.append("http://labjack.com/support/u3/users-guide/2.9.1.10")
+        urllist.append("http://labjack.com/support/u3/users-guide/2.9.1.11")
+        urllist.append("http://labjack.com/support/u3/users-guide/2.9.1.11")
+    
+    return urllist
+
 def deviceAsDict(dev):
     """ Returns a dictionary representation of a device.
     """
@@ -520,24 +571,36 @@ class DeviceManager(object):
         finally:
             self.scanEvent.set()
                    
+    def closeDevice(self, dev):
+        serial = str(dev.serialNumber)
+        self.stopDeviceLogging(serial)
+        self.disconnectDeviceFromCloudDot(serial)
+        
+        dev.close()
+        self.devices.pop(serial)
 
     def scan(self, serial = None, noCache = False):
         self.scanEvent.wait()
         dev = self.getDevice(serial)
         now = int(time.time())
         if noCache or (now - dev.scanCache[0]) >= 1:
-            if dev.devType == 3:
-                result = self.u3Scan(dev)
-            elif dev.devType == 6:
-                result = self.u6Scan(dev)
-            elif dev.devType == 9:
-                result = self.ue9Scan(dev)
-            elif dev.devType == 0x501:
-                num = dev.readNumberOfMotes()
-                result = [dev.serialNumber, [{'connection' : 'Number Of Motes', 'state' : num, 'value' : num, 'chType' : ANALOG_TYPE }]]
-                
-            dev.scanCache = (now, result)
-            return result
+            try:
+                if dev.devType == 3:
+                    result = self.u3Scan(dev)
+                elif dev.devType == 6:
+                    result = self.u6Scan(dev)
+                elif dev.devType == 9:
+                    result = self.ue9Scan(dev)
+                elif dev.devType == 0x501:
+                    num = dev.readNumberOfMotes()
+                    result = [dev.serialNumber, [{'connection' : 'Number Of Motes', 'state' : num, 'value' : num, 'chType' : ANALOG_TYPE }]]
+                    
+                dev.scanCache = (now, result)
+                return result
+            except LabJackPython.LabJackException, e:
+                print "Caught LabJackException:\n%s" % e
+                self.closeDevice(dev)
+                return serial, []
         else:
             return dev.scanCache[1]
     
@@ -695,12 +758,6 @@ class DeviceManager(object):
             results[offset] = self.readCounter(dev, 0)
             results[offset]['connectionNumber'] = 0
             offset += 1
-        elif dev.configTimerClock()['TimerClockBase'] > 2:
-            results[offset] = self.readCounter(dev, 0)
-            results[offset]['connection'] = "Counter 0 (divisor)"
-            results[offset]['connectionNumber'] = 0
-            results[offset]['chType'] = "counter-divisor"
-            offset += 1
         
         if ioResults['EnableCounter1']:
             results[offset] = self.readCounter(dev, 1)
@@ -743,9 +800,6 @@ class DeviceManager(object):
         if dev.timerCounterCache['counter0Enabled']:
             labels.append("Counter0")
             totalTaken += 1
-        elif dev.configTimerClock()['TimerClockBase'] > 2:
-            labels.append("Counter 0 (divisor)")
-            totalTaken += 1
             
         if dev.timerCounterCache['counter1Enabled']:
             labels.append("Counter1")
@@ -773,14 +827,8 @@ class DeviceManager(object):
                     dioDict.update(t)
                     dioDict['connectionNumber'] = int(dioDict['connection'][-1])
                 elif dioDict['connection'].startswith("Counter"):
-                    if dioDict['connection'][-1].endswith(')'):
-                        c = self.readCounter(dev, 0)
-                        c['connection'] = "Counter 0 (divisor)"
-                        c['chType'] = "counter-divisor"
-                        counterNumber = 0
-                    else:
-                        counterNumber = int(dioDict['connection'][-1])
-                        c = self.readCounter(dev, counterNumber)
+                    counterNumber = int(dioDict['connection'][-1])
+                    c = self.readCounter(dev, counterNumber)
                         
                     dioDict.update(c)
                     dioDict['connectionNumber'] = counterNumber
@@ -1032,6 +1080,7 @@ class DevicesPage(object):
         
         t = serve_file2("templates/device-configureTimerCounter.tmpl")
         t.devType = devType
+        t.timerModeUrls = createTimerModeToHelpUrlList(devType)
         t.updateUrl = "/devices/updateTimerCounterConfig/%s" % serial
         t.currentConfig = currentConfig
         t.offsetChoices = createTimerChoicesList(devType)
@@ -1065,10 +1114,8 @@ class DevicesPage(object):
             else:
                 break
         
-        if timerClockBase > 2:
-            tcPins.append((self.offsetToLabel(pinOffset), "Counter 0 (taken by clock divisor)"))
-            pinOffset += 1
-        elif counter0Enable:
+        
+        if counter0Enable:
             tcPins.append((self.offsetToLabel(pinOffset), "Counter 0"))
             pinOffset += 1
             

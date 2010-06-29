@@ -16,20 +16,20 @@
     <div class="timer-config-inputs">
       <label>Mode: 
         <select name="timer${i}Mode" #if not $currentConfig["timer%sEnabled" % $i] then 'disabled="disabled"' else ''# >
-            <option value="0" #if $currentConfig["timer%sMode" % $i] == 0 then 'selected="yes"' else ''# >16-bit PWM output</option>
-            <option value="1" #if $currentConfig["timer%sMode" % $i] == 1 then 'selected="yes"' else ''#>8-bit PWM output</option>
-            <option value="2" #if $currentConfig["timer%sMode" % $i] == 2 then 'selected="yes"' else ''#>Period input (32-bit, rising edges)</option>
-            <option value="3" #if $currentConfig["timer%sMode" % $i] == 3 then 'selected="yes"' else ''#>Period input (32-bit, falling edges)</option>
-            <option value="4" #if $currentConfig["timer%sMode" % $i] == 4 then 'selected="yes"' else ''#>Duty cycle input</option>
-            <option value="5" #if $currentConfig["timer%sMode" % $i] == 5 then 'selected="yes"' else ''#>Firmware counter input</option>
-            <option value="6" #if $currentConfig["timer%sMode" % $i] == 6 then 'selected="yes"' else ''#>Firmware counter input (with debounce)</option>
-            <option value="7" #if $currentConfig["timer%sMode" % $i] == 7 then 'selected="yes"' else ''#>Frequency output</option>
-            <option value="8" #if $currentConfig["timer%sMode" % $i] == 8 then 'selected="yes"' else ''#>Quadrature input</option>
-            <option value="9" #if $currentConfig["timer%sMode" % $i] == 9 then 'selected="yes"' else ''#>Timer stop input (odd timers only)</option>
-            <option value="10" #if $currentConfig["timer%sMode" % $i] == 10 then 'selected="yes"' else ''#>System timer low read</option>
-            <option value="11" #if $currentConfig["timer%sMode" % $i] == 11 then 'selected="yes"' else ''#>System timer high read</option>
-            <option value="12" #if $currentConfig["timer%sMode" % $i] == 12 then 'selected="yes"' else ''#>Period input (16-bit, rising edges)</option>
-            <option value="13" #if $currentConfig["timer%sMode" % $i] == 13 then 'selected="yes"' else ''#>Period input (16-bit, falling edges)</option>
+            <option value="0" helpurl="$timerModeUrls[0]" #if $currentConfig["timer%sMode" % $i] == 0 then 'selected="yes"' else ''# >16-bit PWM output</option>
+            <option value="1" helpurl="$timerModeUrls[1]" #if $currentConfig["timer%sMode" % $i] == 1 then 'selected="yes"' else ''#>8-bit PWM output</option>
+            <option value="2" helpurl="$timerModeUrls[2]" #if $currentConfig["timer%sMode" % $i] == 2 then 'selected="yes"' else ''#>Period input (32-bit, rising edges)</option>
+            <option value="3" helpurl="$timerModeUrls[3]" #if $currentConfig["timer%sMode" % $i] == 3 then 'selected="yes"' else ''#>Period input (32-bit, falling edges)</option>
+            <option value="4" helpurl="$timerModeUrls[4]" #if $currentConfig["timer%sMode" % $i] == 4 then 'selected="yes"' else ''#>Duty cycle input</option>
+            <option value="5" helpurl="$timerModeUrls[5]" #if $currentConfig["timer%sMode" % $i] == 5 then 'selected="yes"' else ''#>Firmware counter input</option>
+            <option value="6" helpurl="$timerModeUrls[6]" #if $currentConfig["timer%sMode" % $i] == 6 then 'selected="yes"' else ''#>Firmware counter input (with debounce)</option>
+            <option value="7" helpurl="$timerModeUrls[7]" #if $currentConfig["timer%sMode" % $i] == 7 then 'selected="yes"' else ''#>Frequency output</option>
+            <option value="8" helpurl="$timerModeUrls[8]" #if $currentConfig["timer%sMode" % $i] == 8 then 'selected="yes"' else ''#>Quadrature input</option>
+            <option value="9" helpurl="$timerModeUrls[9]" #if $currentConfig["timer%sMode" % $i] == 9 then 'selected="yes"' else ''#>Timer stop input (odd timers only)</option>
+            <option value="10" helpurl="$timerModeUrls[10]" #if $currentConfig["timer%sMode" % $i] == 10 then 'selected="yes"' else ''#>System timer low read</option>
+            <option value="11" helpurl="$timerModeUrls[10]" #if $currentConfig["timer%sMode" % $i] == 11 then 'selected="yes"' else ''#>System timer high read</option>
+            <option value="12" helpurl="$timerModeUrls[12]" #if $currentConfig["timer%sMode" % $i] == 12 then 'selected="yes"' else ''#>Period input (16-bit, rising edges)</option>
+            <option value="13" helpurl="$timerModeUrls[13]" #if $currentConfig["timer%sMode" % $i] == 13 then 'selected="yes"' else ''#>Period input (16-bit, falling edges)</option>
         </select>
       </label>
     </div>
@@ -70,6 +70,14 @@
           <input name="timerClockDivisor" type="text" value="$currentConfig.timerClockDivisor"></input>
         </label>
       </div>
+      
+    #if $devType == 6
+    <div class="more-info">See <a href="http://labjack.com/support/u6/users-guide/2.9" target="_blank">Section 2.9</a> of the U6 User's Guide for more info on Timer Clock settings.</div>
+    #elif $devType == 3
+    <div class="more-info">See <a href="http://labjack.com/support/u3/users-guide/2.9" target="_blank">Section 2.9</a> of the U3 User's Guide for more info on Timer Clock settings.</div>
+    #else
+    <div class="more-info">See <a href="http://labjack.com/support/ue9/users-guide/2.10" target="_blank">Section 2.10</a> of the UE9 User's Guide for more info on Timer Clock settings.</div>
+    #end if
     
   </div>
 
@@ -84,6 +92,13 @@
         <label><input type="checkbox" name="counter1Enable" value="1" #if $currentConfig.counter1Enabled then 'checked="yes"' else ''#></input><span class="enable-counter-text">Enable Counter1</span></label>
       </fieldset>
     </form>
+    #if $devType == 6
+    <div class="more-info">See <a href="http://labjack.com/support/u6/users-guide/2.9" target="_blank">Section 2.9</a> of the U6 User's Guide for more info on Counters.</div>
+    #elif $devType == 3
+    <div class="more-info">See <a href="http://labjack.com/support/u3/users-guide/2.9" target="_blank">Section 2.9</a> of the U3 User's Guide for more info on Counters.</div>
+    #else
+    <div class="more-info">See <a href="http://labjack.com/support/ue9/users-guide/2.10" target="_blank">Section 2.10</a> of the UE9 User's Guide for more info on Counters.</div>
+    #end if
   </div>
   <div id="tc-connection-dialog-tabs-location">
     <form>

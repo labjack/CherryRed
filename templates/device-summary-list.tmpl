@@ -1,3 +1,6 @@
+#if len($devices) == 0:
+<h2>No devices detected. Please connect a LabJack and <a style="display:inline;" href="/">refresh this page</a>.</h2>
+#else
 <ul>
 #for $device in $devices
     <li class="device-summary pop ui-helper-reset ui-corner-all $device.productName"><a href="#d=$device.serial">
@@ -19,3 +22,4 @@
     </li>
 #end for
 </ul>
+#end if
