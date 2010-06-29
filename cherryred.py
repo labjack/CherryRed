@@ -1480,6 +1480,22 @@ class CloudDotPage:
         
         return {'username' : self.dm.username, 'apikey' : self.dm.apikey}
     
+    
+    @exposeJsonFunction
+    def ping(self, serial):
+        data = { 'userName' : self.dm.username, "apiKey" : self.dm.apikey}
+        
+        pingurl = "http://cloudapi.labjack.com/%s/devices/%s/ping.json" % (self.dm.username, serial)
+        pingurl += "?%s" % urlencode(data)
+        
+        h = httplib2.Http()
+        resp, content = h.request(pingurl, "GET")
+        
+        if resp['status'] != '200':
+            return { "message" : "The device %s has not been added CloudDot. Please add it." % serial}
+        else:
+            return json.loads(content)
+    
     @exposeJsonFunction
     def check(self, label = None, username = None, apikey = None):
         """

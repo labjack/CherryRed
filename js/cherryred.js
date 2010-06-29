@@ -792,6 +792,27 @@ function setupCloudDotLinks() {
         disconnectFromClouddot(serialNumber);   
         return false;
     });
+    $(".ping-link").live("click", function() {
+        var serialNumber = $(this).attr("device-serial");
+        ping(serialNumber);   
+        return false;
+    });
+}
+
+function handlePing(data, textStatus, XMLHttpRequest) {
+    if( data.message != undefined ){
+        $("#ping-result-div").html(data.message);
+    } else {
+        if(data.connected) {
+            $("#ping-result-div").html("Connection test successful.");
+        } else {
+            $("#ping-result-div").html("Connection failed. Try disconnecting and connecting again.");
+        }
+    }
+}
+
+function ping(serialNumber) {
+    $.get("/clouddot/ping/"+serialNumber, {}, handlePing, "json");
 }
 
 var LastUsername = "";
