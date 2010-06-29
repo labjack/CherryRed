@@ -688,12 +688,12 @@ class DeviceManager(object):
         offset = ioResults['TimerCounterPinOffset']
         for i in range(ioResults['NumberOfTimersEnabled']):
             results[offset] = self.readTimer(dev, i)
-            results['connectionNumber'] = i
+            results[offset]['connectionNumber'] = i
             offset += 1
             
         if ioResults['EnableCounter0']:
             results[offset] = self.readCounter(dev, 0)
-            results['connectionNumber'] = 0
+            results[offset]['connectionNumber'] = 0
             offset += 1
         elif dev.configTimerClock()['TimerClockBase'] > 2:
             results[offset] = self.readCounter(dev, 0)
