@@ -10,8 +10,8 @@
 
 #for i in range($currentConfig.totalTimers)
   <h5>Timer $i</h5>
-  <div>
-    <label><input type="checkbox" name="timer${i}Enabled" value="1" #if $currentConfig["timer%sEnabled" % $i] then 'checked="yes"' else ''# ></input>Enable Timer$i</label>
+  <div class="timer-wrapper">
+    <label><input type="checkbox" class="timer-enable-box" name="timer${i}Enabled" value="1" #if $currentConfig["timer%sEnabled" % $i] then 'checked="yes"' else ''# ></input>Enable Timer$i</label>
 
     <div class="timer-config-inputs">
       <label>Mode: 
@@ -43,7 +43,7 @@
   </div><br/>
 #end for
 
-  <h4>Global settings</h4>
+  <h5>Global settings</h5>
     <div>
 
       <div class="timer-config-inputs">
@@ -79,9 +79,9 @@
   <div id="tc-connection-dialog-tabs-counters">
     <form>
       <fieldset>
-        <label><input type="checkbox" name="counter0Enable" value="1" #if $currentConfig.counter0Enabled then 'checked="yes"' else ''# ></input>Enable Counter0</label>
+        <label><input type="checkbox" name="counter0Enable" value="1" #if $currentConfig.counter0Enabled then 'checked="yes"' else ''# ></input><span class="enable-counter-text">Enable Counter0</span></label>
         <br/>
-        <label><input type="checkbox" name="counter1Enable" value="1" #if $currentConfig.counter1Enabled then 'checked="yes"' else ''#></input>Enable Counter1</label>
+        <label><input type="checkbox" name="counter1Enable" value="1" #if $currentConfig.counter1Enabled then 'checked="yes"' else ''#></input><span class="enable-counter-text">Enable Counter1</span></label>
       </fieldset>
     </form>
   </div>
@@ -95,6 +95,8 @@
           <option #if $currentConfig.offset == $k then 'selected="yes"' else ''# value="$k">$v</option>
         #end for
         </select>
+#else 
+       <span>Start timers and counters on: $offsetChoices[0][1]</span>
 #end if    
       </fieldset>
     </form>

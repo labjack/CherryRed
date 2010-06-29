@@ -24,6 +24,7 @@ $(document).ready(function() {
     setupTabSelect();
     setupSaveLoadDeleteConfigLinks();
     setupTimerCounterLink();
+    setupCloudDotLinks();
     getDeviceList();
     updateLogBar();
 });
@@ -116,7 +117,7 @@ function highlightCheckedCheckboxes() {
         $(this).closest("tr").removeClass("ui-state-highlight");
     });
     $(".log-checkbox:checked").each(function() {
-        var textVal = $(this).closest("tr").addClass("ui-state-highlight").find(".test-panel-connection-link").text();
+        var textVal = $(this).closest("tr").addClass("ui-state-highlight").find(".loggable-connection-link").text();
         logList.push(textVal);
     });
     return logList;
@@ -198,14 +199,70 @@ function setupSaveLoadDeleteConfigLinks() {
     });
 }
 
+// Return the input value, with 0 if undefined
+function  getFormInputValue(selectorString) {
+    var selectedValue = $(selectorString).val();
+    if (selectedValue == undefined) {
+        selectedValue = 0;
+    }
+    return selectedValue;
+}
+
+
+function getUpdateTimerCounterOptions(serial) {
+    var updateTimerCounterOptions = {};
+    updateTimerCounterOptions.serial = serial;
+    updateTimerCounterOptions.timerClockBase    = getFormInputValue("select[name='timerClockBase']");
+    updateTimerCounterOptions.timerClockDivisor = getFormInputValue("input[name='timerClockDivisor']");
+    updateTimerCounterOptions.pinOffset         = getFormInputValue("select[name='pinOffset']");
+
+    updateTimerCounterOptions.counter0Enable    = getFormInputValue("input[name='counter0Enable']:checked");
+    updateTimerCounterOptions.counter1Enable    = getFormInputValue("input[name='counter1Enable']:checked");
+    
+    var timerKey;
+    for (var i = 0; i < $(".timer-wrapper").length; i++) {
+        timerKey = "timer" + i + "Enabled";
+        updateTimerCounterOptions[timerKey]     = getFormInputValue("input[name="+timerKey+"]:checked");
+        timerKey = "timer" + i + "Mode";
+        updateTimerCounterOptions[timerKey]        = getFormInputValue("select[name="+timerKey+"]");
+        timerKey = "timer" + i + "Value";
+        updateTimerCounterOptions[timerKey]       = getFormInputValue("input[name="+timerKey+"]");
+    }
+
+    return updateTimerCounterOptions;
+}
 
 function updateTCPinLocationSummary() {
-    $("#tc-connection-dialog-pin-location-summary").load("/devices/tcPinLocationSummary/" + currentSerialNumber);
+    var updateTimerCounterOptions = getUpdateTimerCounterOptions(currentSerialNumber);
+    $("#tc-connection-dialog-pin-location-summary").load("/devices/tcPinLocationSummary/", updateTimerCounterOptions);
+}
+
+function disableCounter0IfNeeded() {
+    if ($("select[name='timerClockBase']").val() > 2) {
+        $("input[name='counter0Enable']").attr("disabled", "disabled").removeAttr("checked").next(".enable-counter-text").addClass("counter0-taken").text("Counter0 taken by clock divisor");
+    }
+    else {
+        $("input[name='counter0Enable']").removeAttr("disabled").next(".enable-counter-text").removeClass("counter0-taken").text("Enable Counter0");
+    }
 }
 
 function setupTimerCounterLink() {
 
     $("select[name='pinOffset']").live("change", updateTCPinLocationSummary);
+
+    $(".timer-enable-box").live("change", function() {
+        if($(this).is(':checked')) {
+            $(this).closest(".timer-wrapper").find(".timer-config-inputs select, .timer-config-inputs input").removeAttr("disabled");
+        } else {
+            $(this).closest(".timer-wrapper").find(".timer-config-inputs select, .timer-config-inputs input").attr("disabled","disabled");
+        }
+    });
+
+    // A timerClockBase with a divisor (>2 in the list) requires Counter0
+    $("select[name='timerClockBase']").live("change", function() {
+        disableCounter0IfNeeded();
+    });
+
 
     $(".timer-counter-config-link").live("click", function() {
         stopScanning();
@@ -221,18 +278,13 @@ function setupTimerCounterLink() {
             if (returnJson.counterSelected == "true") {
                 $("#tc-connection-dialog-tabs").tabs("select", 1);
             }
+            disableCounter0IfNeeded();
             $("#tc-connection-dialog-pin-location-summary").html(returnJson.tcPinLocationHtml);
             $("#dialog").dialog('option', 'title', "Timers & Counters");
             $("#dialog").dialog('option', 'width', 525);
             $("#dialog").dialog('option', 'buttons', { 
                 "Save": function() {
-                    var updateTimerCounterOptions = {};
-                    updateTimerCounterOptions.serial = returnJson.serial;
-                    updateTimerCounterOptions.timerClockBase    = $("select[name='timerClockBase']").val();
-                    updateTimerCounterOptions.timerClockDivisor = $("input[name='timerClockDivisor']").val();
-                    updateTimerCounterOptions.pinOffset         = $("select[name='pinOffset']").val();
-                    updateTimerCounterOptions.counter0Enable    = $("input[name='counter0Enable']:checked").val();
-                    updateTimerCounterOptions.counter1Enable    = $("input[name='counter1Enable']:checked").val();
+                    var updateTimerCounterOptions = getUpdateTimerCounterOptions(returnJson.serial);
                     $.get("/devices/updateTimerCounterConfig", updateTimerCounterOptions, function() { dialogDone(); $(window).trigger( "hashchange" ); });
                 },
                 "Cancel": dialogDone
@@ -606,7 +658,7 @@ function handleScan(data) {
             }
             
             
-            var obj = { connection : "<a href='#' class='test-panel-connection-link' inputConnection='"+connectionNumber+"' title='Configure " + connectionText + "'>"+connectionText+"</a>", state: "<span class='test-panel-sparkline " + thisChType + "'></span>" + "<span class='test-panel-state'>"+thisState + "</span>", log: "<input type='checkbox' class='log-checkbox' />"};
+            var obj = { connection : "<a href='#' class='test-panel-connection-link loggable-connection-link' inputConnection='"+connectionNumber+"' title='Configure " + connectionText + "'>"+connectionText+"</a>", state: "<span class='test-panel-sparkline " + thisChType + "'></span>" + "<span class='test-panel-state'>"+thisState + "</span>", log: "<input type='checkbox' class='log-checkbox' />"};
             if (thisLogging) {
                 obj.log = "<input type='checkbox' class='log-checkbox' checked='yes' />";
             }
@@ -615,10 +667,10 @@ function handleScan(data) {
             }
             // Special link and class for timers and counters
             if (thisChType == "timer") {
-                obj.connection = "<a href='/devices/timerCounterConfig/" + currentSerialNumber + "' class='timer-counter-config-link' inputConnection='"+connectionNumber+"' title='Configure " + connectionText + "'>"+connectionText+"</a>";            
+                obj.connection = "<a href='/devices/timerCounterConfig/" + currentSerialNumber + "' class='timer-counter-config-link loggable-connection-link' inputConnection='"+connectionNumber+"' title='Configure " + connectionText + "'>"+connectionText+"</a>";            
             }
-            else if (thisChType == "counter") {
-                obj.connection = "<a href='/devices/timerCounterConfig/" + currentSerialNumber + "?counterSelected=true' class='timer-counter-config-link' inputConnection='"+connectionNumber+"' title='Configure " + connectionText + "'>"+connectionText+"</a>";            
+            else if (thisChType == "counter" || thisChType == "counter-divisor") {
+                obj.connection = "<a href='/devices/timerCounterConfig/" + currentSerialNumber + "?counterSelected=true' class='timer-counter-config-link loggable-connection-link' inputConnection='"+connectionNumber+"' title='Configure " + connectionText + "'>"+connectionText+"</a>";            
             }
 
             $("#test-panel-table").jqGrid('addRowData', count, obj);
@@ -729,6 +781,19 @@ function getDeviceList() {
 }
   
 /* Stuff For CloudDot Page */
+function setupCloudDotLinks() {
+    $(".connect-to-clouddot-link").live("click", function() {
+        var serialNumber = $(this).attr("device-serial");
+        connectToClouddot(serialNumber);
+        return false;
+    });
+    $(".disconnect-from-clouddot-link").live("click", function() {
+        var serialNumber = $(this).attr("device-serial");
+        disconnectFromClouddot(serialNumber);   
+        return false;
+    });
+}
+
 var LastUsername = "";
 var LastApikey = "";
 
