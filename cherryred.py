@@ -954,7 +954,11 @@ class DeviceManager(object):
         print "setupTimers:"
         print "timers =", timers
         print "offset =", offset
-        numTimers = len(timers)
+        
+        numTimers = 0
+        for t in timers:
+            if t['enabled']:
+                numTimers += 1
         
         dev.writeRegister(50500, offset)
         dev.writeRegister(50501, numTimers)
@@ -1113,7 +1117,6 @@ class DevicesPage(object):
                     pinOffset += 1
             else:
                 break
-        
         
         if counter0Enable:
             tcPins.append((self.offsetToLabel(pinOffset), "Counter 0"))

@@ -9,13 +9,12 @@
       <fieldset>
 
 #for i in range($currentConfig.totalTimers)
-  <h5>Timer $i</h5>
   <div class="timer-wrapper">
-    <label><input type="checkbox" class="timer-enable-box" name="timer${i}Enabled" value="1" #if $currentConfig["timer%sEnabled" % $i] then 'checked="yes"' else ''# ></input>Enable Timer$i</label>
+    <label><input type="checkbox" class="timer-enable-box" name="timer${i}Enabled" value="1" timer-number="$i" #if $currentConfig["timer%sEnabled" % $i] then 'checked="yes"' else ''# ></input>Enable Timer$i</label>
 
-    <div class="timer-config-inputs">
+    <div class="timer-config-inputs timer-config-inputs-hideable">
       <label>Mode: 
-        <select name="timer${i}Mode" #if not $currentConfig["timer%sEnabled" % $i] then 'disabled="disabled"' else ''# >
+        <select class="timer-mode-select" name="timer${i}Mode" #if not $currentConfig["timer%sEnabled" % $i] then 'disabled="disabled"' else ''# >
             <option value="0" helpurl="$timerModeUrls[0]" #if $currentConfig["timer%sMode" % $i] == 0 then 'selected="yes"' else ''# >16-bit PWM output</option>
             <option value="1" helpurl="$timerModeUrls[1]" #if $currentConfig["timer%sMode" % $i] == 1 then 'selected="yes"' else ''#>8-bit PWM output</option>
             <option value="2" helpurl="$timerModeUrls[2]" #if $currentConfig["timer%sMode" % $i] == 2 then 'selected="yes"' else ''#>Period input (32-bit, rising edges)</option>
@@ -34,13 +33,13 @@
       </label>
     </div>
     
-    <div class="timer-config-inputs">
-      <label>Value: 
-        <input type="text" name="timer${i}Value" value="$currentConfig["timer%sValue" % $i]" #if not $currentConfig["timer%sEnabled" % $i] then 'disabled="disabled"' else ''#></input>
+    <div class="timer-config-inputs timer-config-inputs-hideable">
+      <label class="timer-value-label">Value: 
+        <input type="text" class="timer-value" name="timer${i}Value" value="$currentConfig["timer%sValue" % $i]" #if not $currentConfig["timer%sEnabled" % $i] then 'disabled="disabled"' else ''#></input>
       </label>
     </div>
 
-  </div><br/>
+  </div>
 #end for
 
   <h5>Global settings</h5>
@@ -65,7 +64,7 @@
         </label>
       </div>
       
-      <div class="timer-config-inputs">
+      <div class="timer-config-inputs timer-config-inputs-hideable">
         <label>Timer Clock Divisor:
           <input name="timerClockDivisor" type="text" value="$currentConfig.timerClockDivisor"></input>
         </label>
@@ -87,9 +86,12 @@
   <div id="tc-connection-dialog-tabs-counters">
     <form>
       <fieldset>
-        <label><input type="checkbox" name="counter0Enable" value="1" #if $currentConfig.counter0Enabled then 'checked="yes"' else ''# ></input><span class="enable-counter-text">Enable Counter0</span></label>
-        <br/>
-        <label><input type="checkbox" name="counter1Enable" value="1" #if $currentConfig.counter1Enabled then 'checked="yes"' else ''#></input><span class="enable-counter-text">Enable Counter1</span></label>
+        <div class="counter-wrapper">
+          <label><input type="checkbox" name="counter0Enable" value="1" #if $currentConfig.counter0Enabled then 'checked="yes"' else ''# ></input><span class="enable-counter-text">Enable Counter0</span></label>
+        </div>
+        <div>
+          <label><input type="checkbox" name="counter1Enable" value="1" #if $currentConfig.counter1Enabled then 'checked="yes"' else ''#></input><span class="enable-counter-text">Enable Counter1</span></label>
+        </div>
       </fieldset>
     </form>
     #if $devType == 6

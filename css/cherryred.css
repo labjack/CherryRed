@@ -317,7 +317,15 @@ a.timer-counter-config-link:hover {
 .timer-config-inputs {
     padding-left: 2em;
 }
-
+.timer-config-inputs-hideable label {
+    display: none;
+}
+.timer-wrapper, .counter-wrapper {
+    margin-bottom: 1em;
+}
+.timer-wrapper .timer-value-label {
+    display: none;
+}
 .counter0-taken {
     font-style: italic;
     color: #888888;
