@@ -538,7 +538,7 @@ function handleInputInfo(inputInfoJson) {
                 }
             }
         }
-        $("#u6-connection-dialog-tabs").tabs();
+        $("#connection-dialog-tabs").tabs();
         $("#dialog").dialog('option', 'title', inputInfoJson.label);
         $("#dialog").dialog('option', 'width', 425);
         $("#dialog").dialog('option', 'buttons', { 
