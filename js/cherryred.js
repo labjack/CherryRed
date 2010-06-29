@@ -240,6 +240,20 @@ function updateTCPinLocationSummary() {
 function findAndUpdateTimerValueInput() {
     var nearestValueInput = $(this).closest(".timer-wrapper").find(".timer-value");
     updateTimerValueInput(nearestValueInput, $(this).val());
+    // Special consideration for Quadrature Input, mode 8
+    if ($(this).val() == 8) {
+        var thisTimerNumber = parseInt($(this).closest(".timer-wrapper").find(".timer-enable-box").attr("timer-number"));
+        if (thisTimerNumber % 2 == 1) {
+            var timerPair = thisTimerNumber - 1;
+        } else {
+            var timerPair = thisTimerNumber + 1;
+        }
+        var $timerPairBox = $("input[timer-number="+timerPair+"]");
+        enableTimerInputSelection($timerPairBox);
+        $timerPairBox.attr("checked", "checked");
+        $timerPairBox.trigger("change");
+        $timerPairBox.closest(".timer-wrapper").find(".timer-config-inputs select").val(8);
+    }
 }
 
 function updateTimerValueInput(timerInputElement, selectedIndex) {
