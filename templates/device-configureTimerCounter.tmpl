@@ -69,19 +69,17 @@
           <input name="timerClockDivisor" type="text" value="$currentConfig.timerClockDivisor"></input>
         </label>
       </div>
-      
-    #if $devType == 6
-    <div class="more-info">See <a href="http://labjack.com/support/u6/users-guide/2.9" target="_blank">Section 2.9</a> of the U6 User's Guide for more info on Timer Clock settings.</div>
-    #elif $devType == 3
-    <div class="more-info">See <a href="http://labjack.com/support/u3/users-guide/2.9" target="_blank">Section 2.9</a> of the U3 User's Guide for more info on Timer Clock settings.</div>
-    #else
-    <div class="more-info">See <a href="http://labjack.com/support/ue9/users-guide/2.10" target="_blank">Section 2.10</a> of the UE9 User's Guide for more info on Timer Clock settings.</div>
-    #end if
-    
   </div>
 
       </fieldset>
     </form>
+    #if $devType == 6
+    <div class="more-info">See <a href="http://labjack.com/support/u6/users-guide/2.9" target="_blank">Section 2.9</a> of the U6 User's Guide for more info on Timers.</div>
+    #elif $devType == 3
+    <div class="more-info">See <a href="http://labjack.com/support/u3/users-guide/2.9" target="_blank">Section 2.9</a> of the U3 User's Guide for more info on Timers.</div>
+    #else
+    <div class="more-info">See <a href="http://labjack.com/support/ue9/users-guide/2.10" target="_blank">Section 2.10</a> of the UE9 User's Guide for more info on Timers.</div>
+    #end if
   </div>
   <div id="tc-connection-dialog-tabs-counters">
     <form>

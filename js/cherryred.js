@@ -237,17 +237,21 @@ function updateTCPinLocationSummary() {
     $("#tc-connection-dialog-pin-location-summary").load("/devices/tcPinLocationSummary/", updateTimerCounterOptions);
 }
 
-function updateTimerValueInput() {
+function findAndUpdateTimerValueInput() {
+    var nearestValueInput = $(this).closest(".timer-wrapper").find(".timer-value");
+    updateTimerValueInput(nearestValueInput, $(this).val());
+}
+
+function updateTimerValueInput(timerInputElement, selectedIndex) {
     var inputsThatRequireValue = [1, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0];
     var defaultValues = [32768, 32768, "", "", "", "", 1, 1, "", 5, "", "", "", ""];
 
-    var $nearestValueInput = $(this).closest(".timer-wrapper").find(".timer-value");
-    $nearestValueInput.val(defaultValues[$(this).val()]);
+    $(timerInputElement).val(defaultValues[selectedIndex]);
 
-    if (inputsThatRequireValue[$(this).val()]) {
-        $nearestValueInput.removeAttr("disabled").closest("label").show();
+    if (inputsThatRequireValue[selectedIndex]) {
+        $(timerInputElement).removeAttr("disabled").closest("label").show();
     } else {
-        $nearestValueInput.attr("disabled", "disabled").closest("label").hide("fast");
+        $(timerInputElement).attr("disabled", "disabled").closest("label").hide("fast");
     }
 }
 
@@ -271,7 +275,8 @@ function disableTimerInputChildren(timerWrapper) {
 }
 
 function enableTimerInputChildren(timerWrapper) {
-    $(timerWrapper).closest(".timer-wrapper").find(".timer-config-inputs select").removeAttr("disabled").closest("label").show();
+    $(timerWrapper).find(".timer-config-inputs select").removeAttr("disabled").closest("label").show();
+    updateTimerValueInput($(timerWrapper).find(".timer-value"), $(timerWrapper).find(".timer-config-inputs select").val());
 }
 
 function disableTimerInputSelection(timerInput) {
@@ -315,7 +320,7 @@ function setupTimerCounterLink() {
 
     $("select[name='pinOffset']").live("change", updateTCPinLocationSummary);
 
-    $("select.timer-mode-select").live("change", updateTimerValueInput);
+    $("select.timer-mode-select").live("change", findAndUpdateTimerValueInput);
 
     $(".timer-enable-box").live("change", timerCounterEnabledRules);
 
@@ -349,7 +354,7 @@ function setupTimerCounterLink() {
             $("#dialog").dialog('open');
             timerCounterEnabledRules();
             disableClockDivisorOrCounter0IfNeeded();
-            $("select.timer-mode-select").each(updateTimerValueInput);
+            $("select.timer-mode-select").each(findAndUpdateTimerValueInput);
         }, "json");
         return false;
     });
