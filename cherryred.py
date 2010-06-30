@@ -1492,23 +1492,31 @@ class CloudDotPage:
         with open(CLOUDDOT_GROUNDED_CONF, 'wb') as configfile:
             self.parser.write(configfile)
 
-    @exposeRawFunction
+    @exposeJsonFunction
     def info(self, serial):
         """ Handles /clouddot/info/<serial>
         """
         # Tell people (firefox) not to cash this page. 
         cherrypy.response.headers['Cache-Control'] = "no-cache"
         
+        returnDict = {}
+        
         if self.dm.username is None or self.dm.apikey is None:
             t = serve_file2("templates/clouddot-user-page.tmpl")
+            returnDict['html'] = t.respond()
+            returnDict['type'] = "user-page"
+            returnDict['connected'] = False
         else:
             t = serve_file2("templates/clouddot-connect.tmpl")
-            t.isConnected = (str(serial) in self.dm.xmppThreads)
+            t.username = self.dm.username
+            t.device = deviceAsDict(self.dm.getDevice(serial))
             
-        t.username = self.dm.username
-        t.device = deviceAsDict(self.dm.getDevice(serial))
+            returnDict['html'] = t.respond()
+            returnDict['type'] = "connect-page"
+            returnDict['connected'] = (str(serial) in self.dm.xmppThreads)
+            
         
-        return t.respond()
+        return returnDict
     
     @exposeJsonFunction
     def connect(self, serial):
@@ -1524,7 +1532,7 @@ class CloudDotPage:
         
         self.dm.disconnectDeviceFromCloudDot(serial)
         
-        return {'result' : "Connected"}
+        return {'result' : "disconnected"}
     
     @exposeJsonFunction
     def fetch(self):
@@ -1535,6 +1543,7 @@ class CloudDotPage:
     
     @exposeJsonFunction
     def ping(self, serial):
+        dev = self.dm.getDevice(serial)
         data = { 'userName' : self.dm.username, "apiKey" : self.dm.apikey}
         
         pingurl = "http://cloudapi.labjack.com/%s/devices/%s/ping.json" % (self.dm.username, serial)
@@ -1546,7 +1555,11 @@ class CloudDotPage:
         if resp['status'] != '200':
             return { "message" : "The device %s has not been added CloudDot. Please add it." % serial}
         else:
-            return json.loads(content)
+            result = json.loads(content)
+            if result['connected']:
+                return { "message" : "%s is connected to CloudDot." % dev.name}
+            else:
+                return { "message" : "%s is not connected to CloudDot. Please try disconnecting and reconnecting." % dev.name}
     
     @exposeJsonFunction
     def check(self, label = None, username = None, apikey = None):

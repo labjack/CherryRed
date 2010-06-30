@@ -66,7 +66,7 @@ a.rename-link:hover,
 
 
 
-#device-summary-list, #more-info-pane {
+#device-summary-list {
   padding: 0.5em;
   min-height: 180px;
 }
@@ -241,11 +241,11 @@ body.logs #logs,
 .ui-widget-content a.view-config-link,
 .ui-widget-content a.delete-config-link {
     font-size: 85%;
-    left: 440px;
+    left: 420px;
     color: #777777;
 }
 .ui-widget-content a.delete-config-link {
-    left: 585px;
+    left: 565px;
 }
 .ui-widget-content a.view-config-link:hover {
     color: black;
@@ -395,6 +395,15 @@ a.digital-out-toggle-link.toggling {
 }
 
 /* CSS for the CloudDot Users page */
+
+#clouddot-connected-div div, 
+#clouddot-disconnected-div div {
+    margin: 1em 0;
+}
+
+#ping-result-div {
+    margin-left: 2em;
+}
 
 .valueBox {
     line-height: 1.2em;

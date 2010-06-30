@@ -159,8 +159,17 @@ function updateTabContent(tabIndex) {
         $.get("/devices/support/" + currentSerialNumber, {}, function(data)  {$("#support-tab").html(data); });
     }
     else if(tabIndex == 2) {
-        $("#clouddot-tab").load("/clouddot/info/"+currentSerialNumber);
-        $.get("/clouddot/fetch", {}, handleFetch, "json");
+    
+        $.get("/clouddot/info/"+currentSerialNumber, function(returnJson) {
+            $("#clouddot-tab").html(returnJson.html);
+            if (returnJson.connected) {
+                showCloudDotConnected();
+            } else {
+                showCloudDotDisconnected();
+            }
+            $("a.button").button();
+            $.get("/clouddot/fetch", {}, handleCloudDotFetch, "json");
+        }, "json");
     }
     else if(tabIndex == 1) {
         $.get("/config/filelist/" + currentSerialNumber, {}, function(data) {
@@ -239,20 +248,38 @@ function updateTCPinLocationSummary() {
 
 function findAndUpdateTimerValueInput() {
     var nearestValueInput = $(this).closest(".timer-wrapper").find(".timer-value");
+    var timerWrapper = $(this).closest(".timer-wrapper");
     updateTimerValueInput(nearestValueInput, $(this).val());
+    setTimerHelpUrl(timerWrapper);
+
     // Special consideration for Quadrature Input, mode 8
+    // Get the pair of this timer 0 <-> 1, 2 <-> 3, and so on
+    var thisTimerNumber = parseInt($(this).closest(".timer-wrapper").find(".timer-enable-box").attr("timer-number"));
+    if (thisTimerNumber % 2 == 1) {
+        var timerPair = thisTimerNumber - 1;
+    } else {
+        var timerPair = thisTimerNumber + 1;
+    }
+    var $timerPairBox = $("input[timer-number="+timerPair+"]");
+    var $timerPairSelect = $timerPairBox.closest(".timer-wrapper").find(".timer-config-inputs select");
+    var $timerPairValueInput = $timerPairBox.closest(".timer-wrapper").find(".timer-value");
+    var timerPairWrapper = $timerPairBox.closest(".timer-wrapper");
     if ($(this).val() == 8) {
-        var thisTimerNumber = parseInt($(this).closest(".timer-wrapper").find(".timer-enable-box").attr("timer-number"));
-        if (thisTimerNumber % 2 == 1) {
-            var timerPair = thisTimerNumber - 1;
-        } else {
-            var timerPair = thisTimerNumber + 1;
-        }
-        var $timerPairBox = $("input[timer-number="+timerPair+"]");
+        // If we select Quadrature Input set the timer pair to Quadrature Input, too
         enableTimerInputSelection($timerPairBox);
         $timerPairBox.attr("checked", "checked");
         $timerPairBox.trigger("change");
-        $timerPairBox.closest(".timer-wrapper").find(".timer-config-inputs select").val(8);
+        $timerPairSelect.val(8);
+        updateTimerValueInput($timerPairValueInput, 8);
+        setTimerHelpUrl(timerPairWrapper);
+    }
+    else {
+        // If we don't select Quadrature Input, make sure the pair isn't Quadrature Input either
+        if ($timerPairSelect.val() == 8) {
+            $timerPairSelect.val(10); // Set it to System timer low read
+        updateTimerValueInput($timerPairValueInput, 10);
+        setTimerHelpUrl(timerPairWrapper);
+        }
     }
 }
 
@@ -286,11 +313,22 @@ function disableClockDivisorOrCounter0IfNeeded() {
 
 function disableTimerInputChildren(timerWrapper) {
     $(timerWrapper).find(".timer-config-inputs select, .timer-config-inputs input").attr("disabled","disabled").closest("label").hide("fast");
+    $(timerWrapper).find(".more-info").hide();
 }
 
 function enableTimerInputChildren(timerWrapper) {
-    $(timerWrapper).find(".timer-config-inputs select").removeAttr("disabled").closest("label").show();
+    $(timerWrapper).find(".timer-config-inputs select, .more-info").removeAttr("disabled").closest("label").show();
     updateTimerValueInput($(timerWrapper).find(".timer-value"), $(timerWrapper).find(".timer-config-inputs select").val());
+    setTimerHelpUrl(timerWrapper);
+    $(timerWrapper).find(".more-info").show();
+}
+
+function setTimerHelpUrl(timerWrapper) {
+    var $timerSelect = $(timerWrapper).find(".timer-config-inputs select");
+    var timerSelectVal = $timerSelect.val();
+    var timerHelpUrl = $timerSelect.find("option[value=" + timerSelectVal + "]").attr("helpurl");
+    var timerHelpText = $timerSelect.find("option[value=" + timerSelectVal + "]").text();
+    $(timerWrapper).find(".timer-config-help-link").attr("href", timerHelpUrl).text(timerHelpText);
 }
 
 function disableTimerInputSelection(timerInput) {
@@ -700,7 +738,12 @@ function callScan() {
 }
 
 function handleScan(data) {
-    
+    if (data.length == 0) {
+        $("#test-panel-tab, #scan-bar").html("Lost connection. Check the LabJack and <a href='/'>reload</a>.");
+        showingTestPanel == false;
+        return;
+    }
+
     $(".scanning-indicator").removeClass("ui-icon ui-icon-bullet");
 
     if (showingTestPanel == false) {
@@ -876,34 +919,39 @@ function setupCloudDotLinks() {
         $(this).hide();
         return false;
     });
-
     $(".ping-link").live("click", function() {
         var serialNumber = $(this).attr("device-serial");
-        ping(serialNumber);   
+        pingFromCloudDot(serialNumber);   
         return false;
     });
 }
 
-function handlePing(data, textStatus, XMLHttpRequest) {
-    if( data.message != undefined ){
-        $("#ping-result-div").html(data.message);
-    } else {
-        if(data.connected) {
-            $("#ping-result-div").html("Connection test successful.");
-        } else {
-            $("#ping-result-div").html("Connection failed. Try disconnecting and connecting again.");
-        }
-    }
+function showCloudDotConnected() {
+    $("#clouddot-connected-div").show();
+    $("#clouddot-disconnected-div").hide();
+    showTopMessage("Connected to CloudDot.");
 }
 
-function ping(serialNumber) {
-    $.get("/clouddot/ping/"+serialNumber, {}, handlePing, "json");
+function showCloudDotDisconnected() {
+    $("#clouddot-disconnected-div").show();
+    $("#clouddot-connected-div").hide();
+    showTopMessage("Disconnected from CloudDot.");
+}
+
+function handleCloudDotPing(data, textStatus, XMLHttpRequest) {
+    var latestMessage = data.message;
+    $("#ping-result-div").html(latestMessage);
+    showTopMessage(data.message);
+}
+
+function pingFromCloudDot(serialNumber) {
+    $.get("/clouddot/ping/"+serialNumber, {}, handleCloudDotPing, "json");
 }
 
 var LastUsername = "";
 var LastApikey = "";
 
-function handleFetch(data, textStatus, XMLHttpRequest) {
+function handleCloudDotFetch(data, textStatus, XMLHttpRequest) {
     if( data.username != null ) {
       $("#username-field").attr( "value", data.username);
       checkUsernameValidity();
@@ -915,25 +963,28 @@ function handleFetch(data, textStatus, XMLHttpRequest) {
     }
 }
 
-function handleAjaxError(XMLHttpRequest, textStatus, errorThrown) {
+function handleCloudDotAjaxError(XMLHttpRequest, textStatus, errorThrown) {
     $('#username-field').removeClass("fieldWithNoErrors");
     $('#username-field').addClass("fieldWithErrors");
 }
 
-function handleConnect(data, textStatus, XMLHttpRequest) {
-    console.log("handleConnect: success");
-    
+function handleCloudDotConnect(returnJson, textStatus, XMLHttpRequest) {
+    if (returnJson.result == "connected") {
+        showCloudDotConnected();
+    } else {
+        showCloudDotDisconnected();
+    }
     return false;
 }
 
 function connectToClouddot(serial) {
-    $.get("/clouddot/connect/"+serial, {}, handleConnect, "json");
+    $.get("/clouddot/connect/"+serial, {}, handleCloudDotConnect, "json");
     
     return false;
 }
 
 function disconnectFromClouddot(serial) {
-    $.get("/clouddot/disconnect/"+serial, {}, handleConnect, "json");
+    $.get("/clouddot/disconnect/"+serial, {}, handleCloudDotConnect, "json");
     
     return false;
 }
@@ -980,7 +1031,7 @@ function checkUsernameValidity() {
             url : "/clouddot/check",
             dataType: 'json',
             success: handleUsernameCheck,
-            error: handleAjaxError,
+            error: handleCloudDotAjaxError,
             type: "GET",
             data: { label : "username", username : name, apikey : "crap" }
             });
@@ -1004,7 +1055,7 @@ function checkApikeyValidity() {
             url : "/clouddot/check",
             dataType: 'json',
             success: handleApikeyCheck,
-            error: handleAjaxError,
+            error: handleCloudDotAjaxError,
             data: { label : "apikey", username: name, apikey : apikey },
             type: "GET"
             });

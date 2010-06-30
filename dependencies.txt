@@ -1,5 +1,6 @@
 CherryPy
 Cheetah
 pyparsing
-sleekxmpp
+sleekxmpp: development version from GitHub
 gdata-python-client
+dnspython

@@ -1,15 +1,16 @@
 <h2>Connect $device.name to CloudDot</h2>
 <p>Hello, $username</p>
 
-#if $isConnected
-<div id="$device.serial">$device.name is connected to CloudDot. You can confirm this on your <a href="http://cloud.labjack.com/$username/wp-admin/admin.php?page=labjackMenus.php">Devices Page</a>.</div>
-
-<div><a href="#" device-serial="$device.serial" class="ping-link">Test CloudDot Connectivity</a>: <div id="ping-result-div"></div></div>
-
-<div><a href="#" device-serial="$device.serial" class="disconnect-from-clouddot-link">Disconnect $device.name from CloudDot</a></div>
-#else
-<div id="$device.serial"><a href="#" device-serial="$device.serial" class="connect-to-clouddot-link">Connect To CloudDot</a></div>
-#end if
+<div id="clouddot-connected-div">
+    <div id="$device.serial">$device.name is connected to CloudDot. You can confirm this on your <a href="http://cloud.labjack.com/$username/wp-admin/admin.php?page=labjackMenus.php">Devices Page</a>.</div>
+    
+    <div><a href="#" device-serial="$device.serial" class="ping-link button">Ping $device.name via CloudDot</a><span id="ping-result-div"></span></div>
+    
+    <div><a href="#" device-serial="$device.serial" class="disconnect-from-clouddot-link button">Disconnect $device.name</a></div>
+</div>
+<div id="clouddot-disconnected-div">
+    <div id="$device.serial"><a href="#" device-serial="$device.serial" class="connect-to-clouddot-link button">Connect $device.name to CloudDot</a></div>
+</div>
 
 <br/>
 

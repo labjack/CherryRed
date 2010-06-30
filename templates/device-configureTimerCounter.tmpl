@@ -38,6 +38,11 @@
         <input type="text" class="timer-value" name="timer${i}Value" value="$currentConfig["timer%sValue" % $i]" #if not $currentConfig["timer%sEnabled" % $i] then 'disabled="disabled"' else ''#></input>
       </label>
     </div>
+    <div class="timer-config-inputs timer-config-inputs-hideable">
+        <div class="more-info">
+          <a class="timer-config-help-link" href="#" target="_blank"></a> <span class="timer-config-help-link-text">mode in the User's Guide</span>
+        </div>
+    </div>
 
   </div>
 #end for
