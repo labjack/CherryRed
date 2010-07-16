@@ -21,9 +21,9 @@ from fio import FIO, UE9FIO
 import os, os.path, zipfile
 
 import json, httplib2
-from urllib import urlencode
+from urllib import urlencode, quote, unquote
 
-import sys, time
+import sys, time, socket
 
 import cStringIO as StringIO, ConfigParser
 
@@ -1399,15 +1399,16 @@ if IS_FROZEN:
         
         # Get rid of the leading "/"
         filepath = cherrypy.request.path_info[1:]
-        print "filepath: %s" % filepath
+        #print "filepath: %s" % filepath
         
         # Check if the file being requested is in the ZipFile
         if filepath not in ZIP_FILE.namelist():
-            print "%s not in name list." % filepath
+            #print "%s not in name list." % filepath
             
             # Check if the file is local
             localAbsPath = os.path.join(current_dir,filepath)
-            if filepath.startswith("logfiles") and os.path.exists(localAbsPath):
+            #print "localAbsPath: ", localAbsPath
+            if (filepath.startswith("logfiles") or filepath.startswith("configfiles")) and os.path.exists(localAbsPath):
                 return renderFromLocalFile(localAbsPath)
             else:
                 # If it isn't then we pass the responsibility on.
@@ -1670,7 +1671,7 @@ class ConfigPage(object):
         
         filename = "%%Y-%%m-%%d %%H__%%M %s conf.txt" % (sanitize(devDict['name']),)
         filename = datetime.now().strftime(filename)
-        dirpath = "./configfiles/%s" % serial
+        dirpath = os.path.join(current_dir,"configfiles/%s" % serial)
         if not os.path.isdir(dirpath):
             os.mkdir(dirpath)
         filepath = "%s/%s" % (dirpath, filename)
@@ -1697,10 +1698,12 @@ class ConfigPage(object):
     def load(self, serial, filename):
         configfileDir = os.path.join(current_dir,"configfiles/%s" % serial)
         path = os.path.join(configfileDir, filename)
+        print "Regular path: ", path
         
         dev = self.dm.getDevice(serial)
         configfileDir = os.path.join(current_dir,"configfiles/%s" % dev.deviceName)
         basicpath = os.path.join(configfileDir, filename)
+        print "Basic path: ", path
         
         try:
             try:
@@ -1776,19 +1779,23 @@ class LoggingPage(object):
         self.gd_client.SetAuthSubToken(singleUseToken)
         self.gd_client.UpgradeToSessionToken()
         sessionToken = self.gd_client.GetAuthSubToken()
+        self.parser.add_section("googledocs")
         self.parser.set("googledocs", "session_token", str(sessionToken))
         with open(CLOUDDOT_GROUNDED_CONF, 'wb') as configfile:
             self.parser.write(configfile)
 
-        raise cherrypy.HTTPRedirect("/logs/upload/%s" % filename)
+        raise cherrypy.HTTPRedirect("/logs/upload/%s" % unquote(filename))
     
     @exposeRawFunction
     def upload(self, filename):
         if self.gd_client is None:
             self.gd_client = gdata.docs.service.DocsService()
             token = self.loadSessionToken()
-            if token is None:
-                next = '%s/logs/savetoken/%s' % (cherrypy.request.base, filename)
+            
+            if not token:
+                next = '%s/logs/savetoken/%s' % (cherrypy.request.base, quote(filename))
+                
+                print "next: ", next
                 auth_sub_url = gdata.service.GenerateAuthSubRequestUrl(next, GOOGLE_DOCS_SCOPE, secure=False, session=True)
                 raise cherrypy.HTTPRedirect(auth_sub_url)
             else:
@@ -2009,7 +2016,7 @@ def openWebBrowser(host = "localhost", port = 8080):
     else:
         webbrowser.open_new_tab(url)
 
-def quickstartWithBrowserOpen(root=None, script_name="", config=None):
+def quickstartWithBrowserOpen(root=None, script_name="", config=None, portOverride = None):
     """ Code exactly as it appears in cherrypy.quickstart() only with a call
         to open web Browser in between the start() and the block()
     """
@@ -2022,6 +2029,21 @@ def quickstartWithBrowserOpen(root=None, script_name="", config=None):
         cherrypy.engine.signal_handler.subscribe()
     if hasattr(cherrypy.engine, "console_control_handler"):
         cherrypy.engine.console_control_handler.subscribe()
+    
+    if portOverride is not None:
+        cherrypy._global_conf_alias['server.socket_port'] = portOverride
+    
+    # Check the port we want to start on isn't already in use. 
+    skt = socket.socket()
+    while True:
+        port = cherrypy._global_conf_alias['server.socket_port']
+        try:
+            skt.bind(("0.0.0.0", cherrypy._global_conf_alias['server.socket_port']))
+            skt.close()
+            break
+        except socket.error:
+            print "Port %s in use, trying %s" % (port, port+1)
+            cherrypy._global_conf_alias['server.socket_port'] += 1
     
     cherrypy.engine.start()
     
@@ -2049,7 +2071,15 @@ if __name__ == '__main__':
         current_dir = os.path.dirname(os.path.abspath(sys.executable))
         configfile = ZIP_FILE.open("cherryred.conf")
     
+    portOverride = None
+    if os.path.exists(CLOUDDOT_GROUNDED_CONF):
+        parser = ConfigParser.SafeConfigParser()
+        parser.read(CLOUDDOT_GROUNDED_CONF)
+        
+        if parser.has_section("General"):
+            if parser.has_option("General", "port"):
+                portOverride = parser.getint("General", "port")
 
     root = RootPage(dm)
     root._cp_config = {'tools.staticdir.root': current_dir, 'tools.renderFromZipFile.on': IS_FROZEN}
-    quickstartWithBrowserOpen(root, config=configfile)
+    quickstartWithBrowserOpen(root, config=configfile, portOverride = portOverride)
