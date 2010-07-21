@@ -5,30 +5,37 @@ Desc: A cross-platform program for getting started with your LabJack.
 
 """
 
-# Imports
+# Local Imports
+from fio import FIO, UE9FIO
+import xmppconnection, logger, scheduler
+from groundedutils import sanitize
+
+# Required Packages Imports
+# - CherryPy
 import cherrypy
 import cherrypy.lib
 from cherrypy.lib.static import serve_file
 from Cheetah.Template import Template
+
+# - LabJackPython
+import LabJackPython, u3, u6, ue9, bridge
+
+# - PyParsing
+from Autoconvert import autoConvert
+
+# - gdata
+import gdata.docs.service
+import gdata.service
+
+# Standard Library Imports
 from datetime import datetime
-
 from threading import Lock, Event
-
-import xmppconnection, logger, scheduler
-from groundedutils import sanitize
-from fio import FIO, UE9FIO
-
 import os, os.path, zipfile
-
 import json, httplib2
 from urllib import urlencode, quote, unquote
-
 import sys, time, socket
 
 import cStringIO as StringIO, ConfigParser
-
-import LabJackPython, u3, u6, ue9, bridge
-from Autoconvert import autoConvert
 
 import webbrowser
 
@@ -40,8 +47,6 @@ mimetypes.types_map['.bz2']='application/x-bzip2'
 mimetypes.types_map['.gz']='application/x-gzip'
 mimetypes.types_map['.csv']='text/plain'
 
-import gdata.docs.service
-import gdata.service
 
 # Function dictionaries:
 def buildLowerDict(aClass):
@@ -54,12 +59,13 @@ def buildLowerDict(aClass):
             d[key.lower()] = key
     return d
 
+# Global Constants
 CLOUDDOT_GROUNDED_VERSION = "0.01"
 
 CLOUDDOT_GROUNDED_CONF = "./clouddotgrounded.conf"
 GOOGLE_DOCS_SCOPE = 'https://docs.google.com/feeds/'
 
-# Map all the functions to lower case.
+# Maps all the functions of a device class to lower case.
 u3Dict = buildLowerDict(u3.U3)
 u6Dict = buildLowerDict(u6.U6)
 ue9Dict = buildLowerDict(ue9.UE9)
@@ -82,7 +88,8 @@ else:
     # py2exe: running in an executable
     IS_FROZEN = True
 
-# Create some decorator methods for functions.
+# Global Utility Functions
+# - Create some decorator methods for functions.
 def exposeRawFunction(f):
     """ Simply exposes the function """
     f.exposed = True
@@ -101,7 +108,6 @@ def exposeJsonFunction(f):
     jsonFunction.exposed = True
     return jsonFunction
 
-
 def kelvinToFahrenheit(value):
     """Converts Kelvin to Fahrenheit"""
     # F = K * (9/5) - 459.67
@@ -114,6 +120,9 @@ def internalTempDict(kelvinTemp):
     return {'connection' : "Internal Temperature", 'state' : (FLOAT_FORMAT + " &deg;F") % internalTemp, 'value' : FLOAT_FORMAT % internalTemp, 'chType' : "internalTemp", "disabled" : True}
     
 def createTimerChoicesList(devType):
+    """
+    Given a device type, returns which pins are valid to start timers.
+    """
     if devType == 9:
         return ((0, 'FIO0'), )
     elif devType == 3:
@@ -123,6 +132,10 @@ def createTimerChoicesList(devType):
 
 
 def createTimerModeToHelpUrlList(devType):
+    """
+    Given a device type, returns a list of urls pointing to the user's guide
+    for timer modes.
+    """
     urllist = []
     if devType == 9:
         urllist.append("http://labjack.com/support/ue9/users-guide/2.10.1.1")
@@ -200,6 +213,10 @@ def deviceAsDict(dev):
 
 
 def replaceUnderscoresWithColons(filename):
+    """
+    Takes a name, and replaces "__" with ":". Used for logfiles and
+    configfiles so they'll look pretty.
+    """
     splitFilename = filename.split(" ")
     if len(splitFilename) > 1:
         replacedFilename = splitFilename[1].replace("__", ":").replace("__", ":")
@@ -213,29 +230,46 @@ def replaceUnderscoresWithColons(filename):
 
 class DeviceManager(object):
     """
-    The DeviceManager class will manage all the open connections to LJSocket
+    The DeviceManager class will manage all the open connections to LJSocket.
+    
+    It is also responsible for knowing which devices are logging and connected
+    to CloudDot. On shutdown, it must insure those threads get killed.
     """
     def __init__(self):
+        # The address and port to try to connect to LJSocket
         self.address = LJSOCKET_ADDRESS
         self.port = LJSOCKET_PORT
         
+        # For connecting devices to CloudDot
         self.username = None
         self.apikey = None
         
+        # Dictionary of all open devices. Key = Serial, Value = Object.
         self.devices = dict()
+        
+        # Dictionary of all devices connected to CloudDot.
+        # Key = Serial, Value = Thread
         self.xmppThreads = dict()
         
+        # A Scheduler to insure that logging is done at regular intervals.
         self.loggingScheduler = scheduler.Scheduler()
+        
+        # Dictionary of all devices which are logging.
+        # Key = Serial, Value = Thread
         self.loggingThreads = dict()
         
+        # Used to prevent race conditions with updating the loggingThreads dict
         self.loggingThreadLock = Lock()
         
         # There are times when we need to pause scans for a moment.
         self.scanEvent = Event()
         self.scanEvent.set()
         
+        # Register the shutdownThreads method, so we can kill our threads when
+        # CherryPy is shutting down.
         cherrypy.engine.subscribe('stop', self.shutdownThreads)
         
+        # Use Direct USB instead of LJSocket.
         self.usbOverride = False
         
         try:
@@ -253,12 +287,27 @@ class DeviceManager(object):
         print self.devices
     
     def getDevice(self, serial):
+        """
+        You give it a serial, you get a device.
+        """
         if serial is None:
             return self.devices.values()[0]
         else:
             return self.devices[serial]
     
     def makeLoggingSummary(self):
+        """
+        Builds a list of dictionaries which contain information about what a
+        device is logging.
+        
+        Contains the following keys:
+        devName, the device's name.
+        headers, a string of all the channels being logged.
+        filename, the file being logged to.
+        serial, the device's serial number.
+        logname, the pretty version of filename.
+        stopurl, a url that will stop the device from logging.
+        """
         loggingList = []
         
         for serial, thread in self.loggingThreads.items():
@@ -1235,8 +1284,7 @@ class DevicesPage(object):
         t.config = fakefile.getvalue()
         
         t.groundedVersion = CLOUDDOT_GROUNDED_VERSION
-        #t.ljpVersion = LabJackPython.LABJACKPYTHON_VERSION
-        t.ljpVersion = "5-18-2010"
+        t.ljpVersion = LabJackPython.LABJACKPYTHON_VERSION
         t.usbOrLJSocket = self.dm.usbOverride
         
         userAgent = cherrypy.request.headers['User-Agent']
