@@ -785,7 +785,7 @@ function handleScan(data) {
                 obj.log = "<input type='checkbox' class='log-checkbox' checked='yes' />";
             }
             if (connectionText == "Internal Temperature") {
-                obj.connection = connectionText; // No link
+                obj.connection = "<span class='loggable-connection-link'>" + connectionText + "</span>"; // No link
             }
             // Special link and class for timers and counters
             if (thisChType == "timer") {
