@@ -23,10 +23,12 @@ class LoggingThread(object):
         
         self.filepath = "./logfiles/%s" % self.filename
         try:
-            self.csvWriter = csv.writer(open(self.filepath, "wb", 1))
+            self.stream = open(self.filepath, "wb", 1)
+            self.csvWriter = csv.writer(self.stream)
         except IOError:
             os.mkdir("./logfiles")
-            self.csvWriter = csv.writer(open(self.filepath, "wb", 1))
+            self.stream = open(self.filepath, "wb", 1)
+            self.csvWriter = csv.writer(self.stream)
         
     def stop(self):
         self.event.reschedule = False
@@ -51,3 +53,5 @@ class LoggingThread(object):
             for i, connection in enumerate(result):
                 values[i+1] = connection['value']
         self.csvWriter.writerow(values)
+        if os.name == 'nt':
+            self.stream.flush()

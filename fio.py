@@ -1,8 +1,6 @@
 import u6, u3, ue9
 
-ANALOG_TYPE = "analogIn"
-DIGITAL_OUT_TYPE = "digitalOut"
-DIGITAL_IN_TYPE = "digitalIn"
+from groundedutils import ANALOG_TYPE, DIGITAL_OUT_TYPE, DIGITAL_IN_TYPE
 
 class UE9FIO(object):
     """
