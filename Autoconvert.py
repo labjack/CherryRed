@@ -14,6 +14,10 @@ def autoConvert(s):
         r = parsePythonValue(s)
         if type(r) == ParseResults:
             return r._ParseResults__toklist
+        elif isinstance(r, float) and s.count(".") > 1:
+            # The parsePythonValues function seems to hate strings with multiple
+            # "." in them. It seems to think these are floats. We say no. 
+            return s
         else:
             return r
     except Exception, e:
