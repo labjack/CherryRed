@@ -1,5 +1,9 @@
 import re
 
+U3_MIN_FIRMWARE_VERSION = 1.26
+U6_MIN_FIRMWARE_VERSION = 1.15
+UE9_MIN_FIRMWARE_VERSION = (2.13, 1.5)
+
 LJSOCKET_ADDRESS = "localhost"
 LJSOCKET_PORT = "6000"
 
@@ -108,7 +112,7 @@ def deviceAsDict(dev):
     """
     name = dev.getName()
     
-    returnDict = {'devType' : dev.devType, 'name' : name, 'serial' : dev.serialNumber, 'productName' : dev.deviceName, 'firmware' : None, 'localId' : dev.localId}
+    returnDict = {'devType' : dev.devType, 'name' : name, 'serial' : dev.serialNumber, 'productName' : dev.deviceName, 'firmware' : None, 'localId' : dev.localId, 'meetsFirmwareRequirements' : dev.meetsFirmwareRequirements}
     
     if dev.devType == 9:
         returnDict['DHCPEnabled'] = dev.DHCPEnabled

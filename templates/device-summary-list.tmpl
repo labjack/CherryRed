@@ -3,6 +3,7 @@
 #else
 <ul>
 #for $device in $devices
+  #if $device.meetsFirmwareRequirements
     <li class="device-summary pop ui-helper-reset ui-corner-all $device.productName"><a href="#d=$device.serial">
       <img src="/img/${device.productName}.jpg" alt="$device.productName" />
       <h3 class="current-name">$device.name</h3>
@@ -20,6 +21,32 @@
       <p class="localId">Local ID: $device.localId</p>
       </a>
     </li>
+  #else
+    <li class="device-summary pop ui-helper-reset ui-corner-all $device.productName">
+      <div>ERROR: This device does not meet firmware requirements.</div>
+      #if $device.devType == 9
+      <div>A $device.productName must have Control firmware $UE9_MIN_FIRMWARE[0] or greater, and Communications firmware $UE9_MIN_FIRMWARE[1] or greater</div>
+      #elif $device.devType == 6
+      <div>A $device.productName must have firmware version $U6_MIN_FIRMWARE or greater.</div>
+      #elif $device.devType == 3
+      <div>A $device.productName must have firmware version $U3_MIN_FIRMWARE or greater.</div>
+      #end if
+      <img src="/img/${device.productName}.jpg" alt="$device.productName" />
+      <h3 class="current-name">$device.name</h3>
+      <p class="product-name">$device.productName</p>
+      <p class="serial">$device.serial</p>
+      #if $device.devType == 9
+      <p class="firmware-version">Control Firmware: $device.firmware[1] </p>
+      <p class="firmware-version">Communication Firmware: $device.firmware[0]</p>
+      #elif $device.devType == 1281
+      <p class="firmware-version">Ethernet Firmware: $device.firmware[0]</p>
+      <p class="firmware-version">USB Firmware: $device.firmware[1]</p>
+      #else
+      <p class="firmware-version">Firmware Version: $device.firmware</p>
+      #end if
+      <p class="localId">Local ID: $device.localId</p>
+    </li>
+  #end if
 #end for
 </ul>
 #end if

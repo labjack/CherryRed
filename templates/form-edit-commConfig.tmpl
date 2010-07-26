@@ -1,0 +1,33 @@
+<form id="edit-form">
+  <div class="more-info">For more information about Ethernet and the UE9, see <a href="http://labjack.com/support/ue9/users-guide/2.2">Section 2.2 of the UE9's User's Guide</a>.</div>
+  
+  <div class="single-setting">
+    <label>Enable DHCP: <input type="checkbox" id="enable-dhcp-value" value="1"></input></label>
+    <div class="more-info">DHCP allows the LabJack to setup its settings without you having to write them specifically. You should only disable this if you know what you are doing.</div>
+  </div>
+  
+  <div class="single-setting">
+    <label>IP Address: <input type="text" id="ip-address-value" size="30" /></label>
+    <div class="more-info">The IP Address of the UE9. If DHCP is disabled, the UE9 will use this value as its address.</div>
+  </div>
+  
+  <div class="single-setting">
+    <label>Subnet: <input type="text" id="subnet-mask-value" size="30" /></label>
+    <div class="more-info">The Subnet Mask used by the UE9. If DHCP is disabled, the UE9 will use this value. A good default value is 255.255.255.0.</div>
+  </div>
+  
+  <div class="single-setting">
+    <label>Gateway: <input type="text" id="gateway-value" size="30" /></label>
+    <div class="more-info">The gateway used by the UE9. If DHCP is disabled, the UE9 will use this value. This is almost always the IP Address of your router, like 192.168.1.1.</div>
+  </div>
+  
+  <div class="single-setting">
+    <label>Port A: <input type="text" id="porta-value" size="30" /></label>
+    <div class="more-info">Port A is the port command/response traffic goes through. Set to 52360 by default.</div>
+  </div>
+  
+  <div class="single-setting">
+    <label>Port B: <input type="text" id="portb-value" size="30" /></label>
+    <div class="more-info">Port B is the port stream traffic goes through. Set to 52361 by default.</div>
+  </div>
+</form>

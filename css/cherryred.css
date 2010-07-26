@@ -358,7 +358,8 @@ a.digital-out-toggle-link.toggling {
     margin-bottom: 1em;
     position: relative;
 }
-#dialog .single-setting select {
+#dialog .single-setting select,
+#dialog .single-setting input {
     position: absolute;
     left: 100px;
 }
@@ -459,4 +460,8 @@ a.digital-out-toggle-link.toggling {
 .users-page-content .clouddot-account-page:hover {
     color: #FFFFFF;
     background-color: #333333;
+}
+
+.hide-at-start {
+    display: none;
 }

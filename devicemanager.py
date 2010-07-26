@@ -323,12 +323,14 @@ class DeviceManager(object):
         
     def _addTimerModesToDevice(self, dev, numberOfTimerModes):
         dev.timerModes = [ 10 ] * numberOfTimerModes
-        for i in range(dev.readRegister(50501)):
-            dev.timerModes[i] = dev.readRegister(7100, format=">HH")[0]
+        if dev.meetsFirmwareRequirements:
+            for i in range(dev.readRegister(50501)):
+                dev.timerModes[i] = dev.readRegister(7100, format=">HH")[0]
     
     def updateDeviceDict(self):
         try:
             if self.usbOverride:
+                self.scanEvent.wait()
                 self.scanEvent.clear()
                 ljsocketAddress = None
                 devs = list()
@@ -379,6 +381,11 @@ class DeviceManager(object):
                     try:
                         d.configU3()
                         d.getCalibrationData()
+                        
+                        d.meetsFirmwareRequirements = True
+                        if float(d.firmwareVersion) < U3_MIN_FIRMWARE_VERSION:
+                            d.meetsFirmwareRequirements = False
+                        
                     except Exception, e:
                         raise Exception( "Error with configU3: %s" % e )
                         
@@ -398,6 +405,11 @@ class DeviceManager(object):
                         d = u6.U6(LJSocket = ljsocketAddress, serial = dev['serial'])
                         d.configU6()
                         d.getCalibrationData()
+                        
+                        d.meetsFirmwareRequirements = True
+                        if float(d.firmwareVersion) < U6_MIN_FIRMWARE_VERSION:
+                            d.meetsFirmwareRequirements = False
+                        
                         fios, analogCommandList, digitalCommandList = self.makeU6FioList(d)
                         d.fioList = fios
                         d.analogCommandList = analogCommandList
@@ -410,6 +422,13 @@ class DeviceManager(object):
                     d = ue9.UE9(LJSocket = ljsocketAddress, serial = dev['serial'])
                     d.commConfig()
                     d.controlConfig()
+                    
+                    d.meetsFirmwareRequirements = True
+                    if float(d.controlFWVersion) < UE9_MIN_FIRMWARE_VERSION[0]:
+                        d.meetsFirmwareRequirements = False
+                    elif float(d.commFWVersion) < UE9_MIN_FIRMWARE_VERSION[1]:
+                        d.meetsFirmwareRequirements = False
+                    
                     self._addTimerModesToDevice(d, 6)
                     
                     UE9FIO.setupNewDevice(d)
@@ -446,9 +465,14 @@ class DeviceManager(object):
     def scan(self, serial = None, noCache = False):
         self.scanEvent.wait()
         dev = self.getDevice(serial)
+        
+        if not dev.meetsFirmwareRequirements:
+            return (False, False)
+        
         now = int(time.time())
         if noCache or (now - dev.scanCache[0]) >= 1:
             try:
+                self.scanEvent.clear()
                 if dev.devType == 3:
                     result = self.u3Scan(dev)
                 elif dev.devType == 6:
@@ -465,22 +489,24 @@ class DeviceManager(object):
                 print "Caught LabJackException:\n%s" % e
                 self.closeDevice(dev)
                 return serial, []
+            finally:
+                self.scanEvent.set()
         else:
             return dev.scanCache[1]
     
 
     def readTimer(self, dev, timerNumber):
+        timer = None
+        timerString = None
+        
         if dev.timerModes[timerNumber] == 8:
             # 8 is Quadrature, which is a signed value.
             timer = dev.readRegister(7200 + (2 * timerNumber), format=">i")
         elif dev.timerModes[timerNumber] in [0, 1]:
             # 0 and 1 are PWM so we will show Duty Cycle
             timer = dev.readRegister(7100 + (2 * timerNumber), format=">HH")
-            print "Read PWM value =", timer
             timer = float(65536 - timer[1]) / 65536
-            print "PWM Duty Cycle =", timer
-            #timer = dev.readRegister(7200 + (2 * timerNumber))
-            
+            timerString = "%.2f%%" % (timer*100) 
         else:
             timer = dev.readRegister(7200 + (2 * timerNumber))
             
@@ -488,7 +514,10 @@ class DeviceManager(object):
         if dev.timerModes[timerNumber] in [2, 3, 12, 13]:
             dev.writeRegister(7200 + (2 * timerNumber), 0)
         
-        infoDict = {'connection' : "Timer %s" % timerNumber, 'state' : "%s" % timer, 'value' : "%s" % timer}
+        if timerString is None:
+            timerString = timer
+        
+        infoDict = {'connection' : "Timer %s" % timerNumber, 'state' : "%s" % timerString, 'value' : "%s" % timer}
         infoDict['chType'] = ("timer")
         
         return infoDict
@@ -500,23 +529,23 @@ class DeviceManager(object):
         
         return infoDict
 
-    def _insertTimersAndCountersIntoScanResults(self, dev, results, offset, numTimers, readCounter0, readCounter1):
+    def _insertTimersAndCountersIntoScanResults(self, dev, results, offset, numTimers, readCounter0, readCounter1, fioLabelOffset = 0):
         for i in range(numTimers):
             results[offset] = self.readTimer(dev, i)
             results[offset]['connectionNumber'] = i
-            results[offset]['connection'] += " (FIO%i)" % offset
+            results[offset]['connection'] += " (FIO%i)" % (offset - fioLabelOffset)
             offset += 1
             
         if readCounter0:
             results[offset] = self.readCounter(dev, 0)
             results[offset]['connectionNumber'] = 0
-            results[offset]['connection'] += " (FIO%i)" % offset
+            results[offset]['connection'] += " (FIO%i)" % (offset - fioLabelOffset)
             offset += 1
         
         if readCounter1:
             results[offset] = self.readCounter(dev, 1)
             results[offset]['connectionNumber'] = 1
-            results[offset]['connection'] += " (FIO%i)" % offset
+            results[offset]['connection'] += " (FIO%i)" % (offset - fioLabelOffset)
             offset += 1
 
     def _appendDacsToScanResults(self, dev, results):
@@ -696,7 +725,7 @@ class DeviceManager(object):
         # Replace FIOs if there are timers enabled.
         offset = dev.timerCounterCache['offset'] + dev.numberOfAnalogIn
         timers = self._convertTimerSettings(dev.timerCounterCache, onlyEnabled = True)
-        self._insertTimersAndCountersIntoScanResults(dev, results, offset, len(timers), dev.timerCounterCache['counter0Enabled'], dev.timerCounterCache['counter1Enabled'])
+        self._insertTimersAndCountersIntoScanResults(dev, results, offset, len(timers), dev.timerCounterCache['counter0Enabled'], dev.timerCounterCache['counter1Enabled'], fioLabelOffset = dev.numberOfAnalogIn)
                 
         # DAC values
         self._appendDacsToScanResults(dev, results)
@@ -708,13 +737,21 @@ class DeviceManager(object):
     def listAll(self):
         devices = dict()
         for dev in self.devices.values():
-            name = dev.getName()
-            devices[str(dev.serialNumber)] = name
+            if dev.meetsFirmwareRequirements:
+                name = dev.getName()
+                devices[str(dev.serialNumber)] = name
         
         return devices
         
     def details(self, serial):
         dev = self.devices[serial]
+        
+        if dev.devType == 3:
+            dev.configU3()
+        elif dev.devType == 6:
+            dev.configU6()
+        elif dev.devType == 9:
+            dev.commConfig()
         
         return deviceAsDict(dev)
         

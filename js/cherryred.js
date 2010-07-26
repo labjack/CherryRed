@@ -17,6 +17,7 @@ $(document).ready(function() {
     setupHashChange();    
     setupTestPanelConnectionLinks();
     setupRenameLinks();
+    setupEditLinks();
     setupStopLoggingLinks();
     setupDialog();
     setupLogCheckboxes();
@@ -689,6 +690,133 @@ function setupRenameLinks() {
     });
 }
 
+function setupEditLinks() {
+    // For editing Local ID
+    $(".edit-localid-link").live("click", function(e) {
+        var devtype = $(".edit-localid-link").attr("devtype");
+        $.get("/forms/editLocalIdForm", {}, function(data) { 
+            $("#dialog").empty();
+            $("#dialog").html(data);
+            $("#edit-form").submit(function() {
+                var newId = $("#edit-value").val();
+                var urlString = "/devices/" + currentSerialNumber;
+                
+                if(devtype == "3") {
+                     urlString = urlString + "/configu3";
+                }
+                else if(devtype == "6") {
+                    urlString = urlString + "/configu6";
+                }
+                else if(devtype == "9") {
+                    urlString = urlString + "/commconfig";
+                }
+                
+                $.get(urlString, {LocalID : newId}, function(data) { $("#localId-value").html(newId); });
+                dialogDone();
+                return false;
+            });
+            $("#dialog").dialog('option', 'title', "Change Local ID");
+            $("#dialog").dialog('option', 'width', 425);
+            $("#dialog").dialog('option', 'buttons', { 
+                "Save": function() {
+                    $("#edit-form").submit();
+                },
+                "Cancel": dialogDone
+            });
+            $("#edit-value").val($("#localId-value").html());
+            $("#dialog").dialog('open');
+        });
+    
+        return false;
+    });
+    
+    // UE9 Only: Editing Comm. Config
+    $(".edit-commconfig-link").live("click", function(e) {
+        $.get("/forms/editCommConfigForm", {}, function(data) { 
+            $("#dialog").empty();
+            $("#dialog").html(data);
+            $("#edit-form").submit(function() {
+                // Call CommConfig low-level function
+                var urlString = "/devices/" + currentSerialNumber+"/commConfig";
+                
+                // Read in all the form values:
+                var enableDhcp = $("#enable-dhcp-value:checked").val();
+                if(enableDhcp == undefined || enableDhcp == '') {
+                    enableDhcp = 0;
+                }
+                
+                var ipAddress = $("#ip-address-value").val();
+                var subnet = $("#subnet-mask-value").val();
+                var gateway = $("#gateway-value").val();
+                var portA = $("#porta-value").val();
+                var portB = $("#portb-value").val();
+                
+                                
+                $.get(urlString, {IPAddress : ipAddress, Gateway : gateway, Subnet : subnet, PortA : portA, PortB : portB, DHCPEnabled : enableDhcp}, function(data) {
+                    if(data.result.DHCPEnabled == true) {
+                        $("#enable-dhcp").html("Enabled");
+                    } else {
+                        $("#enable-dhcp").html("Disabled");
+                    }
+                    
+                    $("#ip-address").html($("#ip-address-value").val());
+                    $("#subnet-mask").html($("#subnet-mask-value").val());
+                    $("#gateway").html($("#gateway-value").val());
+                    $("#porta").html($("#porta-value").val());
+                    $("#portb").html($("#portb-value").val());
+                    
+                });
+                dialogDone();
+                return false;
+            });
+            $("#dialog").dialog('option', 'title', "Change Communication Settings");
+            $("#dialog").dialog('option', 'width', 425);
+            $("#dialog").dialog('option', 'buttons', { 
+                "Save": function() {
+                    $("#edit-form").submit();
+                },
+                "Cancel": dialogDone
+            });
+            
+            var dhcpEnabled = false;
+            if($("#enable-dhcp").html() == "Enabled") {
+                $("#enable-dhcp-value").attr("checked", "yes");
+                dhcpEnabled = true;
+            }
+            
+            $("#ip-address-value").val($("#ip-address").html());
+            $("#subnet-mask-value").val($("#subnet-mask").html());
+            $("#gateway-value").val($("#gateway").html());
+            
+            if(dhcpEnabled == true) {
+                $("#ip-address-value").attr("disabled", "disabled");
+                $("#subnet-mask-value").attr("disabled", "disabled");
+                $("#gateway-value").attr("disabled", "disabled");
+            }
+            
+            $("#enable-dhcp-value").live('click', function() {
+                var enableDhcp = $("#enable-dhcp-value:checked").val();
+                if(enableDhcp == undefined || enableDhcp == '') {
+                    $("#ip-address-value").removeAttr("disabled");
+                    $("#subnet-mask-value").removeAttr("disabled");
+                    $("#gateway-value").removeAttr("disabled");
+                } else {
+                    $("#ip-address-value").attr("disabled", "disabled");
+                    $("#subnet-mask-value").attr("disabled", "disabled");
+                    $("#gateway-value").attr("disabled", "disabled");
+                }
+            });
+            
+            $("#porta-value").val($("#porta").html());
+            $("#portb-value").val($("#portb").html());
+            
+            $("#dialog").dialog('open');
+        });
+    
+        return false;
+    });
+}
+
 function setupStopLoggingLinks() {
     $(".stop-link").live("click", function(e) {
         var stopUrl = $(this).attr("stopurl");
@@ -799,8 +927,9 @@ function handleScan(data) {
             highlightCheckedCheckboxes();
             count++;
         }
-        $("#save-config-link").button().show();
-        $("#bottom-timer-counter-config-link").show();
+        
+        $("#save-config-link").button();
+        $(".hide-at-start").show();
         showingTestPanel = true;
     } else {
         var count = 0;

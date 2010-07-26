@@ -105,6 +105,9 @@ class DevicesPage(object):
         t.devices = devices
 
         t2 = serve_file2("templates/device-summary-list.tmpl")
+        t2.UE9_MIN_FIRMWARE = UE9_MIN_FIRMWARE_VERSION
+        t2.U6_MIN_FIRMWARE = U6_MIN_FIRMWARE_VERSION
+        t2.U3_MIN_FIRMWARE = U3_MIN_FIRMWARE_VERSION
         t2.devices = [ deviceAsDict(d) for d in  self.dm.devices.values() ]
         
         devices['html'] = t.respond()
@@ -123,6 +126,10 @@ class DevicesPage(object):
         """
         if cmd is None:
             returnDict = self.dm.details(serial)
+            
+            if not returnDict['meetsFirmwareRequirements']:
+                returnDict['html'] = """<div>Device doesn't meet firmware requirements</div>"""
+                returnDict['htmlScanning'] = ""
             
             t = serve_file2("templates/device-details.tmpl")
             t.device = returnDict
@@ -365,28 +372,10 @@ class DevicesPage(object):
         print "Scan: serial = %s" % serial
         serialNumber, results = self.dm.scan(serial, noCache)
         
-        return results
-    
-
-    # ---------------- Deprecated ----------------
-    @exposeRawFunction
-    def setFioState(self, serial = None, fioNumber = 0, state = 1):
-        result = self.dm.setFioState(serial, fioNumber, state)
-        yield self.header()
-        yield "<p>FIO%s has been set to output %s</p>" % (fioNumber, result)
-        yield self.footer()
-    
-    @exposeRawFunction
-    def setName(self, serial = None, name = None):
-        yield self.header()
-        
-        if name is not None:
-            serialNumber, name = self.dm.setName(serial, name)
-            yield "%s's name set to %s" % (serialNumber, name)
-        
-        yield self.footer()
-    
-    # ---------------- End Deprecated ----------------
+        if results:
+            return results
+        else:
+            raise cherrypy.HTTPError(404)
     
     @exposeJsonFunction
     def setDefaults(self, serial = None):
@@ -533,6 +522,9 @@ class CloudDotPage:
         self.readConfigFile()
         
     def readConfigFile(self):
+        """ Reads in the username and API Key from the grounded config file and
+            saves them to the device manager.
+        """
         self.parser.read(CLOUDDOT_GROUNDED_CONF)
         
         if self.parser.has_section("CloudDot"):
@@ -543,6 +535,9 @@ class CloudDotPage:
                 self.dm.apikey = self.parser.get("CloudDot", "api key")
                 
     def saveConfigFile(self):
+        """ Takes the username and API Key saved in the device manager and 
+            writes them out to the grounded config file.
+        """
         self.parser.read(CLOUDDOT_GROUNDED_CONF)
         
         if not self.parser.has_section("CloudDot"):
@@ -1001,6 +996,25 @@ class LoggingPage(object):
             #    raise cherrypy.HTTPRedirect("/logs")
     
 
+class FormsPage(object):
+    """ A class for handling all things /forms/
+        Renders forms for the javascript.
+    """
+    def __init__(self, dm):
+        self.dm = dm
+        
+    @exposeRawFunction
+    def editCommConfigForm(self):
+        t = serve_file2("templates/form-edit-commConfig.tmpl")
+        
+        return t.respond()
+        
+    @exposeRawFunction
+    def editLocalIdForm(self):
+        t = serve_file2("templates/form-edit-localId.tmpl")
+        
+        return t.respond()
+
 class RootPage:
     """ The RootPage class handles showing index.html. If we can't connect to
         LJSocket then it shows connect.html instead.
@@ -1016,6 +1030,8 @@ class RootPage:
         self.config = ConfigPage(dm)
         
         self.clouddot = CloudDotPage(dm)
+        
+        self.forms = FormsPage(dm)
     
     @exposeRawFunction
     def index(self):

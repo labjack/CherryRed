@@ -4,11 +4,15 @@
   #if $device.devType == 9
   <p class="firmware-version">Control Firmware: $device.firmware[1]</p>
   <p class="firmware-version">Communication Firmware: $device.firmware[0]</p>
-  <p>DHCP Enabled: $device.DHCPEnabled</p>
-  <p>IP Address: $device.ipAddress</p>
-  <p>Subnet Mask: $device.subnet</p>
-  <p>Gateway: $device.gateway</p>
-  <p>Port A (Port B): $device.portA (${device.portB})</p>
+  #if $device.DHCPEnabled
+  <p>DHCP Enabled: <span id="enable-dhcp">Enabled</span> (<a href="#" class="edit-commconfig-link">Edit Communication Settings</a>)</p>
+  #else
+  <p>DHCP Enabled: <span id="enable-dhcp">Disabled</span> (<a href="#" class="edit-commconfig-link">Edit Communication Settings</a>)</p>
+  #end if
+  <p>IP Address: <span id="ip-address">$device.ipAddress</span></p>
+  <p>Subnet Mask: <span id="subnet-mask">$device.subnet</span></p>
+  <p>Gateway: <span id="gateway">$device.gateway</span></p>
+  <p>Port A (Port B): <span id="porta">$device.portA</span> (<span id="portb">${device.portB}</span>)</p>
   <p>MAC Address: $device.macAddress</p>
   #elif $device.devType == 1281
   <p class="firmware-version">Ethernet Firmware: $device.firmware[0]</p>
@@ -16,7 +20,7 @@
   #else
   <p class="firmware-version">Firmware Version: $device.firmware</p>
   #end if
-  <p class="localId">Local ID: $device.localId</p>
+  <p class="localId">Local ID: <span id="localId-value">$device.localId</span> (<a href="#" class="edit-localid-link" devtype="$device.devType">Edit</a>)</p>
   
   <div id="config-file-list">
   </div>
