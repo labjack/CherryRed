@@ -7,7 +7,7 @@ import os
 import glob
 from py2exe.build_exe import py2exe as build_exe
 
-CONTENT_DIRS = [ "css", "html", "js", "templates", "Microsoft.VC90.CRT" ]
+CONTENT_DIRS = [ "css", "html", "js", "templates", "Microsoft.VC90.CRT", "img" ]
 EXTRA_FILES = [ "./cherryred.conf", "./liblabjackusb.dll" ]
 
 class MediaCollector(build_exe):
@@ -39,12 +39,12 @@ class MediaCollector(build_exe):
 
 
 setup(
-    console=['cherryred.py'],
+    console=['grounded.py'],
     options={
         "py2exe":{
             "bundle_files" : 1,
-            "excludes" : ["Tkinter", "Tkconstants", "tcl", "doctest", "pdb", "unittest", "difflib", "inspect"],
-            "includes" : ["Cheetah", "Cheetah.DummyTransaction"]
+            "excludes" : ["Tkinter", "Tkconstants", "tcl", "doctest", "pdb", "unittest", "difflib"],
+            'packages': ['dns', "Cheetah", "sleekxmpp" ]
         }
     },
     cmdclass={'py2exe': MediaCollector},
