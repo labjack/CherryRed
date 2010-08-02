@@ -12,18 +12,24 @@ import struct
 logging.basicConfig(level=logging.DEBUG, format='%(levelname)-8s %(message)s')
 
 class CloudDotConnection(sleekxmpp.ClientXMPP):
-    def __init__(self, jid, password, dev):
+    def __init__(self, jid, password, serial, dm):
         sleekxmpp.ClientXMPP.__init__(self, jid, password)
         self.add_event_handler("session_start", self.start)
         self.add_event_handler("message", self.message)
         self.add_handler("<iq xmlns='jabber:client'><query xmlns='jabber:iq:clouddot' />*</iq>", self.iq_handler)
-        self.device = dev
+        self.serial = serial
+        self.dm = dm
         
         self.registerPlugin('xep_0199')
         self.looping = True
         
         self.heartbeatThread = threading.Thread(target = self.pingLoop)
         self.shutdownEvent = threading.Event()
+
+    def getDevice(self):
+        return self.dm.getDevice(self.serial)
+
+    device = property(getDevice)
 
     def pingLoop(self):
         print "Started pingLoop"
@@ -63,9 +69,16 @@ class CloudDotConnection(sleekxmpp.ClientXMPP):
         print "Data:", repr(data)
         numBytes = int(dataElem.items()[0][1])
         
-        self.device.write(data, modbus = True, checksum=False)
-        result = self.device.read(numBytes)
-        result = struct.pack("B" * len(result), *result)
+        # Set the DM's flag that we're using the device.
+        # This is definitely incorrect, but it may be good enough.
+        self.dm.scanEvent.wait()
+        try:
+            self.dm.scanEvent.clear()
+            self.device.write(data, modbus = True, checksum=False)
+            result = self.device.read(numBytes)
+            result = struct.pack("B" * len(result), *result)
+        finally:
+            self.dm.scanEvent.set()
         
         # We have the result, send it back in the response.
         result = base64.b64encode(result)
@@ -82,9 +95,9 @@ class CloudDotConnection(sleekxmpp.ClientXMPP):
         reply.send(block=False)
         
 class XmppThread(threading.Thread):
-    def __init__(self, device, password = "XXXXXXXXXXXXXXXXXXXX"):
+    def __init__(self, device, dm, password = "XXXXXXXXXXXXXXXXXXXX"):
         threading.Thread.__init__(self)
-        self.xmpp = CloudDotConnection("private-%s@cloud.labjack.com" % device.serialNumber, password, device)
+        self.xmpp = CloudDotConnection("private-%s@cloud.labjack.com" % device.serialNumber, password, str(device.serialNumber), dm)
         #self.xmpp.registerPlugin('xep_0004')
         self.xmpp.registerPlugin('xep_0030')
         #self.xmpp.registerPlugin('xep_0060')

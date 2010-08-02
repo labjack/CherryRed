@@ -178,7 +178,7 @@ class DeviceManager(object):
         d = self.getDevice(serial)
         
         if str(d.serialNumber) not in self.xmppThreads:
-            xt = xmppconnection.XmppThread(d, password = self.apikey)
+            xt = xmppconnection.XmppThread(d, self, password = self.apikey)
             xt.start()
             self.xmppThreads[str(d.serialNumber)] = xt
             
