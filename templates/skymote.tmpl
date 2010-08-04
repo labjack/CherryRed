@@ -1,0 +1,19 @@
+#if $includeWrapper
+<div id="skymote-wrapper" class="">
+#end if
+  <p>Welcome to the awesome SkyMote Page....</p>
+  <ul>
+  #for $bridge in $bridges.values()
+    <li>
+      <div>$bridge.productName "$bridge.name" ($bridge.serialNumber): Ethernet Firmware $bridge.ethernetFWVersion, USB Firmware $bridge.usbFWVersion, Main Firmware $bridge.mainFWVersion</div>
+      <ul>
+      #for $mote in $bridge.motes
+        <li>$mote.productName "$mote.nickname" ($mote.moteId): Main Firmware $mote.mainFirmwareVersion()</li>
+      #end for
+      </ul>
+    </li>
+  #end for
+  </ul>
+#if $includeWrapper
+</div>
+#end if

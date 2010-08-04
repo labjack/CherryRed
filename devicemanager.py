@@ -10,7 +10,7 @@ from groundedutils import *
 from Autoconvert import autoConvert
 
 # - LabJackPython
-import LabJackPython, u3, u6, ue9, bridge
+import LabJackPython, u3, u6, ue9
 
 # Standard Library Imports
 from threading import Lock, Event
@@ -353,10 +353,6 @@ class DeviceManager(object):
                 for dev in devsObj.values():
                     devs.append({"serial" : dev["serialNumber"], "prodId" : dev["devType"]})
                     
-                devsObj = LabJackPython.listAll(0x501)
-                for dev in devsObj.values():
-                    devs.append({"serial" : dev["serialNumber"], "prodId" : dev["devType"]})
-                    
                 print "usbOverride:",devs
                     
             else:
@@ -432,12 +428,6 @@ class DeviceManager(object):
                     self._addTimerModesToDevice(d, 6)
                     
                     UE9FIO.setupNewDevice(d)
-                    
-                elif dev['prodId'] == 0x501:
-                    print "Got a bridge... opening."
-                    d = bridge.Bridge(LJSocket = ljsocketAddress, serial = dev['serial'])
-                    d.ethernetFirmwareVersion()
-                    d.usbFirmwareVersion()
                 else:
                     raise Exception("Unknown device type")
                 
@@ -479,9 +469,6 @@ class DeviceManager(object):
                     result = self.u6Scan(dev)
                 elif dev.devType == 9:
                     result = self.ue9Scan(dev)
-                elif dev.devType == 0x501:
-                    num = dev.readNumberOfMotes()
-                    result = [dev.serialNumber, [{'connection' : 'Number Of Motes', 'state' : num, 'value' : num, 'chType' : ANALOG_TYPE }]]
                     
                 dev.scanCache = (now, result)
                 return result

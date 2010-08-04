@@ -7,6 +7,7 @@ Desc: A cross-platform program for getting started with your LabJack.
 
 # Local Imports
 from devicemanager import DeviceManager
+from skymotemanager import SkyMoteManager
 from fio import FIO, UE9FIO
 from groundedutils import *
 
@@ -1015,6 +1016,35 @@ class FormsPage(object):
         
         return t.respond()
 
+class SkyMotePage(object):
+    """ For the SkyMote page.
+    """
+    def __init__(self):
+        self.smm = SkyMoteManager()
+        
+    @exposeRawFunction
+    def index(self):
+        """ Handles /skymote/
+        """
+        # Tell people (firefox) not to cache this page. 
+        cherrypy.response.headers['Cache-Control'] = "no-cache"
+
+        t = serve_file2("templates/index.tmpl")
+        
+        tMainContent = serve_file2("templates/skymote.tmpl")
+        tMainContent.bridges = self.smm.findBridges()
+        tMainContent.includeWrapper = True
+        
+        t.mainContent = tMainContent.respond()
+        t.currentPage = "SkyMote"
+        t.title = "SkyMote | LabJack CloudDot Grounded"
+
+        return t.respond()
+    
+    @exposeJsonFunction 
+    def scan(self):
+        return self.smm.scan()
+
 class RootPage:
     """ The RootPage class handles showing index.html. If we can't connect to
         LJSocket then it shows connect.html instead.
@@ -1032,6 +1062,8 @@ class RootPage:
         self.clouddot = CloudDotPage(dm)
         
         self.forms = FormsPage(dm)
+        
+        self.skymote = SkyMotePage()
     
     @exposeRawFunction
     def index(self):
