@@ -1,6 +1,6 @@
 # SkyMote Manager
 from groundedutils import *
-import LabJackPython, bridge
+import LabJackPython, skymote
 
 class SkyMoteManager(object):
     def __init__(self):
@@ -17,6 +17,7 @@ class SkyMoteManager(object):
     def findBridges(self):
         devs = []
         ljsocketAddress = None
+        
         devsObj = LabJackPython.listAll(0x501)
         for dev in devsObj.values():
             devs.append({"serial" : dev["serialNumber"], "prodId" : dev["devType"]})
@@ -28,7 +29,7 @@ class SkyMoteManager(object):
                 continue
             
             print "Got a bridge... opening."
-            d = bridge.Bridge(LJSocket = ljsocketAddress, serial = dev['serial'])
+            d = skymote.Bridge(LJSocket = ljsocketAddress, serial = dev['serial'])
             try:
                 d.ethernetFirmwareVersion()
             except:
@@ -40,7 +41,14 @@ class SkyMoteManager(object):
             self.bridges["%s" % dev['serial']] = d
         
         for b in self.bridges.values():
-            b.motes = b.listMotes()
+            try:
+                b.motes = b.listMotes()
+            except LabJackPython.LabJackException:
+                print "Removing %s from bridges list" % b.serialNumber
+                b.close()
+                self.bridges.pop(str(b.serialNumber))
+                continue
+            
             for mote in b.motes:
                 mote.nickname = mote.name
                 mote.mainFirmwareVersion()

@@ -74,7 +74,7 @@ def exposeJsonFunction(f):
     def jsonFunction(self, *args, **kwargs):
         cherrypy.response.headers['content-type'] = "application/json"
         result = f(self, *args, **kwargs)
-        return json.dumps(result)
+        return json.dumps(result)+"\n"
         
     jsonFunction.exposed = True
     return jsonFunction
