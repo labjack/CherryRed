@@ -88,12 +88,6 @@ class DevicesPage(object):
     def __init__(self, dm):
         self.dm = dm
     
-    def header(self):
-        return "<html><body>"
-    
-    def footer(self):
-        return "</body></html>"
-
     @exposeJsonFunction
     def index(self):
         """ Handles /devices/, returns a JSON list of all known devices.
@@ -1019,8 +1013,8 @@ class FormsPage(object):
 class SkyMotePage(object):
     """ For the SkyMote page.
     """
-    def __init__(self):
-        self.smm = SkyMoteManager()
+    def __init__(self, smm):
+        self.smm = smm
         
     @exposeRawFunction
     def index(self):
@@ -1031,7 +1025,7 @@ class SkyMotePage(object):
 
         t = serve_file2("templates/index.tmpl")
         
-        tMainContent = serve_file2("templates/skymote.tmpl")
+        tMainContent = serve_file2("templates/skymote/index.tmpl")
         tMainContent.bridges = self.smm.findBridges()
         tMainContent.includeWrapper = True
         
@@ -1049,10 +1043,12 @@ class RootPage:
     """ The RootPage class handles showing index.html. If we can't connect to
         LJSocket then it shows connect.html instead.
     """
-    def __init__(self, dm):
+    def __init__(self, dm, smm):
         # Keep a copy of the device manager
         self.dm = dm
-        
+        # and SkyMote manager
+        self.smm = smm
+
         # Adds the DevicesPage child which handles all the device communication
         self.devices = DevicesPage(dm)
         
@@ -1063,8 +1059,8 @@ class RootPage:
         
         self.forms = FormsPage(dm)
         
-        self.skymote = SkyMotePage()
-    
+        self.skymote = SkyMotePage(smm)
+
     @exposeRawFunction
     def index(self):
         """ if we can talk to LJSocket, renders index.html. Otherwise, 
@@ -1164,6 +1160,7 @@ def quickstartWithBrowserOpen(root=None, script_name="", config=None, portOverri
 # Main:
 if __name__ == '__main__':
     dm = DeviceManager()
+    smm = SkyMoteManager()
     
     # Register the shutdownThreads method, so we can kill our threads when
     # CherryPy is shutting down.
@@ -1196,6 +1193,6 @@ if __name__ == '__main__':
             if parser.has_option("General", "port"):
                 portOverride = parser.getint("General", "port")
 
-    root = RootPage(dm)
+    root = RootPage(dm, smm)
     root._cp_config = {'tools.staticdir.root': current_dir, 'tools.renderFromZipFile.on': IS_FROZEN}
     quickstartWithBrowserOpen(root, config=configfile, portOverride = portOverride)

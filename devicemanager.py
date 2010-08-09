@@ -14,7 +14,7 @@ import LabJackPython, u3, u6, ue9
 
 # Standard Library Imports
 from threading import Lock, Event
-import time
+import time, socket
 
 # Function dictionaries:
 def buildLowerDict(aClass):
@@ -73,15 +73,20 @@ class DeviceManager(object):
         self.usbOverride = False
         
         try:
-            self.updateDeviceDict()
+            skt = socket.socket()
+            skt.connect((self.address, int(self.port)))
+            skt.close()
             self.connected = True
-        except Exception:
-            try:
-                self.usbOverride = True
-                self.updateDeviceDict()
-                self.connected = True
-            except Exception:
-                self.connected = False
+        except Exception, e:
+            print type(e), e
+            self.usbOverride = True
+            self.connected = True
+#            try:
+#                self.usbOverride = True
+#                self.updateDeviceDict()
+#                self.connected = True
+#            except Exception:
+#                self.connected = False
             
         
         print self.devices
