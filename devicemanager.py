@@ -428,6 +428,8 @@ class DeviceManager(object):
                     self._addTimerModesToDevice(d, 6)
                     
                     UE9FIO.setupNewDevice(d)
+                elif dev['prodId'] == 0x501:
+                    continue
                 else:
                     raise Exception("Unknown device type")
                 
@@ -441,6 +443,9 @@ class DeviceManager(object):
                     print "Removing device with serial = %s" % serial
                     self.devices[str(serial)].close()
                     self.devices.pop(str(serial))
+        except Exception, e:
+            print type(e), e
+            raise e
         finally:
             self.scanEvent.set()
                    

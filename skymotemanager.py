@@ -16,13 +16,17 @@ class SkyMoteManager(object):
     
     def findBridges(self):
         devs = []
-        ljsocketAddress = None
+        ljsocketAddress = "localhost:6000"
         
-        devsObj = LabJackPython.listAll(0x501)
-        for dev in devsObj.values():
-            devs.append({"serial" : dev["serialNumber"], "prodId" : dev["devType"]})
+        devs = LabJackPython.listAll(ljsocketAddress, 200)
+        
+        #print "devsObj" = 
+        
+        #for dev in devsObj.values():
+        #    devs.append({"serial" : dev["serialNumber"], "prodId" : dev["devType"]})
         
         for dev in devs:
+            print "Got dev: serial = %s, prodId = 0x%X" % (dev['serial'], dev['prodId'])
             if dev['prodId'] != 0x501:
                 continue
             elif str(dev['serial']) in self.bridges:

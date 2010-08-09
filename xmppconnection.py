@@ -11,6 +11,62 @@ import struct
 
 logging.basicConfig(level=logging.DEBUG, format='%(levelname)-8s %(message)s')
 
+class CloudDotIQ(object):
+    def __init__(self, xml):
+        self._xml = xml
+        
+        self.layout = dict()
+        self.data = None
+        self.numReturnBytes = None
+        
+        self.parseXML()
+    
+    def _strElement(self, element, indent = 0):
+        e = self.layout[element]
+        reprStr = "%s<%s" % (" " * (indent * 2),element)
+        for key, value in e['attrs'].items():
+            reprStr += " %s='%s'" % (key, value)
+        
+        if e['text'] is None:
+            reprStr += ">\n"
+            for child in e['children']:
+                reprStr += self._strElement(child, indent+1)
+            reprStr +=  "\n%s</%s>" % (" " * (indent * 2),element)
+        else:
+            reprStr += ">%s</%s>" % (e['text'], element)
+        
+        return reprStr
+            
+            
+    
+    def __repr__(self):
+        return self._strElement("iq")
+    
+    def stripNS(self, tag):
+        n = tag
+        try:
+            i = tag.index("}")
+            n = tag[(i+1):]
+        except ValueError:
+            pass
+        
+        return str(n)
+        
+    def parseXML(self):
+        for e in self._xml.getiterator():
+            attributes = e.attrib
+            children = []
+            for c in e.getchildren():
+                children.append(self.stripNS(c.tag))
+            text = e.text
+            
+            self.layout[self.stripNS(e.tag)] = { "attrs" : attributes, "children" : children, "text" : text }
+        
+        self.data = base64.b64decode(self.layout['data']['text'])
+        self.data = [ ord(c) for c in self.data ]
+        self.numReturnBytes = int(self.layout['data']['attrs']['numReturnBytes'])
+        
+
 class CloudDotConnection(sleekxmpp.ClientXMPP):
     def __init__(self, jid, password, serial, dm):
         sleekxmpp.ClientXMPP.__init__(self, jid, password)
@@ -59,15 +115,12 @@ class CloudDotConnection(sleekxmpp.ClientXMPP):
         #msg.reply("Thanks for sending\n%(body)s" % msg).send()
     
     def iq_handler(self, xml):
-        iq = self.Iq(xml = xml)
+        iq = CloudDotIQ(xml)
         print "Got IQ", type(iq), iq
-        dataElem = xml.getchildren()[0].getchildren()[0]
-        print "children[0][0].items():",dataElem.items()
-        print "children[0][0].text", dataElem.text
-        data = base64.b64decode(dataElem.text)
-        data = [ ord(c) for c in data ]
+        
+        data = iq.data
         print "Data:", repr(data)
-        numBytes = int(dataElem.items()[0][1])
+        numBytes = iq.numReturnBytes
         
         # Set the DM's flag that we're using the device.
         # This is definitely incorrect, but it may be good enough.
@@ -81,8 +134,9 @@ class CloudDotConnection(sleekxmpp.ClientXMPP):
             self.dm.scanEvent.set()
         
         # We have the result, send it back in the response.
+        etIq = self.Iq(xml = xml)
         result = base64.b64encode(result)
-        reply = iq.reply()
+        reply = etIq.reply()
         dataElem = Element("data")
         dataElem.text = result
         qt = Element("query", {"xmlns" : 'jabber:iq:clouddot' })
@@ -90,7 +144,7 @@ class CloudDotConnection(sleekxmpp.ClientXMPP):
         print "qt", qt
         
         reply.appendxml(qt)
-        print "iq.reply() redux:", reply
+        print "etIq.reply() redux:", reply
         
         reply.send(block=False)
         
