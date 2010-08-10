@@ -54,6 +54,7 @@ class SkyMoteManager(object):
                 continue
             
             for mote in b.motes:
+                mote.startRapidMode()
                 mote.nickname = mote.name
                 mote.mainFirmwareVersion()
                 mote.devType = mote.readRegister(65000)
@@ -72,10 +73,6 @@ class SkyMoteManager(object):
                 results[str(mote.moteId)] = mote.sensorSweep()
                 
         return results
-
-
-
-
 
 
 

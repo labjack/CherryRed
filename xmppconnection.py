@@ -128,7 +128,7 @@ class CloudDotConnection(sleekxmpp.ClientXMPP):
         try:
             self.dm.scanEvent.clear()
             self.device.write(data, modbus = True, checksum=False)
-            result = self.device.read(numBytes)
+            result = self.device.read(numBytes, modbus = True)
             result = struct.pack("B" * len(result), *result)
         finally:
             self.dm.scanEvent.set()
