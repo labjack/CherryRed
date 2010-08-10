@@ -85,7 +85,7 @@ function restartScanning() {
 }
 
 function showTopMessage(message) {
-    $("#latest-message-bar").html(message).show().delay(5000).hide("fast");
+    $("#latest-message-bar").html(message).show().delay(10000).hide("fast");
 }
 
 function setupDialog() {
@@ -164,9 +164,9 @@ function updateTabContent(tabIndex) {
         $.get("/clouddot/info/"+currentSerialNumber, function(returnJson) {
             $("#clouddot-tab").html(returnJson.html);
             if (returnJson.connected) {
-                showCloudDotConnected();
+                showCloudDotConnected(false);
             } else {
-                showCloudDotDisconnected();
+                showCloudDotDisconnected(false);
             }
             $("a.button").button();
             $.get("/clouddot/fetch", {}, handleCloudDotFetch, "json");
@@ -1024,6 +1024,9 @@ function handleDeviceList(data) {
     if (currentSerialNumber) {
         highlightCurrentSerialNumber(currentSerialNumber);
     }
+    if (data.usbOverride) {
+        showTopMessage(data.usbOverride);
+    }
 }
   
   
@@ -1055,16 +1058,20 @@ function setupCloudDotLinks() {
     });
 }
 
-function showCloudDotConnected() {
+function showCloudDotConnected(showTop) {
     $("#clouddot-connected-div").show();
     $("#clouddot-disconnected-div").hide();
-    showTopMessage("Connected to CloudDot.");
+    if (showTop) {
+        showTopMessage("Connected to CloudDot.");
+    }
 }
 
-function showCloudDotDisconnected() {
+function showCloudDotDisconnected(showTop) {
     $("#clouddot-disconnected-div").show();
     $("#clouddot-connected-div").hide();
-    showTopMessage("Disconnected from CloudDot.");
+    if (showTop) {
+        showTopMessage("Disconnected from CloudDot.");
+    }
 }
 
 function handleCloudDotPing(data, textStatus, XMLHttpRequest) {
@@ -1099,9 +1106,9 @@ function handleCloudDotAjaxError(XMLHttpRequest, textStatus, errorThrown) {
 
 function handleCloudDotConnect(returnJson, textStatus, XMLHttpRequest) {
     if (returnJson.result == "connected") {
-        showCloudDotConnected();
+        showCloudDotConnected(true);
     } else {
-        showCloudDotDisconnected();
+        showCloudDotDisconnected(true);
     }
     return false;
 }
