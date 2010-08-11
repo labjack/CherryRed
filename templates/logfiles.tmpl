@@ -6,22 +6,30 @@
     $message
     </p>
     #end if
-    <ul id="log-file-list">
-        #for $logfile in $logfiles
-            <li><a href="$logfile.url" class="log-file-name">$logfile.name</a><span class="log-size">$logfile.size</span>
-          #if $logfile.uploadEnable
-            <a href="$logfile.uploadurl" class="upload-log">Upload to Google Docs</a> 
-          #else
-            <span class="too-big-log">Too big for Google Docs</span>
-          #end if
-          #if $logfile.active
-            <a href="#" stopurl="$logfile.stopurl" class="stop-log stop-link">Stop logging</a>
-          #else
-            <a href="$logfile.removeurl" class="delete-log">Delete forever</a>
-          #end if
-          </li>
-        #end for
-    </ul>
+    #if $logfiles
+        <ul id="log-file-list">
+            #for $logfile in $logfiles
+                <li><a href="$logfile.url" class="log-file-name">$logfile.name</a><span class="log-size">$logfile.size</span>
+              #if $logfile.uploadEnable
+                <a href="$logfile.uploadurl" class="upload-log">Upload to Google Docs</a> 
+              #else
+                <span class="too-big-log">Too big for Google Docs</span>
+              #end if
+              #if $logfile.active
+                <a href="#" stopurl="$logfile.stopurl" class="stop-log stop-link">Stop logging</a>
+              #else
+                <a href="$logfile.removeurl" class="delete-log">Delete forever</a>
+              #end if
+              </li>
+            #end for
+        </ul>
+    #else
+        <div>
+            <p>
+            No log files yet. SkyMote devices will automatically log their data here. To log data from a DAQ device (i.e., a U3, U6, or UE9), click a "Log" checkbox on its test panel.
+            </p>
+        </div>
+    #end if
 #if $includeWrapper
 </div>
 #end if
