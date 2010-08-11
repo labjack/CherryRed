@@ -107,7 +107,11 @@ class DevicesPage(object):
         
         devices['html'] = t.respond()
         devices['htmlSummaryList'] = t2.respond()
-        
+
+        if self.dm.usbOverride:
+            t3  = serve_file2("templates/usb-only.tmpl")
+            devices['usbOverride'] = t3.respond()
+
         return devices
         
     @exposeJsonFunction
