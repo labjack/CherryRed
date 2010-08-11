@@ -1,6 +1,10 @@
 # SkyMote Manager
 from groundedutils import *
+import threading
 import LabJackPython, skymote
+
+import csv, os
+from datetime import datetime
 
 class SkyMoteManager(object):
     def __init__(self):
@@ -11,8 +15,19 @@ class SkyMoteManager(object):
         # Dictionary of all open bridges. Key = Serial, Value = Object.
         self.bridges = dict()
         
+        # Logging Threads
+        self.loggingThreads = dict()
+        
         # Use Direct USB instead of LJSocket.
-        self.usbOverride = True
+        self.usbOverride = False
+        
+    def shutdownThreads(self):
+        """
+        Called when cherrypy starts shutting down, shutdownThreads stops all the
+        logging threads.
+        """
+        for s, thread in self.loggingThreads.items():
+            thread.stop()
     
     def findBridges(self):
         devs = []
@@ -43,6 +58,10 @@ class SkyMoteManager(object):
             d.productName = "SkyMote Bridge"
             
             self.bridges["%s" % dev['serial']] = d
+            
+            t = SpontaneousDataLoggingThread(d)
+            t.start()
+            self.loggingThreads["%s" % dev['serial']] = t
         
         for b in self.bridges.values():
             try:
@@ -73,6 +92,52 @@ class SkyMoteManager(object):
                 results[str(mote.moteId)] = mote.sensorSweep()
                 
         return results
+        
+
+class SpontaneousDataLoggingThread(threading.Thread):
+    def __init__(self, bridge):
+        threading.Thread.__init__(self)
+        
+        self.bridge = bridge
+        self.name = sanitize(self.bridge.name)
+        self.filename = "%%Y-%%m-%%d %%H__%%M__%%S %s %s.csv" % (self.name, "spontaneous")
+        self.filename = datetime.now().strftime(self.filename)
+        
+        self.headers = [ "Timestamp", "Local ID", "Temp", "Light", "Bump", "RxLQI", "TxLQI", "Battery"]
+        
+        self.filepath = "./logfiles/%s" % self.filename
+        
+        self.running = False
+        
+        try:
+            self.stream = open(self.filepath, "wb", 1)
+            self.csvWriter = csv.writer(self.stream)
+        except IOError:
+            os.mkdir("./logfiles")
+            self.stream = open(self.filepath, "wb", 1)
+            self.csvWriter = csv.writer(self.stream)
+        
+        self.csvWriter.writerow(self.headers)
+        
+    def stop(self):
+        self.running = False
+        
+    def run(self):
+        print "Spontaneous Data Logger for %s started." % (self.name)
+        self.running = True
+        
+        while self.running:
+            data = self.bridge.spontaneous().next()
+            print "Logging spontaneous data."
+            
+            results = [ datetime.now(), data['localId'], data['Temp'], data['Light'], data['Motion'], data['RxLQI'], data['TxLQI'], data['Battery']]
+            self.csvWriter.writerow(results)
+        
+        print "Spontaneous Data Logger for %s stopped." % (self.name)
+        
+        
+        #{'Sound': 0.0, 'RxLQI': 108.0, 'localId': 5, 'Temp': 24.9375, 'Battery': 4.3470158576965332, 'Light': 2716.149658203125, 'Motion': 0.0, 'TxLQI': 120.0}
+
 
 
 

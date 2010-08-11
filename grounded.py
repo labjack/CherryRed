@@ -1165,6 +1165,7 @@ if __name__ == '__main__':
     # Register the shutdownThreads method, so we can kill our threads when
     # CherryPy is shutting down.
     cherrypy.engine.subscribe('stop', dm.shutdownThreads)
+    cherrypy.engine.subscribe('stop', smm.shutdownThreads)
     
     # Ensure there is a logfiles directory
     if not os.path.isdir("./logfiles"):
