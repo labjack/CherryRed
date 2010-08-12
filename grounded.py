@@ -1020,6 +1020,30 @@ class SkyMotePage(object):
     def __init__(self, smm):
         self.smm = smm
         
+    @exposeJsonFunction
+    def bridges(self):
+        bridges = self.smm.findBridges()
+        
+        returnDict = dict()
+        
+        t = serve_file2("templates/devices.tmpl")
+        
+        nameDict = dict()
+        for serial, bridge in bridges.items():
+            nameDict[serial] = bridge.name
+        t.devices = nameDict
+
+        t2 = serve_file2("templates/device-summary-list.tmpl")
+        t2.UE9_MIN_FIRMWARE = UE9_MIN_FIRMWARE_VERSION
+        t2.U6_MIN_FIRMWARE = U6_MIN_FIRMWARE_VERSION
+        t2.U3_MIN_FIRMWARE = U3_MIN_FIRMWARE_VERSION
+        t2.devices = [ deviceAsDict(d) for d in  bridges.values() ]
+        
+        returnDict['html'] = t.respond()
+        returnDict['htmlSummaryList'] = t2.respond()
+
+        return returnDict
+        
     @exposeRawFunction
     def index(self):
         """ Handles /skymote/

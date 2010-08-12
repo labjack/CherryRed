@@ -1028,10 +1028,22 @@ function handleDeviceList(data) {
         showTopMessage(data.usbOverride);
     }
 }
-  
-  
+
+function handleBridgeList(data) {
+    $("#device-name-list").append(data.html);
+    $("#device-summary-list").append(data.htmlSummaryList);
+    
+    $("#bridge-name-list").html("");
+    $("#bridge-summary-list").html("");
+    
+    if (currentSerialNumber) {
+        highlightCurrentSerialNumber(currentSerialNumber);
+    }
+}  
+
 function getDeviceList() {
     $.get("/devices/", {}, handleDeviceList, "json");
+    $.get("/skymote/bridges", {}, handleBridgeList, "json");
 }
   
 /* Stuff For CloudDot Page */

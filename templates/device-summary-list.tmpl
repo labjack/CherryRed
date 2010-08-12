@@ -13,6 +13,9 @@
       <p class="firmware-version">Control Firmware: $device.firmware[1]</p>
       <p class="firmware-version">Communication Firmware: $device.firmware[0]</p>
       #elif $device.devType == 1281
+      <p class="number-connected-motes">Number of connected motes: $device.numMotes
+      </p>
+      <p class="firmware-version">Main Firmware: $device.firmware[2]</p>
       <p class="firmware-version">Ethernet Firmware: $device.firmware[0]</p>
       <p class="firmware-version">USB Firmware: $device.firmware[1]</p>
       #else

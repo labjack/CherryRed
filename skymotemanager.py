@@ -56,6 +56,7 @@ class SkyMoteManager(object):
             d.usbFirmwareVersion()
             d.mainFirmwareVersion()
             d.productName = "SkyMote Bridge"
+            d.meetsFirmwareRequirements = True
             
             self.bridges["%s" % dev['serial']] = d
             
@@ -73,14 +74,8 @@ class SkyMoteManager(object):
                 continue
             
             for mote in b.motes:
-                mote.startRapidMode()
-                mote.nickname = mote.name
-                mote.mainFirmwareVersion()
-                mote.devType = mote.readRegister(65000)
-                if mote.devType == 2000:
-                    mote.productName = "SkyMote TLB"
-                else:
-                    mote.productName = "SkyMote Unknown Type"
+                t = PlaceMoteInRapidModeThread(mote)
+                t.start()
         
         return self.bridges
 
@@ -93,6 +88,22 @@ class SkyMoteManager(object):
                 
         return results
         
+
+class PlaceMoteInRapidModeThread(threading.Thread):
+    def __init__(self, mote):
+        threading.Thread.__init__(self)
+        
+        self.mote = mote
+
+    def run(self):
+        self.mote.startRapidMode()
+        self.mote.nickname = self.mote.name
+        self.mote.mainFirmwareVersion()
+        self.mote.devType = self.mote.readRegister(65000)
+        if self.mote.devType == 2000:
+            self.mote.productName = "SkyMote TLB"
+        else:
+            self.mote.productName = "SkyMote Unknown Type"
 
 class SpontaneousDataLoggingThread(threading.Thread):
     def __init__(self, bridge):
