@@ -1022,6 +1022,8 @@ class SkyMotePage(object):
         
     @exposeJsonFunction
     def bridges(self):
+        """ Returns the html for the main page like /devices/, only for bridges
+        """
         bridges = self.smm.findBridges()
         
         returnDict = dict()
@@ -1066,6 +1068,10 @@ class SkyMotePage(object):
     @exposeJsonFunction 
     def scan(self):
         return self.smm.scan()
+        
+    @exposeJsonFunction 
+    def scanBridges(self):
+        return self.smm.scanBridges()
 
 class RootPage:
     """ The RootPage class handles showing index.html. If we can't connect to

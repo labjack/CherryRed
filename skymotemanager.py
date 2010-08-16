@@ -87,6 +87,24 @@ class SkyMoteManager(object):
                 results[str(mote.moteId)] = mote.sensorSweep()
                 
         return results
+    
+    def getBridge(self, serial):
+        if isinstance(serial, skymote.Bridge):
+            return serial
+        elif serial in self.bridges:
+            return self.bridges[serial]
+        else:
+            return self.bridges[str(serial)]
+    
+    def scanBridge(self, serial):
+        results = dict()
+        
+        b = self.getBridge(serial)
+        
+        results['Number of Connected Motes'] = b.numMotes()
+        # Not implemented: results['Temperature'] = 
+                
+        return results
         
 
 class PlaceMoteInRapidModeThread(threading.Thread):
@@ -141,13 +159,13 @@ class SpontaneousDataLoggingThread(threading.Thread):
             data = self.bridge.spontaneous().next()
             print "Logging spontaneous data."
             
-            results = [ datetime.now(), data['localId'], data['Temp'], data['Light'], data['Motion'], data['RxLQI'], data['TxLQI'], data['Battery']]
+            results = [ datetime.now(), data['unitId'], data['Temp'], data['Light'], data['Motion'], data['RxLQI'], data['TxLQI'], data['Battery']]
             self.csvWriter.writerow(results)
         
         print "Spontaneous Data Logger for %s stopped." % (self.name)
         
         
-        #{'Sound': 0.0, 'RxLQI': 108.0, 'localId': 5, 'Temp': 24.9375, 'Battery': 4.3470158576965332, 'Light': 2716.149658203125, 'Motion': 0.0, 'TxLQI': 120.0}
+        #{'Sound': 0.0, 'RxLQI': 108.0, 'unitId': 5, 'Temp': 24.9375, 'Battery': 4.3470158576965332, 'Light': 2716.149658203125, 'Motion': 0.0, 'TxLQI': 120.0}
 
 
 
