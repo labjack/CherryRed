@@ -43,6 +43,7 @@ class SkyMoteManager(object):
             thread.stop()
     
     def findBridges(self):
+        print "self.bridges:", self.bridges
         devs = []
         ljsocketAddress = "localhost:6000"
         
@@ -61,6 +62,13 @@ class SkyMoteManager(object):
             if dev['prodId'] != 0x501:
                 continue
             elif str(dev['serial']) in self.bridges:
+                d = self.bridges[str(dev['serial'])]
+                if d.numMotes() != len(d.motes):
+                    print "Found new motes"
+                    d.motes = d.listMotes()
+                    for mote in d.motes:
+                        t = PlaceMoteInRapidModeThread(mote)
+                        t.start()
                 continue
             
             print "Got a bridge... opening."
@@ -69,11 +77,16 @@ class SkyMoteManager(object):
                 d.ethernetFirmwareVersion()
             except:
                 d.ethernetFWVersion = "(No Ethernet)"
+            d.nameCache = d.getName()
             d.usbFirmwareVersion()
             d.mainFirmwareVersion()
             d.productName = "SkyMote Bridge"
             d.meetsFirmwareRequirements = True
             d.spontaneousDataCache = dict()
+            d.motes = d.listMotes()
+            for mote in d.motes:
+                t = PlaceMoteInRapidModeThread(mote)
+                t.start()
             
             self.bridges["%s" % dev['serial']] = d
             
@@ -81,18 +94,6 @@ class SkyMoteManager(object):
             t.start()
             self.loggingThreads["%s" % dev['serial']] = t
         
-        for b in self.bridges.values():
-            try:
-                b.motes = b.listMotes()
-            except LabJackPython.LabJackException:
-                print "Removing %s from bridges list" % b.serialNumber
-                b.close()
-                self.bridges.pop(str(b.serialNumber))
-                continue
-            
-            for mote in b.motes:
-                t = PlaceMoteInRapidModeThread(mote)
-                t.start()
         
         return self.bridges
 

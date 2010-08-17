@@ -1033,7 +1033,7 @@ class SkyMotePage(object):
         
         nameDict = dict()
         for serial, bridge in bridges.items():
-            nameDict[serial] = bridge.name
+            nameDict[serial] = bridge.nameCache
         t.devices = nameDict
         t.hashPrefix = "sm"
 
