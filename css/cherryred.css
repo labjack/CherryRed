@@ -13,7 +13,7 @@ a { color: #222222; }
     -webkit-box-shadow: 5px 5px 5px #AAAAAA;
 }
 
-#tabs { 
+#tabs, #sm-tabs {
     display: none ; 
     min-height: 450px;
     margin-bottom: 50px;

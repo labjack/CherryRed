@@ -4,24 +4,34 @@
 <ul>
 #for $device in $devices
   #if $device.meetsFirmwareRequirements
-    <li class="device-summary pop ui-helper-reset ui-corner-all $device.productName"><a href="#d=$device.serial">
-      <img src="/img/${device.productName}.jpg" alt="$device.productName" />
-      <h3 class="current-name">$device.name</h3>
-      <p class="product-name">$device.productName</p>
-      <p class="serial">$device.serial</p>
-      #if $device.devType == 9
-      <p class="firmware-version">Control Firmware: $device.firmware[1]</p>
-      <p class="firmware-version">Communication Firmware: $device.firmware[0]</p>
-      #elif $device.devType == 1281
-      <p class="number-connected-motes">Number of connected motes: $device.numMotes
-      </p>
-      <p class="firmware-version">Main Firmware: $device.firmware[2]</p>
-      <p class="firmware-version">Ethernet Firmware: $device.firmware[0]</p>
-      <p class="firmware-version">USB Firmware: $device.firmware[1]</p>
+    <li class="device-summary pop ui-helper-reset ui-corner-all $device.productName">
+      #if $device.devType == 1281
+      <a href="#sm=$device.serial">
       #else
-      <p class="firmware-version">Firmware Version: $device.firmware</p>
+      <a href="#d=$device.serial">
       #end if
-      <p class="localId">Local ID: $device.localId</p>
+        <img src="/img/${device.productName}.jpg" alt="$device.productName" />
+        <h3 class="current-name">$device.name</h3>
+        <p class="product-name">$device.productName</p>
+        <p class="serial">$device.serial</p>
+        #if $device.devType == 9
+        <p class="firmware-version">Control Firmware: $device.firmware[1]</p>
+        <p class="firmware-version">Communication Firmware: $device.firmware[0]</p>
+        #elif $device.devType == 1281
+        <p class="firmware-version">Main Firmware: $device.firmware[2]</p>
+        <p class="firmware-version">Ethernet Firmware: $device.firmware[0]</p>
+        <p class="firmware-version">USB Firmware: $device.firmware[1]</p>
+        #else
+        <p class="firmware-version">Firmware Version: $device.firmware</p>
+        #end if
+        #if $device.devType == 1281
+        <p class="localId">Unit ID: $device.unitId</p>
+        #else
+        <p class="localId">Local ID: $device.localId</p>
+        #end if
+        #if $device.devType == 1281
+        <p class="number-connected-motes">Number of connected motes: $device.numMotes</p>
+        #end if
       </a>
     </li>
   #else

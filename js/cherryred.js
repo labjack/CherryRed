@@ -14,6 +14,7 @@ var sparklineDigitalOutOptions = {type:'bar', height: "16px", barColor: "#A20000
 
 $(document).ready(function() {
     $("#tabs").tabs();
+    $("#sm-tabs").tabs();
     setupHashChange();    
     setupTestPanelConnectionLinks();
     setupRenameLinks();
@@ -50,13 +51,20 @@ function urlHashChange(e) {
     showingTestPanel = false;
     $("#test-panel-table").empty();
     var serialNumber = e.getState( "d" );
-    highlightCurrentSerialNumber(serialNumber);
 
-    //console.log(" urlHashChange d = " + serialNumber );
+    if (!serialNumber) {
+        var bridgeSerialNumber = e.getState( "sm" );
+    }
+
     if (serialNumber) {
+        highlightCurrentSerialNumber(serialNumber);
         handleSelectDevice(serialNumber);
+    } else if (bridgeSerialNumber) {
+        highlightCurrentSerialNumber(bridgeSerialNumber);
+        handleSelectBridge(bridgeSerialNumber);
     } else {
         $("#tabs").hide();
+        $("#sm-tabs").hide();
         $("#device-summary-list").show();
     }
 }
@@ -178,6 +186,17 @@ function updateTabContent(tabIndex) {
             $("a.button").button();
         });
     }
+}
+
+function setupSmTabSelect() {
+    var $tabs = $("#sm-tabs").tabs();
+    $tabs.bind("tabsselect", function(event, ui) {
+        updateSmTabContent(ui.index);
+    });
+}
+
+function updateSmTabContent(tabIndex) {
+    console.log("updateSmTabContent");
 }
 
 function setupSaveLoadDeleteConfigLinks() {
@@ -1012,12 +1031,20 @@ function handleSelectDevice(serialNumber) {
         $("#save-config-link").attr("href", "/config/exportConfigToFile/" + serialNumber);
         $(".timer-counter-config-link").attr("href", "/devices/timerCounterConfig/" + serialNumber);
         $("#device-summary-list").hide();
+        $("#sm-tabs").hide();
         $("#tabs").show();   
     } else {
         //console.log("no serialNumber");
     }
 }
-  
+
+function handleSelectBridge(bridgeSerialNumber) {
+    console.log("handleSelectBridge bridgeSerialNumber = " + bridgeSerialNumber);
+    $("#device-summary-list").hide();
+    $("#tabs").hide();
+    $("#sm-tabs").show();
+}
+
 function handleDeviceList(data) {
     $("#device-name-list").html(data.html);
     $("#device-summary-list").html(data.htmlSummaryList);
