@@ -171,7 +171,7 @@ class SpontaneousDataLoggingThread(threading.Thread):
         self.filename = "%%Y-%%m-%%d %%H__%%M__%%S %s %s.csv" % (self.name, "spontaneous")
         self.filename = datetime.now().strftime(self.filename)
         
-        self.headers = [ "Timestamp", "Local ID", "Temp", "Light", "Bump", "RxLQI", "TxLQI", "Battery"]
+        self.headers = [ "Timestamp", "Unit ID", "Temp", "Light", "Bump", "RxLQI", "TxLQI", "Battery"]
         
         self.filepath = "./logfiles/%s" % self.filename
         

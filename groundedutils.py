@@ -126,6 +126,7 @@ def deviceAsDict(dev):
         firmware = [dev.commFWVersion, dev.controlFWVersion]
     elif dev.devType == 0x501:
         firmware = [dev.ethernetFWVersion, dev.usbFWVersion, dev.mainFWVersion]
+        returnDict['unitId'] = dev.unitId
         returnDict['numMotes'] = len(dev.motes)
     else:
         firmware = dev.firmwareVersion

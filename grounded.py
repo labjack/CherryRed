@@ -98,6 +98,7 @@ class DevicesPage(object):
         
         t = serve_file2("templates/devices.tmpl")
         t.devices = devices
+        t.hashPrefix = "d"
 
         t2 = serve_file2("templates/device-summary-list.tmpl")
         t2.UE9_MIN_FIRMWARE = UE9_MIN_FIRMWARE_VERSION
@@ -1034,6 +1035,7 @@ class SkyMotePage(object):
         for serial, bridge in bridges.items():
             nameDict[serial] = bridge.name
         t.devices = nameDict
+        t.hashPrefix = "sm"
 
         t2 = serve_file2("templates/device-summary-list.tmpl")
         t2.UE9_MIN_FIRMWARE = UE9_MIN_FIRMWARE_VERSION
