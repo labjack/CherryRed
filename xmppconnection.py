@@ -151,6 +151,8 @@ class CloudDotConnection(sleekxmpp.ClientXMPP):
 class XmppThread(threading.Thread):
     def __init__(self, device, dm, password = "XXXXXXXXXXXXXXXXXXXX"):
         threading.Thread.__init__(self)
+        self.daemon = True
+        
         self.xmpp = CloudDotConnection("private-%s@cloud.labjack.com" % device.serialNumber, password, str(device.serialNumber), dm)
         #self.xmpp.registerPlugin('xep_0004')
         self.xmpp.registerPlugin('xep_0030')

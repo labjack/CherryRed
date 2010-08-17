@@ -6,6 +6,19 @@ import LabJackPython, skymote
 import csv, os
 from datetime import datetime
 
+def moteAsDict(mote):
+    returnDict = dict()
+    
+    returnDict['name'] = mote.nickname
+    returnDict['firmware'] = mote.mainFWVersion
+    returnDict['productName'] = mote.productName
+    returnDict['devType'] = mote.devType
+    returnDict['serial'] = mote.serialNumber
+    returnDict['unitId'] = mote.unitId
+    returnDict['checkinInverval'] = mote.checkinInterval
+
+    return returnDict
+
 class SkyMoteManager(object):
     def __init__(self):
         # The address and port to try to connect to LJSocket
@@ -33,7 +46,10 @@ class SkyMoteManager(object):
         devs = []
         ljsocketAddress = "localhost:6000"
         
-        devs = LabJackPython.listAll(ljsocketAddress, 200)
+        try:
+            devs = LabJackPython.listAll(ljsocketAddress, 200)
+        except:
+            return {}
         
         #print "devsObj" = 
         
@@ -57,6 +73,7 @@ class SkyMoteManager(object):
             d.mainFirmwareVersion()
             d.productName = "SkyMote Bridge"
             d.meetsFirmwareRequirements = True
+            d.spontaneousDataCache = dict()
             
             self.bridges["%s" % dev['serial']] = d
             
@@ -101,7 +118,27 @@ class SkyMoteManager(object):
         
         b = self.getBridge(serial)
         
-        results['Number of Connected Motes'] = b.numMotes()
+        numMotes = b.numMotes()
+        
+        if numMotes != len(b.motes):
+            b.motes = b.listMotes()
+            
+            for mote in b.motes:
+                t = PlaceMoteInRapidModeThread(mote)
+                t.start()
+        
+        results['Number of Connected Motes'] = len(b.motes)
+        
+        motes = list()
+        
+        for m in b.motes:
+            moteDict = moteAsDict(m)
+            moteDict['Readings'] = b.spontaneousDataCache.get(str(m.unitId), {})
+            
+            motes.append(moteDict)
+        
+        results['Connected Motes'] = motes
+        
         # Not implemented: results['Temperature'] = 
                 
         return results
@@ -110,7 +147,7 @@ class SkyMoteManager(object):
 class PlaceMoteInRapidModeThread(threading.Thread):
     def __init__(self, mote):
         threading.Thread.__init__(self)
-        
+        self.daemon = True
         self.mote = mote
 
     def run(self):
@@ -122,11 +159,13 @@ class PlaceMoteInRapidModeThread(threading.Thread):
             self.mote.productName = "SkyMote TLB"
         else:
             self.mote.productName = "SkyMote Unknown Type"
+        self.mote.readSerialNumber()
+        self.mote.checkinInterval = self.mote.readCheckinInterval()
 
 class SpontaneousDataLoggingThread(threading.Thread):
     def __init__(self, bridge):
         threading.Thread.__init__(self)
-        
+        self.daemon = True
         self.bridge = bridge
         self.name = sanitize(self.bridge.name)
         self.filename = "%%Y-%%m-%%d %%H__%%M__%%S %s %s.csv" % (self.name, "spontaneous")
@@ -157,9 +196,12 @@ class SpontaneousDataLoggingThread(threading.Thread):
         
         while self.running:
             data = self.bridge.spontaneous().next()
+            now = datetime.now()
+            data['timestamp'] = str(now)
+            self.bridge.spontaneousDataCache[str(data['unitId'])] = data
             print "Logging spontaneous data."
             
-            results = [ datetime.now(), data['unitId'], data['Temp'], data['Light'], data['Motion'], data['RxLQI'], data['TxLQI'], data['Battery']]
+            results = [ now, data['unitId'], data['Temp'], data['Light'], data['Motion'], data['RxLQI'], data['TxLQI'], data['Battery']]
             self.csvWriter.writerow(results)
         
         print "Spontaneous Data Logger for %s stopped." % (self.name)

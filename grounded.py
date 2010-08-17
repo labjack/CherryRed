@@ -1070,8 +1070,12 @@ class SkyMotePage(object):
         return self.smm.scan()
         
     @exposeJsonFunction 
-    def scanBridges(self):
-        return self.smm.scanBridges()
+    def scanBridge(self, serial = None):
+        if serial is not None:
+            return self.smm.scanBridge(str(serial))
+        else:
+            print "No serial specified."
+            return {}
 
 class RootPage:
     """ The RootPage class handles showing index.html. If we can't connect to
@@ -1193,41 +1197,52 @@ def quickstartWithBrowserOpen(root=None, script_name="", config=None, portOverri
 
 # Main:
 if __name__ == '__main__':
-    dm = DeviceManager()
-    smm = SkyMoteManager()
-    
-    # Register the shutdownThreads method, so we can kill our threads when
-    # CherryPy is shutting down.
-    cherrypy.engine.subscribe('stop', dm.shutdownThreads)
-    cherrypy.engine.subscribe('stop', smm.shutdownThreads)
-    
-    # Ensure there is a logfiles directory
-    if not os.path.isdir("./logfiles"):
-        os.mkdir("./logfiles")
-    
-    # Ensure there is a configfiles directory
-    if not os.path.isdir("./configfiles"):
-        os.mkdir("./configfiles")
-    
-    if not IS_FROZEN:
-        # not frozen: in regular python interpreter
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        configfile = os.path.join(current_dir, "cherryred.conf")
-    else:
-        # py2exe:
-        current_dir = os.path.dirname(os.path.abspath(sys.executable))
-        configfile = ZIP_FILE.open("cherryred.conf")
-    
-    portOverride = None
-    if os.path.exists(CLOUDDOT_GROUNDED_CONF):
-        # Check local config file for a different port to bind to.
-        parser = ConfigParser.SafeConfigParser()
-        parser.read(CLOUDDOT_GROUNDED_CONF)
+    dm = None
+    smm = None
+    try:
+        dm = DeviceManager()
+        smm = SkyMoteManager()
         
-        if parser.has_section("General"):
-            if parser.has_option("General", "port"):
-                portOverride = parser.getint("General", "port")
-
-    root = RootPage(dm, smm)
-    root._cp_config = {'tools.staticdir.root': current_dir, 'tools.renderFromZipFile.on': IS_FROZEN}
-    quickstartWithBrowserOpen(root, config=configfile, portOverride = portOverride)
+        # Register the shutdownThreads method, so we can kill our threads when
+        # CherryPy is shutting down.
+        cherrypy.engine.subscribe('stop', dm.shutdownThreads)
+        cherrypy.engine.subscribe('stop', smm.shutdownThreads)
+        
+        # Ensure there is a logfiles directory
+        if not os.path.isdir("./logfiles"):
+            os.mkdir("./logfiles")
+        
+        # Ensure there is a configfiles directory
+        if not os.path.isdir("./configfiles"):
+            os.mkdir("./configfiles")
+        
+        if not IS_FROZEN:
+            # not frozen: in regular python interpreter
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            configfile = os.path.join(current_dir, "cherryred.conf")
+        else:
+            # py2exe:
+            current_dir = os.path.dirname(os.path.abspath(sys.executable))
+            configfile = ZIP_FILE.open("cherryred.conf")
+        
+        portOverride = None
+        if os.path.exists(CLOUDDOT_GROUNDED_CONF):
+            # Check local config file for a different port to bind to.
+            parser = ConfigParser.SafeConfigParser()
+            parser.read(CLOUDDOT_GROUNDED_CONF)
+            
+            if parser.has_section("General"):
+                if parser.has_option("General", "port"):
+                    portOverride = parser.getint("General", "port")
+    
+        root = RootPage(dm, smm)
+        root._cp_config = {'tools.staticdir.root': current_dir, 'tools.renderFromZipFile.on': IS_FROZEN}
+        quickstartWithBrowserOpen(root, config=configfile, portOverride = portOverride)
+    except:
+        if dm is not None:
+            dm.shutdownThreads()
+            
+        if smm is not None:
+            smm.shutdownThreads()
+            
+        raw_input("An error occured that prevented this program from starting correctly. Please send a copy of the output above when asking for help.\nPress any key to exit... ")
