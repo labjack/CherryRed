@@ -61,7 +61,7 @@ function urlHashChange(e) {
         handleSelectDevice(serialNumber);
     } else if (bridgeSerialNumber) {
         highlightCurrentSerialNumber(bridgeSerialNumber);
-        handleSelectBridge(bridgeSerialNumber);
+        smHandleSelectBridge(bridgeSerialNumber);
     } else {
         $("#tabs").hide();
         $("#sm-tabs").hide();
@@ -1038,8 +1038,18 @@ function handleSelectDevice(serialNumber) {
     }
 }
 
-function handleSelectBridge(bridgeSerialNumber) {
-    console.log("handleSelectBridge bridgeSerialNumber = " + bridgeSerialNumber);
+function smHandleMoreInfo(data) {
+    console.log("handleMoreSmInfo");
+    currentSerialNumber = data.serial;
+    highlightCurrentSerialNumber(currentSerialNumber);
+
+    smCallScan();
+
+}
+
+function smHandleSelectBridge(bridgeSerialNumber) {
+    console.log("smHandleSelectBridge bridgeSerialNumber = " + bridgeSerialNumber);
+    $.get("/skymote/" + bridgeSerialNumber, {}, smHandleMoreInfo, "json");
     $("#device-summary-list").hide();
     $("#tabs").hide();
     $("#sm-tabs").show();
@@ -1056,7 +1066,7 @@ function handleDeviceList(data) {
     }
 }
 
-function handleBridgeList(data) {
+function smHandleBridgeList(data) {
     $("#device-name-list").append(data.html);
     $("#device-summary-list").append(data.htmlSummaryList);
     
@@ -1070,7 +1080,7 @@ function handleBridgeList(data) {
 
 function getDeviceList() {
     $.get("/devices/", {}, handleDeviceList, "json");
-    $.get("/skymote/bridges", {}, handleBridgeList, "json");
+    $.get("/skymote/bridges", {}, smHandleBridgeList, "json");
 }
   
 /* Stuff For CloudDot Page */
