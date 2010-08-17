@@ -110,9 +110,7 @@ def createTimerModeToHelpUrlList(devType):
 def deviceAsDict(dev):
     """ Returns a dictionary representation of a device.
     """
-    name = dev.getName()
-    
-    returnDict = {'devType' : dev.devType, 'name' : name, 'serial' : dev.serialNumber, 'productName' : dev.deviceName, 'firmware' : None, 'localId' : dev.localId, 'meetsFirmwareRequirements' : dev.meetsFirmwareRequirements}
+    returnDict = {'devType' : dev.devType, 'serial' : dev.serialNumber, 'productName' : dev.deviceName, 'firmware' : None, 'localId' : dev.localId, 'meetsFirmwareRequirements' : dev.meetsFirmwareRequirements}
     
     if dev.devType == 9:
         returnDict['DHCPEnabled'] = dev.DHCPEnabled
@@ -123,14 +121,18 @@ def deviceAsDict(dev):
         returnDict['portB'] = dev.portB
         returnDict['macAddress'] = dev.macAddress
         
+        name = dev.getName()
         firmware = [dev.commFWVersion, dev.controlFWVersion]
     elif dev.devType == 0x501:
         firmware = [dev.ethernetFWVersion, dev.usbFWVersion, dev.mainFWVersion]
         returnDict['unitId'] = dev.unitId
         returnDict['numMotes'] = len(dev.motes)
+        name = dev.nameCache
     else:
+        name = dev.getName()
         firmware = dev.firmwareVersion
         
+    returnDict['name'] = name
     returnDict['firmware'] = firmware
     
     return returnDict
