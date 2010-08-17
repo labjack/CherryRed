@@ -884,6 +884,17 @@ function callScan() {
     });
 }
 
+function smCallScan() {
+    $(".scanning-indicator").addClass("ui-icon ui-icon-bullet");
+    $.ajax({
+        url: "/skymote/scanBridge",
+        data: {serial : currentSerialNumber},
+        success: smHandleScan,
+        dataType: "json"
+    });
+}
+
+
 function handleScan(data) {
     if (data.length == 0) {
         $("#test-panel-tab, #scan-bar").html("Lost connection. Check the LabJack and <a href='/'>reload</a>.");
@@ -973,8 +984,7 @@ function handleScan(data) {
                 thisState = thisState + "<a href='#' class='reset-counter-link' inputConnection='"+connectionNumber+"' title='Reset this counter to 0'>Reset</a>";
             }
 
-            
-            
+
 
             //$("#test-panel-table").jqGrid('setRowData', count, obj);
             $(selectorCount + " .test-panel-connection-link").text(connectionText);
@@ -1013,6 +1023,11 @@ function handleScan(data) {
     restartScanning();
 }
 
+function smHandleScan(data) {
+    console.log("smHandleScan");
+    console.log(data);
+}
+
 function handleMoreInfo(data) {
     $("#more-info-pane").html(data.html);
     
@@ -1040,6 +1055,11 @@ function handleSelectDevice(serialNumber) {
 
 function smHandleMoreInfo(data) {
     console.log("handleMoreSmInfo");
+
+    $("#sm-overview-tab").html(data.html);
+
+    $("#scan-bar").html(data.htmlScanning);
+
     currentSerialNumber = data.serial;
     highlightCurrentSerialNumber(currentSerialNumber);
 
