@@ -38,12 +38,13 @@
     <li class="device-summary pop ui-helper-reset ui-corner-all $device.productName">
       <div>ERROR: This device does not meet firmware requirements.</div>
       #if $device.devType == 9
-      <div>A $device.productName must have Control firmware $UE9_MIN_FIRMWARE[0] or greater, and Communications firmware $UE9_MIN_FIRMWARE[1] or greater</div>
+      <div>A $device.productName must have Control firmware $UE9_MIN_FIRMWARE[0] or greater, and Communications firmware $UE9_MIN_FIRMWARE[1] or greater.</div>
       #elif $device.devType == 6
       <div>A $device.productName must have firmware version $U6_MIN_FIRMWARE or greater.</div>
       #elif $device.devType == 3
       <div>A $device.productName must have firmware version $U3_MIN_FIRMWARE or greater.</div>
       #end if
+      <div> Please go to <a href="http://labjack.com/support/firmware">http://labjack.com/support/firmware</a> for information on upgrading your firmware.</div>
       <img src="/img/${device.productName}.jpg" alt="$device.productName" />
       <h3 class="current-name">$device.name</h3>
       <p class="product-name">$device.productName</p>
