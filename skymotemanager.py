@@ -19,6 +19,31 @@ def moteAsDict(mote):
 
     return returnDict
 
+def createFeedbackDict(channelName, value):
+    connection = channelName
+    state = FLOAT_FORMAT % value
+    dictValue = FLOAT_FORMAT % value
+    chType = ANALOG_TYPE
+
+    if channelName == "Temperature":
+        dictValue = kelvinToFahrenheit(float(value) + 273.15)
+        state = (FLOAT_FORMAT % dictValue) + " &deg;F"
+    elif channelName == "Vbatt":
+        state = (FLOAT_FORMAT % value) + " V"
+        chType += " vbatt"
+    elif channelName == "Bump":
+        chType = DIGITAL_IN_TYPE
+        if value:
+            state = "Bumped"
+        else:
+            state = "Still"
+    elif channelName.endswith("Link Quality"):
+        state = str(int(value))
+        dictValue = str(int(value))
+        chType += " lqi"
+
+    return {'connection' : connection, 'state' : state, 'value' : dictValue, 'chType' : chType}
+
 class SkyMoteManager(object):
     def __init__(self):
         # The address and port to try to connect to LJSocket
@@ -130,13 +155,24 @@ class SkyMoteManager(object):
         
         results['Number of Connected Motes'] = len(b.motes)
         
-        motes = list()
+        motes = dict()
         
         for m in b.motes:
             moteDict = moteAsDict(m)
-            moteDict['Readings'] = b.spontaneousDataCache.get(str(m.unitId), {})
+            moteDict['nickname'] = moteDict['name']
+            data = b.spontaneousDataCache.get(str(m.unitId), {})
+            if data:
+                tableData = list()
+                tableData.append(createFeedbackDict('Temperature',data['Temp']))
+                tableData.append(createFeedbackDict('Light',data['Light']))
+                tableData.append(createFeedbackDict('Bump',data['Bump']))
+                tableData.append(createFeedbackDict('Tx Link Quality',data['TxLQI']))
+                tableData.append(createFeedbackDict('Rx Link Quality',data['RxLQI']))
+                tableData.append(createFeedbackDict('Vbatt',data['Battery']))
+
+                moteDict['tableData'] = tableData
             
-            motes.append(moteDict)
+            motes[str(m.unitId)] = moteDict
         
         results['Connected Motes'] = motes
         
@@ -152,6 +188,7 @@ class PlaceMoteInRapidModeThread(threading.Thread):
         self.mote = mote
 
     def run(self):
+        self.mote.nickname = "Placeholder SkyMote Name"
         self.mote.startRapidMode()
         self.mote.nickname = self.mote.name
         self.mote.mainFirmwareVersion()
@@ -202,7 +239,7 @@ class SpontaneousDataLoggingThread(threading.Thread):
             self.bridge.spontaneousDataCache[str(data['unitId'])] = data
             print "Logging spontaneous data."
             
-            results = [ now, data['unitId'], data['Temp'], data['Light'], data['Motion'], data['RxLQI'], data['TxLQI'], data['Battery']]
+            results = [ now, data['unitId'], data['Temp'], data['Light'], data['Bump'], data['RxLQI'], data['TxLQI'], data['Battery']]
             self.csvWriter.writerow(results)
         
         print "Spontaneous Data Logger for %s stopped." % (self.name)

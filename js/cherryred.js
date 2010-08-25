@@ -4,6 +4,7 @@ var logFileRefreshId = null;
 var currentSerialNumber = null;
 
 var showingTestPanel = false;
+var smShowingOverviewTab = false;
 
 var sparklineDataMap = {};
 var sparklineMaxPoints = 22;
@@ -11,6 +12,16 @@ var sparklineAnalogInOptions = {height: "15px", minSpotColor: false, maxSpotColo
 var sparklineDigitalInOptions = {type:'bar', height: "16px", barColor: "#004276" };
 var sparklineDigitalOutOptions = {type:'bar', height: "16px", barColor: "#A20000" };
 
+var sparklineLQIOptions = $.extend({}, sparklineAnalogInOptions);
+sparklineLQIOptions.normalRangeMin = 50;
+sparklineLQIOptions.normalRangeMax = 255;
+sparklineLQIOptions.normalRangeColor = "#DEDEDE";
+sparklineLQIOptions.fillColor = false;
+
+var sparklineVbattOptions = $.extend({}, sparklineAnalogInOptions);
+sparklineVbattOptions.normalRangeMin = 3;
+sparklineVbattOptions.normalRangeMax = 4.75;
+sparklineVbattOptions.fillColor = false;
 
 $(document).ready(function() {
     $("#tabs").tabs();
@@ -49,6 +60,7 @@ function urlHashChange(e) {
     stopScanning();
     sparklineDataMap = {};
     showingTestPanel = false;
+    smShowingOverviewTab = false;
     $("#test-panel-table").empty();
     var serialNumber = e.getState( "d" );
 
@@ -91,6 +103,14 @@ function restartScanning() {
     }
     refreshId = setTimeout(callScan, 1000);
 }
+
+function smRestartScanning() {
+    if (refreshId != null) {
+        clearTimeout(refreshId);
+    }
+    refreshId = setTimeout(smCallScan, 1000);
+}
+
 
 function showTopMessage(message) {
     $("#latest-message-bar").html(message).show().delay(10000).hide("fast");
@@ -1024,8 +1044,159 @@ function handleScan(data) {
 }
 
 function smHandleScan(data) {
-    console.log("smHandleScan");
-    console.log(data);
+    //console.log("smHandleScan");
+    //console.log(data);
+
+    if (data.length == 0) {
+        $("#sm-overview-tab, #scan-bar").html("Lost connection. Check the LabJack and <a href='/'>reload</a>.");
+        smShowingOverviewTab == false;
+        return;
+    }
+
+    $(".scanning-indicator").removeClass("ui-icon ui-icon-bullet");
+
+    if (smShowingOverviewTab == false) {
+
+        $("#sm-overview-tab .data-table").jqGrid({
+          datatype: "local",
+          height: "100%",
+          colModel:[
+               {name:'label',index:'label', width:250,  sortable:false},
+               {name:'state',index:'state', width:250, sortable:false},
+          ],
+          multiselect: false,
+          caption: "SkyMote Overview",
+          beforeSelectRow : function() { return false; }
+        });
+        $('#sm-overview-tab .ui-jqgrid-hdiv').hide();
+
+        var obj = { label : "Connected Motes" };
+        obj.state = "<span class='test-panel-state'>" + data["Number of Connected Motes"] + "</span>";
+        var count = 0;
+
+        $("#overview-" + currentSerialNumber + " .data-table").jqGrid('addRowData', count, obj);
+
+        for (var unitId in data["Connected Motes"]) {
+            count = 0;
+            //console.log(unitId);
+            var moteData = data["Connected Motes"][unitId]["tableData"];
+            for (var k in moteData) {
+                //console.log(k);
+                //console.log(moteData[k]);
+
+                // Mike C. Need to account for more motes
+                //var mapKey = unitId + "-" + k;
+                var mapKey = k;
+                sparklineDataMap[mapKey] = [];
+                sparklineDataMap[mapKey].push(moteData[k].value);
+
+                if (sparklineDataMap[mapKey].length > sparklineMaxPoints) {
+                    sparklineDataMap[mapKey].splice(0,1);
+                }
+
+
+                obj = { label : moteData[k].connection, state : "<span class='test-panel-sparkline " + moteData[k].chType + "'></span>" + "<span class='test-panel-state'>" + moteData[k].state  + "</span>"};
+                $("#overview-" + unitId + " .data-table").jqGrid('addRowData', count, obj);
+                count++;
+            }
+        }
+
+
+        smShowingOverviewTab = true;
+    }
+    else {
+
+        $("#overview-" + currentSerialNumber + " .data-table tr#0 .test-panel-state").text(data["Number of Connected Motes"]);
+        for (var unitId in data["Connected Motes"]) {
+            var count = 0;
+            // Do we have a place for this mote?
+            $("#overview-" + unitId + " .name").text(data["Connected Motes"][unitId]["name"]);
+            var moteData = data["Connected Motes"][unitId]["tableData"];
+            if ($("#overview-" + unitId).length == 0) {
+                $("#sm-overview-tab").append(data["Connected Motes"][unitId]["html"]);
+                $("#overview-" + unitId + " .data-table").jqGrid({
+                  datatype: "local",
+                  height: "100%",
+                  colModel:[
+                       {name:'label',index:'label', width:250,  sortable:false},
+                       {name:'state',index:'state', width:250, sortable:false},
+                  ],
+                  multiselect: false,
+                  caption: "SkyMote Overview",
+                  beforeSelectRow : function() { return false; }
+                });
+                $('#sm-overview-tab .ui-jqgrid-hdiv').hide();
+                for (var k in moteData) {
+                    obj = { label : moteData[k].connection, state : "<span class='test-panel-state'>" + moteData[k].state  + "</span>"};
+                    $("#overview-" + unitId + " .data-table").jqGrid('addRowData', count, obj);
+                    count++;
+                }
+
+
+
+            }
+            else {
+                for (var k in moteData) {
+
+                    // Mike C. Need to account for more motes
+                    //var mapKey = unitId + "-" + k;
+                    var mapKey = k;
+                    sparklineDataMap[mapKey].push(moteData[k].value);
+
+                    if (sparklineDataMap[mapKey].length > sparklineMaxPoints) {
+                        sparklineDataMap[mapKey].splice(0,1);
+                    }
+
+
+                    var selectorCount = "tr#" + count;
+                    $("#overview-" + unitId + " " + selectorCount + " .test-panel-state").html(moteData[k].state);
+                    count++;
+                }
+            }
+        }
+
+
+    }
+
+
+        $('.test-panel-sparkline').each(function(i) {
+        //var connectionText = data[i].connection;
+        //console.log(data);
+
+        //var chartMinMax = sparklineMinMax(data[i].chType, data[i].devType);
+        var sparklineOptions;
+        if ($(this).hasClass("analogIn")) {
+            sparklineOptions = sparklineAnalogInOptions;
+            sparklineOptions.width = sparklineDataMap[i].length*5;
+        } else if ($(this).hasClass("digitalIn")) {
+            sparklineOptions = sparklineDigitalInOptions;
+            sparklineOptions.width = sparklineDataMap[i].length;
+        } else if ($(this).hasClass("digitalOut")) {
+            sparklineOptions = sparklineDigitalOutOptions;
+            sparklineOptions.width = sparklineDataMap[i].length;
+        } else {
+            sparklineOptions = sparklineAnalogInOptions;
+            sparklineOptions.width = sparklineDataMap[i].length*5;
+        }
+
+        // LQI sparklines get a normal range
+        if ($(this).hasClass("lqi")) {
+            sparklineOptions = sparklineLQIOptions;
+            sparklineOptions.width = sparklineDataMap[i].length*5;
+        }
+        // So does Vbatt
+        else if ($(this).hasClass("vbatt")) {
+            sparklineOptions = sparklineVbattOptions;
+            sparklineOptions.width = sparklineDataMap[i].length*5;
+        }
+
+        //sparklineOptions.chartRangeMin = chartMinMax.min;
+        //sparklineOptions.chartRangeMax = chartMinMax.max;
+        $(this).sparkline(sparklineDataMap[i],  sparklineOptions);
+    });
+
+
+    smRestartScanning();
 }
 
 function handleMoreInfo(data) {
@@ -1054,7 +1225,6 @@ function handleSelectDevice(serialNumber) {
 }
 
 function smHandleMoreInfo(data) {
-    console.log("handleMoreSmInfo");
 
     $("#sm-overview-tab").html(data.html);
 
@@ -1068,7 +1238,6 @@ function smHandleMoreInfo(data) {
 }
 
 function smHandleSelectBridge(bridgeSerialNumber) {
-    console.log("smHandleSelectBridge bridgeSerialNumber = " + bridgeSerialNumber);
     $.get("/skymote/" + bridgeSerialNumber, {}, smHandleMoreInfo, "json");
     $("#device-summary-list").hide();
     $("#tabs").hide();

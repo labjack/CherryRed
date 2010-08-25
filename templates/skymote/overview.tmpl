@@ -1,10 +1,10 @@
-<div id="overview-$bridgeName">
-  <h3 class="name">Bridge Name</h3>
+<div id="overview-$device.serialNumber">
+  <h3 class="name">$device.nameCache</h3>
   <table class="data-table"></table>
 </div>
-#for all the motes m
-<div id="overview-$moteName">
-  <h3 class="name">Mote Name</h3>
+#for $m in $device.motes
+<div id="overview-$m.unitId">
+  <h3 class="name">$m.nickname</h3>
   <table class="data-table"></table>
 </div>
 #end for

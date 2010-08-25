@@ -73,7 +73,7 @@ a.rename-link:hover,
 }
 #device-summary-list p { font-size: 110%; margin-bottom: 0; padding-bottom: 5px;}
 #more-info-pane p { font-size: 110%; margin-bottom: 5px; }
-#device-summary-list h3, #more-info-pane h3 { margin-bottom: 5px; }
+#device-summary-list h3, #more-info-pane, #sm-overview-tab h3 { margin-bottom: 5px; }
 #device-summary-list .serial, #more-info-pane .serial, 
 #device-summary-list .product-name, #more-info-pane .product-name,
 #device-summary-list .firmware-version, #more-info-pane .firmware-version, 
@@ -269,9 +269,23 @@ position:absolute;
 text-align:right;
 width:20%;
 }
+
+#sm-overview-tab .ui-jqgrid {
+    margin-bottom: 20px;
+}
+
+#sm-overview-tab .ui-jqgrid tr.ui-row-ltr td .test-panel-sparkline {
+    width:25%;
+}
+
 .ui-jqgrid tr.ui-row-ltr td .test-panel-state {
     margin-left:43%;
 }
+
+#sm-overview-tab .ui-jqgrid tr.ui-row-ltr td .test-panel-state {
+    margin-left:56%;
+}
+
 
 .ui-jqgrid tr.ui-row-ltr td .test-panel-sparkline canvas { 
 margin-top:3px;

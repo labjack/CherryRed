@@ -1067,6 +1067,25 @@ class SkyMotePage(object):
 
         return t.respond()
     
+    @exposeJsonFunction
+    def default(self, serial):
+        """ Handles URLs like: /skymote/<serial number>/
+        """
+        b = self.smm.getBridge(serial)
+        returnDict = dict(serial = serial)
+
+        t = serve_file2("templates/skymote/overview.tmpl")
+        t.device = b
+
+        tScanning = serve_file2("templates/skymote/scanning.tmpl")
+        tScanning.device = b
+
+        returnDict['html'] = t.respond()
+
+        returnDict['htmlScanning'] = tScanning.respond()
+
+        return returnDict
+
     @exposeJsonFunction 
     def scan(self):
         return self.smm.scan()
@@ -1074,7 +1093,17 @@ class SkyMotePage(object):
     @exposeJsonFunction 
     def scanBridge(self, serial = None):
         if serial is not None:
-            return self.smm.scanBridge(str(serial))
+            results = self.smm.scanBridge(str(serial))
+
+            for unitId, m in results['Connected Motes'].items():
+                t = serve_file2("templates/skymote/overview-one-mote.tmpl")
+                t.m = m
+
+                m['html'] = t.respond()
+
+            return results
+
+
         else:
             print "No serial specified."
             return {}
