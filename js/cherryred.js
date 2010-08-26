@@ -101,14 +101,14 @@ function restartScanning() {
     if (refreshId != null) {
         clearTimeout(refreshId);
     }
-    refreshId = setTimeout(callScan, 1000);
+    refreshId = setTimeout(callScan, 500);
 }
 
 function smRestartScanning() {
     if (refreshId != null) {
         clearTimeout(refreshId);
     }
-    refreshId = setTimeout(smCallScan, 1000);
+    refreshId = setTimeout(smCallScan, 500);
 }
 
 
