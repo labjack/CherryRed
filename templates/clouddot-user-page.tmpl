@@ -8,9 +8,10 @@
         If you don't have a CloudDot account, <a href="http://cloud.labjack.com/signup" target="_blank">sign up here</a>.
     </p>
     <form id="user-form" action="/clouddot/update" method="get">
-      <div>Username: <input type="text" id="username-field" name="username" onblur="checkUsernameValidity();"/></div>
-      <div>API Key: <input type="text" id="apikey-field" name="apikey" onblur="checkApikeyValidity();"/></div>
+      <div>Username: <input type="text" id="username-field" name="username" /></div>
+      <div>API Key: <input type="text" id="apikey-field" name="apikey" /></div>
       
-      <input type="submit" value="Save CloudDot Account Information">
+      <input type="submit" value="Save CloudDot Account Information" id="user-form-submit">
+      <div id="clouddot-username-apikey-help" style="display:none">Double-check your username API key on your <a class="clouddot-account-page" href="http://cloud.labjack.com/admin" target="_blank">CloudDot Account page</a>.</div>
     </form>
   </div>

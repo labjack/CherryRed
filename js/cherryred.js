@@ -23,6 +23,10 @@ sparklineVbattOptions.normalRangeMin = 3;
 sparklineVbattOptions.normalRangeMax = 4.75;
 sparklineVbattOptions.fillColor = false;
 
+var CloudDotLastUsername = "";
+var CloudDotLastApikey = "";
+
+
 $(document).ready(function() {
     $("#tabs").tabs();
     $("#sm-tabs").tabs();
@@ -191,13 +195,15 @@ function updateTabContent(tabIndex) {
     
         $.get("/clouddot/info/"+currentSerialNumber, function(returnJson) {
             $("#clouddot-tab").html(returnJson.html);
+            // Disable the CloudDot username submit button
+            $("#user-form-submit").attr("disabled", "disabled");
+
             if (returnJson.connected) {
                 showCloudDotConnected(false);
             } else {
                 showCloudDotDisconnected(false);
             }
             $("a.button").button();
-            $.get("/clouddot/fetch", {}, handleCloudDotFetch, "json");
         }, "json");
     }
     else if(tabIndex == 1) {
@@ -327,12 +333,14 @@ function updateTimerValueInput(timerInputElement, selectedIndex) {
     var inputsThatRequireValue = [1, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0];
     var defaultValues = [32768, 32768, "", "", "", "", 1, 1, "", 5, "", "", "", ""];
 
-    $(timerInputElement).val(defaultValues[selectedIndex]);
+    if (!$(timerInputElement).val()) {
+        $(timerInputElement).val(defaultValues[selectedIndex]);
+    }
 
     if (inputsThatRequireValue[selectedIndex]) {
         $(timerInputElement).removeAttr("disabled").closest("label").show();
     } else {
-        $(timerInputElement).attr("disabled", "disabled").closest("label").hide("fast");
+        $(timerInputElement).attr("disabled", "disabled").removeAttr("value").closest("label").hide("fast");
     }
 }
 
@@ -1274,6 +1282,21 @@ function getDeviceList() {
   
 /* Stuff For CloudDot Page */
 function setupCloudDotLinks() {
+
+    $("#username-field").live("blur", checkUsernameValidity);
+    $("#apikey-field").live("blur", checkApikeyValidity);
+
+    $("#user-form-submit").live("load", function() {
+        console.log("#user-form-submit loaded");
+        $(this).attr("disabled", "disabled");
+    });
+    $("#user-form").live("submit", function() {
+        var username = $("#username-field").val();
+        var apikey = $("#apikey-field").val();
+        console.log("user-form submitted");
+        saveCloudDotAccount(username, apikey);
+        return false;    
+    });
     $(".connect-to-clouddot-link").live("click", function() {
         var serialNumber = $(this).attr("device-serial");
         connectToClouddot(serialNumber);
@@ -1294,6 +1317,21 @@ function setupCloudDotLinks() {
         pingFromCloudDot(serialNumber);   
         return false;
     });
+}
+
+function saveCloudDotAccount(username, apikey) {
+    $.ajax({  
+      type: "POST",  
+      url: "/clouddot/update",  
+      data: {username : username, apikey : apikey, serial : currentSerialNumber},
+      success: function(data) {  
+        console.log("saveCloudDotAccount success");
+        $(".users-page-content").html(data.html);
+        showCloudDotDisconnected(false);
+        $("a.button").button();
+      },
+      dataType: "json" 
+    });  
 }
 
 function showCloudDotConnected(showTop) {
@@ -1322,21 +1360,6 @@ function pingFromCloudDot(serialNumber) {
     $.get("/clouddot/ping/"+serialNumber, {}, handleCloudDotPing, "json");
 }
 
-var LastUsername = "";
-var LastApikey = "";
-
-function handleCloudDotFetch(data, textStatus, XMLHttpRequest) {
-    if( data.username != null ) {
-      $("#username-field").attr( "value", data.username);
-      checkUsernameValidity();
-    }
-    
-    if( data.apikey != null ) {
-      $("#apikey-field").attr("value", data.apikey);
-      checkApikeyValidity();
-    }
-}
-
 function handleCloudDotAjaxError(XMLHttpRequest, textStatus, errorThrown) {
     $('#username-field').removeClass("fieldWithNoErrors");
     $('#username-field').addClass("fieldWithErrors");
@@ -1363,54 +1386,66 @@ function disconnectFromClouddot(serial) {
     return false;
 }
 
-function handleUsernameCheck(data, textStatus) {
-    if(data['username'] == 0) {
+function handleUsernameApikeyCheck(data, textStatus) {
+    if(data['username-valid'] == 1) {
       $('#username-field').removeClass("fieldWithErrors");
       $('#username-field').addClass("fieldWithNoErrors");
     }
     else {
       $('#username-field').removeClass("fieldWithNoErrors");
       $('#username-field').addClass("fieldWithErrors");
+      cloudDotUsernameApiKeyError();
     }
-}
 
-function handleApikeyCheck(data, textStatus) {
-    if(data['username'] == 0) {
-      $('#username-field').removeClass("fieldWithErrors");
-      $('#username-field').addClass("fieldWithNoErrors");
-    }
-    else {
-      $('#username-field').removeClass("fieldWithNoErrors");
-      $('#username-field').addClass("fieldWithErrors");
-    }
-    
-    if(data['apikey'] == 0) {
+    if (data['apikey-valid'] != undefined && data['apikey-valid'] == 1) {
       $('#apikey-field').removeClass("fieldWithErrors");
       $('#apikey-field').addClass("fieldWithNoErrors");
     }
-    else {
+    else if (data['apikey-valid'] != undefined && data['apikey-valid'] == 0) {
       $('#apikey-field').removeClass("fieldWithNoErrors");
       $('#apikey-field').addClass("fieldWithErrors");
+      cloudDotUsernameApiKeyError();
     }
+
+    if (data['username-valid'] == 1 && data['apikey-valid'] == 1) {
+        cloudDotUsernameApiKeySuccess();
+    }    
+}
+
+function cloudDotUsernameApiKeySuccess() {
+    // Enable the CloudDot username submit button
+    $("#user-form-submit").removeAttr("disabled");
+    $("#clouddot-username-apikey-help").hide();
+}
+
+function cloudDotUsernameApiKeyError() {
+    // Disable the CloudDot username submit button
+    $("#user-form-submit").attr("disabled", "disabled");
+    $("#clouddot-username-apikey-help").show();
 }
 
 function checkUsernameValidity() {
     var name = $('#username-field').attr('value');
+    var apikey = $('#apikey-field').attr('value');
+
+    if (apikey != null && apikey.length >0 ) {
+        return checkApikeyValidity();
+    }
     
-    if(name == LastUsername) {
+    if(name == CloudDotLastUsername) {
       return false;
     }
     
     $.ajax({
             url : "/clouddot/check",
             dataType: 'json',
-            success: handleUsernameCheck,
+            success: handleUsernameApikeyCheck,
             error: handleCloudDotAjaxError,
             type: "GET",
             data: { label : "username", username : name, apikey : "crap" }
             });
             
-    LastUsername = name;
+    CloudDotLastUsername = name;
     
     return false;
 }
@@ -1419,7 +1454,7 @@ function checkApikeyValidity() {
     var name = $('#username-field').attr('value');
     var apikey = $('#apikey-field').attr('value');
     
-    if(apikey == LastApikey) {
+    if(name == CloudDotLastUsername && apikey == CloudDotLastApikey) {
       return false;
     }
     
@@ -1428,14 +1463,14 @@ function checkApikeyValidity() {
           $.ajax({
             url : "/clouddot/check",
             dataType: 'json',
-            success: handleApikeyCheck,
+            success: handleUsernameApikeyCheck,
             error: handleCloudDotAjaxError,
             data: { label : "apikey", username: name, apikey : apikey },
             type: "GET"
             });
             
-          LastUsername = name;
-          LastApikey = apikey;
+          CloudDotLastUsername = name;
+          CloudDotLastApikey = apikey;
     }
     
     return false;

@@ -35,7 +35,7 @@
     
     <div class="timer-config-inputs timer-config-inputs-hideable">
       <label class="timer-value-label">Value: 
-        <input type="text" class="timer-value" name="timer${i}Value" value="$currentConfig["timer%sValue" % $i]" #if not $currentConfig["timer%sEnabled" % $i] then 'disabled="disabled"' else ''#></input>
+        <input type="text" class="timer-value" name="timer${i}Value" #if $currentConfig["timer%sEnabled" % $i] then 'value="%s"' % $currentConfig["timer%sValue" % $i] else 'disabled="disabled"'#></input>
       </label>
     </div>
     <div class="timer-config-inputs timer-config-inputs-hideable">
