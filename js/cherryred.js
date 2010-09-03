@@ -1024,7 +1024,7 @@ function handleScan(data) {
         }
     }
 
-    $('.test-panel-sparkline').each(function(i) {
+    $('#test-panel-table .test-panel-sparkline').each(function(i) {
         var connectionText = data[i].connection;
         //console.log(data);
         var chartMinMax = sparklineMinMax(data[i].chType, data[i].devType);
@@ -1167,7 +1167,7 @@ function smHandleScan(data) {
     }
 
 
-        $('.test-panel-sparkline').each(function(i) {
+        $('#sm-overview-tab .test-panel-sparkline').each(function(i) {
         //var connectionText = data[i].connection;
         //console.log(data);
 
