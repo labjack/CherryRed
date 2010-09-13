@@ -36,6 +36,9 @@ import cStringIO as StringIO, ConfigParser
 
 import webbrowser
 
+import sys
+import traceback
+
 # Mimetypes helps select the correct type based on extension.
 import mimetypes
 mimetypes.init()
@@ -1159,10 +1162,13 @@ class RootPage:
         
         
         driverIsGood = False
-        if LabJackPython.os.name == 'nt':
-            driverIsGood = float(LabJackPython.GetDriverVersion()) >= UD_DRIVER_REQUIREMENT
-        else:
-            driverIsGood = float(LabJackPython.GetDriverVersion()) >= EXODRIVER_REQUIREMENT
+        try:
+            if LabJackPython.os.name == 'nt':
+                driverIsGood = float(LabJackPython.GetDriverVersion()) >= UD_DRIVER_REQUIREMENT
+            else:
+                driverIsGood = float(LabJackPython.GetDriverVersion()) >= EXODRIVER_REQUIREMENT
+        except:
+            driverIsGood = True
         
         if self.dm.connected and driverIsGood:
             t = serve_file2("templates/index.tmpl")
@@ -1263,6 +1269,8 @@ if __name__ == '__main__':
     smm = None
     try:
         portOverride = None
+        ljsaddress = LJSOCKET_ADDRESS
+        ljsport = LJSOCKET_PORT
         if os.path.exists(CLOUDDOT_GROUNDED_CONF):
             # Check local config file for a different port to bind to.
             parser = ConfigParser.SafeConfigParser()
@@ -1271,9 +1279,6 @@ if __name__ == '__main__':
             if parser.has_section("General"):
                 if parser.has_option("General", "port"):
                     portOverride = parser.getint("General", "port")
-            
-            ljsaddress = LJSOCKET_ADDRESS
-            ljsport = LJSOCKET_PORT
             
             if parser.has_section("LJSocket"):
                 if parser.has_option("LJSocket", "address"):
@@ -1309,7 +1314,11 @@ if __name__ == '__main__':
         root = RootPage(dm, smm)
         root._cp_config = {'tools.staticdir.root': current_dir, 'tools.renderFromZipFile.on': IS_FROZEN}
         quickstartWithBrowserOpen(root, config=configfile, portOverride = portOverride)
-    except:
+    except Exception, e:
+        cla, exc, trbk = sys.exc_info()
+        print "Error: %s: %s" % (cla, exc)
+        print traceback.print_tb(trbk, 6)
+         
         if dm is not None:
             dm.shutdownThreads()
             
