@@ -556,6 +556,9 @@ class CloudDotPage:
         # Tell people (firefox) not to cash this page. 
         cherrypy.response.headers['Cache-Control'] = "no-cache"
         
+        return self._buildInfoDict(serial)
+        
+    def _buildInfoDict(self, serial):
         returnDict = {}
         
         if self.dm.username is None or self.dm.apikey is None:
@@ -625,6 +628,9 @@ class CloudDotPage:
         """
         print "Check called..."
         print "label = %s, username = %s, apikey = %s" % (label, username, apikey)
+        return self._checkUsernameAndApiKey(label, username, apikey)
+        
+    def _checkUsernameAndApiKey(self, label = None, username = None, apikey = None):
         if label is None:
             return False
         elif label == "username":
@@ -632,33 +638,41 @@ class CloudDotPage:
             h = httplib2.Http()
             resp, content = h.request(devurl, "GET")
             if resp['status'] != '200':
-                return {'username' : 1}
+                return {'username-valid' : 0}
             else:
-                return {'username' : 0}
+                return {'username-valid' : 1}
         elif label == "apikey":
             data = { 'userName' : username, "apiKey" : apikey}
             devurl = "http://cloudapi.labjack.com/%s/info.json?%s" % (username, urlencode(data))
             h = httplib2.Http()
             resp, content = h.request(devurl, "GET")
             if resp['status'] == '401':
-                return {'username' : 0, 'apikey' : 1}
+                return {'username-valid' : 1, 'apikey-valid' : 0}
             elif resp['status'] != '200':
-                return {'username' : 1, 'apikey' : 1}
+                return {'username-valid' : 0, 'apikey-valid' : 0}
             else:
-                return {'username' : 0, 'apikey' : 0}
+                return {'username-valid' : 1, 'apikey-valid' : 1}
     
-    @exposeRawFunction
-    def update(self, username = None, apikey = None):
+    @exposeJsonFunction
+    def update(self, serial = None, username = None, apikey = None):
         """ Updates the saved username and API Key.
         """
         print "Update called: Username = %s, apikey = %s" % (username, apikey)
+        results = self._checkUsernameAndApiKey("apikey", username, apikey)
         
-        self.dm.username = username
-        self.dm.apikey = apikey
+        if results['username-valid'] and results['username-valid']:
+            self.dm.username = username
+            self.dm.apikey = apikey
+            
+            self.saveConfigFile()
+            #raise cherrypy.HTTPRedirect("/")
+        else:
+            print "Username or API Key was invaild."
         
-        self.saveConfigFile()
+        infoDict = self._buildInfoDict(serial)
+        infoDict.update(results)
         
-        raise cherrypy.HTTPRedirect("/")
+        return infoDict
 
 class ConfigPage(object):
     """ A class for handling all things /config/
@@ -1142,15 +1156,32 @@ class RootPage:
         userAgent = cherrypy.request.headers['User-Agent']
         if userAgent.lower().find("msie") != -1:
             return serve_file2("html/choose-better.html")
-            
         
-        if self.dm.connected:
+        
+        driverIsGood = False
+        if LabJackPython.os.name == 'nt':
+            driverIsGood = float(LabJackPython.GetDriverVersion()) >= UD_DRIVER_REQUIREMENT
+        else:
+            driverIsGood = float(LabJackPython.GetDriverVersion()) >= EXODRIVER_REQUIREMENT
+        
+        if self.dm.connected and driverIsGood:
             t = serve_file2("templates/index.tmpl")
             
             tMainContent = serve_file2("templates/devices-main-content.tmpl")
             t.mainContent = tMainContent.respond()
             t.currentPage = "devices"
             t.title = "LabJack CloudDot Grounded"
+            
+            return t.respond()
+        elif not driverIsGood:
+            t = serve_file2("templates/bad-driver-version.tmpl")
+            t.currentVersion = LabJackPython.GetDriverVersion()
+            if LabJackPython.os.name == 'nt':
+                t.isWindows = True
+                t.minVersion = UD_DRIVER_REQUIREMENT
+            else:
+                t.isWindows = False
+                t.minVersion = EXODRIVER_REQUIREMENT
             
             return t.respond()
         else:
@@ -1231,8 +1262,27 @@ if __name__ == '__main__':
     dm = None
     smm = None
     try:
-        dm = DeviceManager()
-        smm = SkyMoteManager()
+        portOverride = None
+        if os.path.exists(CLOUDDOT_GROUNDED_CONF):
+            # Check local config file for a different port to bind to.
+            parser = ConfigParser.SafeConfigParser()
+            parser.read(CLOUDDOT_GROUNDED_CONF)
+            
+            if parser.has_section("General"):
+                if parser.has_option("General", "port"):
+                    portOverride = parser.getint("General", "port")
+            
+            ljsaddress = LJSOCKET_ADDRESS
+            ljsport = LJSOCKET_PORT
+            
+            if parser.has_section("LJSocket"):
+                if parser.has_option("LJSocket", "address"):
+                    ljsaddress = parser.get("LJSocket", "address")
+                if parser.has_option("LJSocket", "port"):
+                    ljsport = parser.getint("LJSocket", "port")
+        print "Using address = %s, port = %s" % (ljsaddress, ljsport)
+        dm = DeviceManager(address = ljsaddress, port = ljsport)
+        smm = SkyMoteManager(address = ljsaddress, port = ljsport)
         
         # Register the shutdownThreads method, so we can kill our threads when
         # CherryPy is shutting down.
@@ -1255,16 +1305,6 @@ if __name__ == '__main__':
             # py2exe:
             current_dir = os.path.dirname(os.path.abspath(sys.executable))
             configfile = ZIP_FILE.open("cherryred.conf")
-        
-        portOverride = None
-        if os.path.exists(CLOUDDOT_GROUNDED_CONF):
-            # Check local config file for a different port to bind to.
-            parser = ConfigParser.SafeConfigParser()
-            parser.read(CLOUDDOT_GROUNDED_CONF)
-            
-            if parser.has_section("General"):
-                if parser.has_option("General", "port"):
-                    portOverride = parser.getint("General", "port")
     
         root = RootPage(dm, smm)
         root._cp_config = {'tools.staticdir.root': current_dir, 'tools.renderFromZipFile.on': IS_FROZEN}

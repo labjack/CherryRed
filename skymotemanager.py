@@ -45,10 +45,10 @@ def createFeedbackDict(channelName, value):
     return {'connection' : connection, 'state' : state, 'value' : dictValue, 'chType' : chType}
 
 class SkyMoteManager(object):
-    def __init__(self):
+    def __init__(self, address = LJSOCKET_ADDRESS, port = LJSOCKET_PORT):
         # The address and port to try to connect to LJSocket
-        self.address = LJSOCKET_ADDRESS
-        self.port = LJSOCKET_PORT
+        self.address = address
+        self.port = port
 
         # Dictionary of all open bridges. Key = Serial, Value = Object.
         self.bridges = dict()
@@ -171,6 +171,7 @@ class SkyMoteManager(object):
                 tableData.append(createFeedbackDict('Vbatt',data['Battery']))
 
                 moteDict['tableData'] = tableData
+                moteDict['transId'] = data['transId']
             
             motes[str(m.unitId)] = moteDict
         
