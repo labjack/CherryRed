@@ -13,15 +13,19 @@ var sparklineDigitalInOptions = {type:'bar', height: "16px", barColor: "#004276"
 var sparklineDigitalOutOptions = {type:'bar', height: "16px", barColor: "#A20000" };
 
 var sparklineLQIOptions = $.extend({}, sparklineAnalogInOptions);
-sparklineLQIOptions.normalRangeMin = 50;
+sparklineLQIOptions.normalRangeMin = 100;
 sparklineLQIOptions.normalRangeMax = 255;
 sparklineLQIOptions.normalRangeColor = "#DEDEDE";
 sparklineLQIOptions.fillColor = false;
+sparklineLQIOptions.chartRangeMin = 0;
+sparklineLQIOptions.chartRangeMax = 255;
 
 var sparklineVbattOptions = $.extend({}, sparklineAnalogInOptions);
 sparklineVbattOptions.normalRangeMin = 3;
 sparklineVbattOptions.normalRangeMax = 4.75;
 sparklineVbattOptions.fillColor = false;
+sparklineVbattOptions.chartRangeMin = 1.5;
+sparklineVbattOptions.chartRangeMax = 5;
 
 var CloudDotLastUsername = "";
 var CloudDotLastApikey = "";
@@ -42,6 +46,7 @@ $(document).ready(function() {
     setupSaveLoadDeleteConfigLinks();
     setupTimerCounterLink();
     setupCloudDotLinks();
+    setupConfigureMoteLinks();
     getDeviceList();
     updateLogBar();
 });
@@ -1274,6 +1279,22 @@ function smHandleBridgeList(data) {
         highlightCurrentSerialNumber(currentSerialNumber);
     }
 }  
+
+function setupConfigureMoteLinks() {
+    $(".configure-mote").live("click", function() {
+        console.log("setupConfigureMoteLinks");
+        var targetUrl = $(this).attr("href");
+        $.get(targetUrl, function(returnJson) {
+            $("#dialog").html(returnJson.html);
+            $("#dialog").dialog('option', 'width', 525);
+            $("#dialog").dialog('option', 'buttons', { 
+                "Cancel": dialogDone
+            });
+            $("#dialog").dialog('open');
+        });
+        return false;
+    });
+}
 
 function getDeviceList() {
     $.get("/devices/", {}, handleDeviceList, "json");

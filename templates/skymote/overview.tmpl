@@ -4,7 +4,7 @@
 </div>
 #for $m in $device.motes
 <div id="overview-$m.unitId">
-  <h3 class="name">$m.nickname</h3>
+  <h3 class=""><a class="configure-mote name" href="/skymote/config/$device.serialNumber?unitId=$m.unitId">$m.nickname</a></h3>
   <table class="data-table"></table>
 </div>
 #end for

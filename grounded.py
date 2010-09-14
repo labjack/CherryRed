@@ -1103,6 +1103,19 @@ class SkyMotePage(object):
 
         return returnDict
 
+    @exposeJsonFunction
+    def config(self, serial, unitId = 0):
+        ''' /skymote/config/<serial number>?unitId=<unit id> '''
+        b = self.smm.getBridge(serial)
+        returnDict = dict(serial = serial)
+
+        t = serve_file2("templates/skymote/config-mote.tmpl")
+        t.device = b
+
+        returnDict['html'] = t.respond()
+
+        return returnDict
+
     @exposeJsonFunction 
     def scan(self):
         return self.smm.scan()
@@ -1111,9 +1124,11 @@ class SkyMotePage(object):
     def scanBridge(self, serial = None):
         if serial is not None:
             results = self.smm.scanBridge(str(serial))
+            b = self.smm.getBridge(serial)
 
             for unitId, m in results['Connected Motes'].items():
                 t = serve_file2("templates/skymote/overview-one-mote.tmpl")
+                t.device = b
                 t.m = m
 
                 m['html'] = t.respond()
