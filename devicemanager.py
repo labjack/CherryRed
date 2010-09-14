@@ -39,10 +39,10 @@ class DeviceManager(object):
     It is also responsible for knowing which devices are logging and connected
     to CloudDot. On shutdown, it must insure those threads get killed.
     """
-    def __init__(self):
+    def __init__(self, address = LJSOCKET_ADDRESS, port = LJSOCKET_PORT):
         # The address and port to try to connect to LJSocket
-        self.address = LJSOCKET_ADDRESS
-        self.port = LJSOCKET_PORT
+        self.address = address
+        self.port = port
         
         # For connecting devices to CloudDot
         self.username = None
@@ -448,9 +448,9 @@ class DeviceManager(object):
                     print "Removing device with serial = %s" % serial
                     self.devices[str(serial)].close()
                     self.devices.pop(str(serial))
-        except Exception, e:
-            print type(e), e
-            raise e
+        #except Exception, e:
+        #    print type(e), e
+        #    raise e
         finally:
             self.scanEvent.set()
                    
@@ -469,8 +469,8 @@ class DeviceManager(object):
         if not dev.meetsFirmwareRequirements:
             return (False, False)
         
-        now = int(time.time())
-        if noCache or (now - dev.scanCache[0]) >= 1:
+        now = time.time()
+        if noCache or (now - dev.scanCache[0]) >= 0.5:
             try:
                 self.scanEvent.clear()
                 if dev.devType == 3:

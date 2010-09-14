@@ -1,0 +1,30 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+    <title>Wrong Driver Version - CloudDot Grounded</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+
+    <link rel="stylesheet" href="/css/reset.css" />
+    <link rel="stylesheet" href="/css/text.css" />
+    <link rel="stylesheet" href="/css/960_24_col.css" />
+
+    <link type="text/css" href="/css/darkblitz/jquery-ui-1.8.1.custom.css" rel="Stylesheet" />
+    <link rel="stylesheet" type="text/css" media="screen" href="/css/ui.jqgrid.css" />
+    <link type="text/css" href="/css/cherryred.css" rel="Stylesheet" />
+
+</head>
+
+<body>
+  <div style="text-align: center; padding: 10px; background: url(&quot;../images/?new=fef1ec&amp;w=1&amp;h=100&amp;f=png&amp;q=100&amp;fltr[]=over|textures/05_inset_soft.png|0|0|95&quot;) repeat-x scroll 50% bottom rgb(254, 241, 236); border: 1px solid rgb(205, 10, 10); width: 960px; margin: 20px auto;">
+    <h2>
+      #if $isWindows
+      You have version $currentVersion of the UD Driver. CloudDotGround requires at least ${minVersion}. You can get the latest version of the UD Driver from <a href="http://labjack.com/support/windows-ud">the UD Driver support page</a>.
+      #else
+      You have version $currentVersion of the Exodriver. CloudDotGround requires at least ${minVersion}. You can get the latest version of the Exodriver from <a href="http://labjack.com/support/linux-and-mac-os-x-drivers">the Exodriver support page</a>.
+      #end if
+    </h2>
+  </div>
+
+</body>
+
+</html>

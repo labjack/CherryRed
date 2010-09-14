@@ -112,7 +112,7 @@ function smRestartScanning() {
     if (refreshId != null) {
         clearTimeout(refreshId);
     }
-    refreshId = setTimeout(smCallScan, 500);
+    refreshId = setTimeout(smCallScan, 1000);
 }
 
 

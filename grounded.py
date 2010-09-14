@@ -36,6 +36,9 @@ import cStringIO as StringIO, ConfigParser
 
 import webbrowser
 
+import sys
+import traceback
+
 # Mimetypes helps select the correct type based on extension.
 import mimetypes
 mimetypes.init()
@@ -1156,15 +1159,35 @@ class RootPage:
         userAgent = cherrypy.request.headers['User-Agent']
         if userAgent.lower().find("msie") != -1:
             return serve_file2("html/choose-better.html")
-            
         
-        if self.dm.connected:
+        
+        driverIsGood = False
+        try:
+            if LabJackPython.os.name == 'nt':
+                driverIsGood = float(LabJackPython.GetDriverVersion()) >= UD_DRIVER_REQUIREMENT
+            else:
+                driverIsGood = float(LabJackPython.GetDriverVersion()) >= EXODRIVER_REQUIREMENT
+        except:
+            driverIsGood = True
+        
+        if self.dm.connected and driverIsGood:
             t = serve_file2("templates/index.tmpl")
             
             tMainContent = serve_file2("templates/devices-main-content.tmpl")
             t.mainContent = tMainContent.respond()
             t.currentPage = "devices"
             t.title = "LabJack CloudDot Grounded"
+            
+            return t.respond()
+        elif not driverIsGood:
+            t = serve_file2("templates/bad-driver-version.tmpl")
+            t.currentVersion = LabJackPython.GetDriverVersion()
+            if LabJackPython.os.name == 'nt':
+                t.isWindows = True
+                t.minVersion = UD_DRIVER_REQUIREMENT
+            else:
+                t.isWindows = False
+                t.minVersion = EXODRIVER_REQUIREMENT
             
             return t.respond()
         else:
@@ -1245,8 +1268,26 @@ if __name__ == '__main__':
     dm = None
     smm = None
     try:
-        dm = DeviceManager()
-        smm = SkyMoteManager()
+        portOverride = None
+        ljsaddress = LJSOCKET_ADDRESS
+        ljsport = LJSOCKET_PORT
+        if os.path.exists(CLOUDDOT_GROUNDED_CONF):
+            # Check local config file for a different port to bind to.
+            parser = ConfigParser.SafeConfigParser()
+            parser.read(CLOUDDOT_GROUNDED_CONF)
+            
+            if parser.has_section("General"):
+                if parser.has_option("General", "port"):
+                    portOverride = parser.getint("General", "port")
+            
+            if parser.has_section("LJSocket"):
+                if parser.has_option("LJSocket", "address"):
+                    ljsaddress = parser.get("LJSocket", "address")
+                if parser.has_option("LJSocket", "port"):
+                    ljsport = parser.getint("LJSocket", "port")
+        print "Using address = %s, port = %s" % (ljsaddress, ljsport)
+        dm = DeviceManager(address = ljsaddress, port = ljsport)
+        smm = SkyMoteManager(address = ljsaddress, port = ljsport)
         
         # Register the shutdownThreads method, so we can kill our threads when
         # CherryPy is shutting down.
@@ -1269,21 +1310,15 @@ if __name__ == '__main__':
             # py2exe:
             current_dir = os.path.dirname(os.path.abspath(sys.executable))
             configfile = ZIP_FILE.open("cherryred.conf")
-        
-        portOverride = None
-        if os.path.exists(CLOUDDOT_GROUNDED_CONF):
-            # Check local config file for a different port to bind to.
-            parser = ConfigParser.SafeConfigParser()
-            parser.read(CLOUDDOT_GROUNDED_CONF)
-            
-            if parser.has_section("General"):
-                if parser.has_option("General", "port"):
-                    portOverride = parser.getint("General", "port")
     
         root = RootPage(dm, smm)
         root._cp_config = {'tools.staticdir.root': current_dir, 'tools.renderFromZipFile.on': IS_FROZEN}
         quickstartWithBrowserOpen(root, config=configfile, portOverride = portOverride)
-    except:
+    except Exception, e:
+        cla, exc, trbk = sys.exc_info()
+        print "Error: %s: %s" % (cla, exc)
+        print traceback.print_tb(trbk, 6)
+         
         if dm is not None:
             dm.shutdownThreads()
             
