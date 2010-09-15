@@ -5,6 +5,7 @@ import LabJackPython, skymote
 
 import csv, os
 from datetime import datetime
+from time import time as floattime
 
 def moteAsDict(mote):
     returnDict = dict()
@@ -172,6 +173,7 @@ class SkyMoteManager(object):
                 moteDict['tableData'] = tableData
                 moteDict['transId'] = data['transId']
             
+            moteDict['inRapidMode'] = m.inRapidMode
             motes[str(m.unitId)] = moteDict
         
         results['Connected Motes'] = motes
@@ -195,7 +197,11 @@ class SkyMoteManager(object):
         
         if m is None:
             return False
-            
+        
+        if not m.inRapidMode:
+            m.startRapidMode()
+            m.inRapidMode = True
+        
         print "settings =", settings
         
         if "name" in settings and settings['name'] != m.nickname:
@@ -218,10 +224,13 @@ class PlaceMoteInRapidModeThread(threading.Thread):
         threading.Thread.__init__(self)
         self.daemon = True
         self.mote = mote
+        self.mote.inRapidMode = False
+        self.mote.lastCommunication = None
 
     def run(self):
         self.mote.nickname = "Placeholder SkyMote Name"
         self.mote.startRapidMode()
+        self.mote.inRapidMode = True
         self.mote.nickname = self.mote.name
         self.mote.mainFirmwareVersion()
         self.mote.devType = self.mote.readRegister(65000)
@@ -267,6 +276,22 @@ class SpontaneousDataLoggingThread(threading.Thread):
         while self.running:
             data = self.bridge.spontaneous().next()
             now = datetime.now()
+            data['timevalue'] = floattime()
+            
+            m = None
+            for mote in self.bridge.motes:
+                if mote.unitId == data['unitId']:
+                    m = mote
+                    break
+            
+            if m is not None:
+                hasLast = m.lastCommunication is not None
+                if m.inRapidMode and hasLast and (data['timevalue'] - m.lastCommunication) > 1.5:
+                    print "Communication has slowed. Mote %s is not in rapid mode anymore." % m.unitId
+                    m.inRapidMode = False
+                    
+                m.lastCommunication = data['timevalue']
+            
             data['timestamp'] = str(now)
             self.bridge.spontaneousDataCache[str(data['unitId'])] = data
             print "Logging spontaneous data from %s." % data['unitId']
