@@ -207,8 +207,7 @@ class SkyMoteManager(object):
             pass # Not sure how to change unitId yet.
         
         if "checkinInterval" in settings and settings['checkinInterval'] != m.checkinInterval:
-            pass # appears to be broken
-            #m.setCheckinInterval(settings['checkinInterval'])
+            m.setCheckinInterval(settings['checkinInterval']*1000)
         
         return True
         
