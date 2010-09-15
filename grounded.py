@@ -1107,11 +1107,23 @@ class SkyMotePage(object):
     def config(self, serial, unitId = 0):
         ''' /skymote/config/<serial number>?unitId=<unit id> '''
         b = self.smm.getBridge(serial)
+        
+        unitId = int(unitId)
+        for m in b.motes:
+            if unitId == m.unitId:
+                break
+
         returnDict = dict(serial = serial)
 
         t = serve_file2("templates/skymote/config-mote.tmpl")
-        t.device = b
+        t.bridge = b
+        t.mote = m
 
+        returnDict['bridgeSerial'] = serial
+        returnDict['moteName'] = m.nickname
+        returnDict['moteUnitId'] = m.unitId
+        returnDict['moteCheckinInterval'] = m.checkinInterval
+        returnDict['formTitle'] = "Configure " + m.nickname
         returnDict['html'] = t.respond()
 
         return returnDict
