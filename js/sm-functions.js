@@ -242,7 +242,7 @@ function setupConfigureMoteLinks() {
                     var oldUnitId = returnJson.moteUnitId;
                     var newUnitId = $("#edit-unitid").val();
                     if (oldUnitId != newUnitId) {
-                        $("#overview-" + oldUnitId).hide();
+                        $("#overview-" + oldUnitId).remove();
                     }
                 
                     $.get("/skymote/updateMoteSettings", 
