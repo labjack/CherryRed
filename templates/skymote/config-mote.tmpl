@@ -1,3 +1,20 @@
-<p>
-foobar
-</p>
+<form id="mote-config-form">
+  <div class="single-setting">
+    <label>Name: <input type="text" id="edit-name" size="20"></input></label>
+    <div class="more-info">Give your mote a descriptive name (perhaps based on its location) to you can use to identify it.</div>
+  </div>
+
+  <div class="single-setting">
+    <label>Unit ID: <input type="text" id="edit-unitid" size="5"></input></label>
+    <div class="more-info">A mote's Unit ID is a unique number between 1 and 254 that the network uses to identify it.</div>
+  </div>
+
+  <div class="single-setting">
+    <label for="update-rate">Sample and log data every: </label>
+    <div style="height: 39px; margin-top: 9px;">
+        <input type="text" id="update-rate-seconds" size="5" /> <span style="position:absolute;left:180px;">seconds</span>
+    </div>
+    <div id="update-rate-slider"></div>
+    <div class="more-info">The mote will sample, send data, then sleep in low-power mode for the this time.</div>
+  </div>
+</form>
