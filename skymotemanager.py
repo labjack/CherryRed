@@ -119,7 +119,6 @@ class SkyMoteManager(object):
             t.start()
             self.loggingThreads["%s" % dev['serial']] = t
         
-        
         return self.bridges
 
     def scan(self):
@@ -180,7 +179,34 @@ class SkyMoteManager(object):
         # Not implemented: results['Temperature'] = 
                 
         return results
+
+    def updateMoteSettings(self, serial, unitId, settings):
+        # Update the settings on a mote.
         
+        b = self.getBridge(serial)
+        
+        m = None
+        
+        for mote in b.motes:
+            if mote.unitId == unitId:
+                m = mote
+                break
+        
+        if m is None:
+            return False
+        
+        if "name" in settings and settings['name'] != m.nickname:
+            m.name = settings['name']
+            
+        if "unitId" in settings and settings['unitId'] != m.unitId:
+            pass # Not sure how to change unitId yet.
+        
+        if "checkinInterval" in settings and settings['checkinInterval'] != m.checkinInterval:
+            m.setCheckinInterval(settings['checkinInterval'])
+        
+        return True
+        
+           
 
 class PlaceMoteInRapidModeThread(threading.Thread):
     def __init__(self, mote):
@@ -206,7 +232,7 @@ class SpontaneousDataLoggingThread(threading.Thread):
         threading.Thread.__init__(self)
         self.daemon = True
         self.bridge = bridge
-        self.name = sanitize(self.bridge.name)
+        self.name = sanitize(self.bridge.nameCache)
         self.filename = "%%Y-%%m-%%d %%H__%%M__%%S %s %s.csv" % (self.name, "spontaneous")
         self.filename = datetime.now().strftime(self.filename)
         
@@ -238,7 +264,7 @@ class SpontaneousDataLoggingThread(threading.Thread):
             now = datetime.now()
             data['timestamp'] = str(now)
             self.bridge.spontaneousDataCache[str(data['unitId'])] = data
-            print "Logging spontaneous data."
+            print "Logging spontaneous data from %s." % data['unitId']
             
             results = [ now, data['unitId'], data['Temp'], data['Light'], data['Bump'], data['RxLQI'], data['TxLQI'], data['Battery']]
             self.csvWriter.writerow(results)
