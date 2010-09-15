@@ -204,7 +204,7 @@ class SkyMoteManager(object):
             m.nickname = settings['name']
             
         if "unitId" in settings and settings['unitId'] != m.unitId:
-            pass # Not sure how to change unitId yet.
+            m.setUnitId(settings['unitId'])
         
         if "checkinInterval" in settings and settings['checkinInterval'] != m.checkinInterval:
             m.setCheckinInterval(settings['checkinInterval']*1000)
