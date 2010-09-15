@@ -238,12 +238,19 @@ function setupConfigureMoteLinks() {
                 var newValue = $("#update-rate-seconds").val();
                 console.log(newValue);
                 if (newValue >=1 && newValue <= 60) {
+                
+                    var oldUnitId = returnJson.moteUnitId;
+                    var newUnitId = $("#edit-unitid").val();
+                    if (oldUnitId != newUnitId) {
+                        $("#overview-" + oldUnitId).hide();
+                    }
+                
                     $.get("/skymote/updateMoteSettings", 
                         {
                             serial    : returnJson.bridgeSerial, 
-                            unitId    : returnJson.moteUnitId,
+                            unitId    : oldUnitId,
                             name      : $("#edit-name").val(),
-                            newUnitId : $("#edit-unitid").val(),
+                            newUnitId : newUnitId,
                             checkinInterval: newValue
                         }, function (data) { console.log("returned from updateMoteSettings"); return true;}, "json");
                 }
