@@ -1118,7 +1118,7 @@ class SkyMotePage(object):
         if checkinInterval is not None:
             settings['checkinInterval'] = int(checkinInterval)
             
-        if self.smm.updateMoteSettings(serial, unitId, settings):
+        if self.smm.updateMoteSettings(str(serial), int(unitId), settings):
             return settings
         else:
             return { 'Failure' : "Couldn't find mote" }

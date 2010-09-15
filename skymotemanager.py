@@ -188,21 +188,27 @@ class SkyMoteManager(object):
         m = None
         
         for mote in b.motes:
+            print "Checking mote with id %s for %s" % (mote.unitId, unitId)
             if mote.unitId == unitId:
                 m = mote
                 break
         
         if m is None:
             return False
+            
+        print "settings =", settings
         
         if "name" in settings and settings['name'] != m.nickname:
+            print "Updating name to %s from %s." % (settings['name'], m.nickname)
             m.name = settings['name']
+            m.nickname = settings['name']
             
         if "unitId" in settings and settings['unitId'] != m.unitId:
             pass # Not sure how to change unitId yet.
         
         if "checkinInterval" in settings and settings['checkinInterval'] != m.checkinInterval:
-            m.setCheckinInterval(settings['checkinInterval'])
+            pass # appears to be broken
+            #m.setCheckinInterval(settings['checkinInterval'])
         
         return True
         
