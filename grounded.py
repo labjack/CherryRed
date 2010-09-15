@@ -1104,7 +1104,7 @@ class SkyMotePage(object):
         return returnDict
         
     @exposeJsonFunction
-    def updateMoteSettings(self, serial, unitId, name = None, unitId = None, checkinInterval = None):
+    def updateMoteSettings(self, serial, unitId, name = None, newUnitId = None, checkinInterval = None):
         # /skymote/updateMoteSettings/<serial number>/<unit id>?name=&unitId&checkinInterval
         
         settings = dict()
@@ -1112,8 +1112,8 @@ class SkyMotePage(object):
         if name is not None:
             settings['name'] = str(name)
             
-        if unitId is not None:
-            settings['unitId'] = int(unitId)
+        if newUnitId is not None:
+            settings['unitId'] = int(newUnitId)
             
         if checkinInterval is not None:
             settings['checkinInterval'] = int(checkinInterval)
@@ -1121,7 +1121,7 @@ class SkyMotePage(object):
         if self.smm.updateMoteSettings(serial, unitId, settings):
             return settings
         else:
-            return { 'Failure' : "Couldn't find mote"
+            return { 'Failure' : "Couldn't find mote" }
         
 
     @exposeJsonFunction 
