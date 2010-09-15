@@ -243,7 +243,7 @@ function setupConfigureMoteLinks() {
                             name      : $("#edit-name").val(),
                             newUnitId : $("#edit-unitid").val(),
                             checkinInterval: newValue
-                        }, function (data) { console.log("returned from updateMoteSettings"; return true;}, "json");
+                        }, function (data) { console.log("returned from updateMoteSettings"); return true;}, "json");
                 }
                 smDialogDone();
                 return false;
