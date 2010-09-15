@@ -207,8 +207,7 @@ class SkyMoteManager(object):
             pass # Not sure how to change unitId yet.
         
         if "checkinInterval" in settings and settings['checkinInterval'] != m.checkinInterval:
-            pass # appears to be broken
-            #m.setCheckinInterval(settings['checkinInterval'])
+            m.setCheckinInterval(settings['checkinInterval']*1000)
         
         return True
         
@@ -231,7 +230,7 @@ class PlaceMoteInRapidModeThread(threading.Thread):
         else:
             self.mote.productName = "SkyMote Unknown Type"
         self.mote.readSerialNumber()
-        self.mote.checkinInterval = self.mote.readCheckinInterval()
+        self.mote.checkinInterval = self.mote.readCheckinInterval()/1000
 
 class SpontaneousDataLoggingThread(threading.Thread):
     def __init__(self, bridge):
