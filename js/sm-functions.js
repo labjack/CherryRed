@@ -199,6 +199,8 @@ function smHandleSelectBridge(bridgeSerialNumber) {
 
 function smHandleBridgeList(data) {
     $("#device-name-list").append(data.html);
+    // Since we're only appending, hide any "<h2>No devices...</h2>
+    $("#device-summary-list").find("h2").hide()
     $("#device-summary-list").append(data.htmlSummaryList);
     
     $("#bridge-name-list").html("");
