@@ -1102,6 +1102,27 @@ class SkyMotePage(object):
         returnDict['htmlScanning'] = tScanning.respond()
 
         return returnDict
+        
+    @exposeJsonFunction
+    def updateMoteSettings(self, serial, unitId, name = None, unitId = None, checkinInterval = None):
+        # /skymote/updateMoteSettings/<serial number>/<unit id>?name=&unitId&checkinInterval
+        
+        settings = dict()
+        
+        if name is not None:
+            settings['name'] = str(name)
+            
+        if unitId is not None:
+            settings['unitId'] = int(unitId)
+            
+        if checkinInterval is not None:
+            settings['checkinInterval'] = int(checkinInterval)
+            
+        if self.smm.updateMoteSettings(serial, unitId, settings):
+            return settings
+        else:
+            return { 'Failure' : "Couldn't find mote"
+        
 
     @exposeJsonFunction 
     def scan(self):
