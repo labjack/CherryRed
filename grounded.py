@@ -1256,6 +1256,11 @@ class RootPage:
             print "Retry got an exception:", e
         
         raise cherrypy.HTTPRedirect("/")
+        
+    @exposeRawFunction
+    def stop(self):
+        print "Trying to stop."
+        raise SystemExit(0)
 
 
 def openWebBrowser(host = "localhost", port = 8080):
