@@ -40,7 +40,7 @@ function smHandleScan(data) {
           height: "100%",
           colModel:[
                {name:'label',index:'label', width:250,  sortable:false},
-               {name:'state',index:'state', width:250, sortable:false},
+               {name:'state',index:'state', width:250,  sortable:false}
           ],
           multiselect: false,
           caption: "SkyMote Overview",
@@ -63,8 +63,9 @@ function smHandleScan(data) {
                 //console.log(moteData[k]);
 
                 // Mike C. Need to account for more motes
-                //var mapKey = unitId + "-" + k;
-                var mapKey = k;
+                var mapKey = unitId + "-" + k;
+                //console.log(unitId + "-" + k);
+                //var mapKey = k;
                 sparklineDataMap[mapKey] = [];
                 sparklineDataMap[mapKey].push(moteData[k].value);
 
@@ -73,7 +74,7 @@ function smHandleScan(data) {
                 }
 
 
-                obj = { label : moteData[k].connection, state : "<span class='test-panel-sparkline " + moteData[k].chType + "'></span>" + "<span class='test-panel-state'>" + moteData[k].state  + "</span>"};
+                obj = { label : moteData[k].connection, state : "<span class='test-panel-sparkline " + moteData[k].chType + "' rowIndex='" + count + "'></span>" + "<span class='test-panel-state'>" + moteData[k].state  + "</span>"};
                 $("#overview-" + unitId + " .data-table").jqGrid('addRowData', count, obj);
                 count++;
             }
@@ -97,7 +98,7 @@ function smHandleScan(data) {
                   height: "100%",
                   colModel:[
                        {name:'label',index:'label', width:250,  sortable:false},
-                       {name:'state',index:'state', width:250, sortable:false},
+                       {name:'state',index:'state', width:250,  sortable:false}
                   ],
                   multiselect: false,
                   caption: "SkyMote Overview",
@@ -105,7 +106,7 @@ function smHandleScan(data) {
                 });
                 $('#sm-overview-tab .ui-jqgrid-hdiv').hide();
                 for (var k in moteData) {
-                    obj = { label : moteData[k].connection, state : "<span class='test-panel-state'>" + moteData[k].state  + "</span>"};
+                    obj = { label : moteData[k].connection, state :  "<span class='test-panel-sparkline " + moteData[k].chType + "' rowIndex='" + count + "'></span>" + "<span class='test-panel-state'>" + moteData[k].state  + "</span>"};
                     $("#overview-" + unitId + " .data-table").jqGrid('addRowData', count, obj);
                     count++;
                 }
@@ -117,9 +118,14 @@ function smHandleScan(data) {
                 for (var k in moteData) {
 
                     // Mike C. Need to account for more motes
-                    //var mapKey = unitId + "-" + k;
-                    var mapKey = k;
-                    sparklineDataMap[mapKey].push(moteData[k].value);
+                    var mapKey = unitId + "-" + k;
+                    //console.log(unitId + "-" + k);
+                    //var mapKey = k;
+                    if (sparklineDataMap[mapKey] == undefined) {
+                        sparklineDataMap[mapKey] = [ moteData[k].value ];
+                    } else {
+                        sparklineDataMap[mapKey].push(moteData[k].value);
+                    }
 
                     if (sparklineDataMap[mapKey].length > sparklineMaxPoints) {
                         sparklineDataMap[mapKey].splice(0,1);
@@ -138,39 +144,48 @@ function smHandleScan(data) {
 
 
         $('#sm-overview-tab .test-panel-sparkline').each(function(i) {
+         //console.log(i);
+         
+         var rowIndex = $(this).attr("rowindex");
+         
+         var moteUnitId = $(this).closest(".moteoverview").attr("unitid");
+         var moteKey = moteUnitId + "-" + rowIndex;
         //var connectionText = data[i].connection;
         //console.log(data);
 
         //var chartMinMax = sparklineMinMax(data[i].chType, data[i].devType);
-        var sparklineOptions;
-        if ($(this).hasClass("analogIn")) {
-            sparklineOptions = sparklineAnalogInOptions;
-            sparklineOptions.width = sparklineDataMap[i].length*5;
-        } else if ($(this).hasClass("digitalIn")) {
-            sparklineOptions = sparklineDigitalInOptions;
-            sparklineOptions.width = sparklineDataMap[i].length;
-        } else if ($(this).hasClass("digitalOut")) {
-            sparklineOptions = sparklineDigitalOutOptions;
-            sparklineOptions.width = sparklineDataMap[i].length;
-        } else {
-            sparklineOptions = sparklineAnalogInOptions;
-            sparklineOptions.width = sparklineDataMap[i].length*5;
+        
+        if (sparklineDataMap[moteKey] != undefined) {
+            var sparklineOptions;
+            if ($(this).hasClass("analogIn")) {
+                sparklineOptions = sparklineAnalogInOptions;
+                sparklineOptions.width = sparklineDataMap[moteKey].length*5;
+            } else if ($(this).hasClass("digitalIn")) {
+                sparklineOptions = sparklineDigitalInOptions;
+                sparklineOptions.width = sparklineDataMap[moteKey].length;
+            } else if ($(this).hasClass("digitalOut")) {
+                sparklineOptions = sparklineDigitalOutOptions;
+                sparklineOptions.width = sparklineDataMap[moteKey].length;
+            } else {
+                sparklineOptions = sparklineAnalogInOptions;
+                sparklineOptions.width = sparklineDataMap[moteKey].length*5;
+            }
+    
+            // LQI sparklines get a normal range
+            if ($(this).hasClass("lqi")) {
+                sparklineOptions = sparklineLQIOptions;
+                sparklineOptions.width = sparklineDataMap[moteKey].length*5;
+            }
+            // So does Vbatt
+            else if ($(this).hasClass("vbatt")) {
+                sparklineOptions = sparklineVbattOptions;
+                sparklineOptions.width = sparklineDataMap[moteKey].length*5;
+            }
+    
+            //sparklineOptions.chartRangeMin = chartMinMax.min;
+            //sparklineOptions.chartRangeMax = chartMinMax.max;
+            $(this).sparkline(sparklineDataMap[moteKey],  sparklineOptions);
         }
-
-        // LQI sparklines get a normal range
-        if ($(this).hasClass("lqi")) {
-            sparklineOptions = sparklineLQIOptions;
-            sparklineOptions.width = sparklineDataMap[i].length*5;
-        }
-        // So does Vbatt
-        else if ($(this).hasClass("vbatt")) {
-            sparklineOptions = sparklineVbattOptions;
-            sparklineOptions.width = sparklineDataMap[i].length*5;
-        }
-
-        //sparklineOptions.chartRangeMin = chartMinMax.min;
-        //sparklineOptions.chartRangeMax = chartMinMax.max;
-        $(this).sparkline(sparklineDataMap[i],  sparklineOptions);
     });
 
 
@@ -236,7 +251,7 @@ function setupConfigureMoteLinks() {
 
             $("#mote-config-form").submit(function() {
                 var newValue = $("#update-rate-seconds").val();
-                console.log(newValue);
+                //console.log(newValue);
                 if (newValue >=1 && newValue <= 60) {
                 
                     var oldUnitId = returnJson.moteUnitId;
@@ -252,7 +267,7 @@ function setupConfigureMoteLinks() {
                             name      : $("#edit-name").val(),
                             newUnitId : newUnitId,
                             checkinInterval: newValue
-                        }, function (data) { console.log("returned from updateMoteSettings"); return true;}, "json");
+                        }, function (data) { return true;}, "json");
                 }
                 smDialogDone();
                 return false;
