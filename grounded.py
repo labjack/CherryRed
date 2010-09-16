@@ -39,6 +39,8 @@ import webbrowser
 import sys
 import traceback
 
+import threading
+
 # Mimetypes helps select the correct type based on extension.
 import mimetypes
 mimetypes.init()
@@ -1256,11 +1258,19 @@ class RootPage:
             print "Retry got an exception:", e
         
         raise cherrypy.HTTPRedirect("/")
-        
+    
+    def stopBus(self):
+        print "Stop bus called."
+        cherrypy.process.bus.exit()
+    
     @exposeRawFunction
     def stop(self):
         print "Trying to stop."
-        raise SystemExit(0)
+        t = threading.Timer(1.0, self.stopBus)
+        t.start()
+        return "Done"
+        
+        
 
 
 def openWebBrowser(host = "localhost", port = 8080):
