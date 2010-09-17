@@ -1175,6 +1175,13 @@ class SkyMotePage(object):
             print "No serial specified."
             return {}
 
+    @exposeJsonFunction
+    def listFirmware(self):
+        returnDict = dict()
+        t = serve_file2("templates/skymote/list-firmware.tmpl")
+        returnDict["html"] = t.respond()
+        return returnDict
+
 class RootPage:
     """ The RootPage class handles showing index.html. If we can't connect to
         LJSocket then it shows connect.html instead.

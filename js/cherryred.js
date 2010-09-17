@@ -46,7 +46,9 @@ $(document).ready(function() {
     setupSaveLoadDeleteConfigLinks();
     setupTimerCounterLink();
     setupCloudDotLinks();
-    setupConfigureMoteLinks();
+    smSetupTabSelect();
+    smSetupConfigureMoteLinks();
+    smSetupFirmwareButtons();
     getDeviceList();
     updateLogBar();
     setupExitButton();
@@ -88,6 +90,7 @@ function urlHashChange(e) {
         $("#tabs").hide();
         $("#sm-tabs").hide();
         $("#device-summary-list").show();
+        $("#exit-grounded").show();
     }
 }
 
@@ -210,17 +213,6 @@ function updateTabContent(tabIndex) {
             $("a.button").button();
         });
     }
-}
-
-function setupSmTabSelect() {
-    var $tabs = $("#sm-tabs").tabs();
-    $tabs.bind("tabsselect", function(event, ui) {
-        updateSmTabContent(ui.index);
-    });
-}
-
-function updateSmTabContent(tabIndex) {
-    console.log("updateSmTabContent");
 }
 
 function setupSaveLoadDeleteConfigLinks() {
@@ -1057,6 +1049,7 @@ function handleSelectDevice(serialNumber) {
         $("#save-config-link").attr("href", "/config/exportConfigToFile/" + serialNumber);
         $(".timer-counter-config-link").attr("href", "/devices/timerCounterConfig/" + serialNumber);
         $("#device-summary-list").hide();
+        $("#exit-grounded").hide();
         $("#sm-tabs").hide();
         $("#tabs").show();   
     } else {
@@ -1280,7 +1273,7 @@ function setupExitButton() {
     $("#exit-grounded a .ui-icon.ui-icon-circle-close").css({float : "left", "margin" : "2px 3px" });
     $("#exit-grounded a .ui-button-text").css({ "width" : "220px" });
     $("#exit-grounded a").button().bind("click", function() {
-        $(this).find(".exit-grounded-text").text("Exiting");
+        $(this).find(".exit-grounded").text("Exiting");
        $.ajax({
             url : "/stop",
             dataType: 'json',
@@ -1298,6 +1291,7 @@ function setupExitButton() {
             },
             type: "GET",
         });
+        return false;
     });
 }
 

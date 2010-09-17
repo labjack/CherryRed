@@ -208,8 +208,45 @@ function smHandleMoreInfo(data) {
 function smHandleSelectBridge(bridgeSerialNumber) {
     $.get("/skymote/" + bridgeSerialNumber, {}, smHandleMoreInfo, "json");
     $("#device-summary-list").hide();
+    $("#exit-grounded").hide();
     $("#tabs").hide();
     $("#sm-tabs").show();
+}
+
+function smSetupTabSelect() {
+    var $tabs = $("#sm-tabs").tabs();
+    $tabs.bind("tabsselect", function(event, ui) {
+        updateSmTabContent(ui.index);
+    });
+}
+
+function updateSmTabContent(tabIndex) {
+    if (tabIndex == undefined) {
+        var $tabs = $("#tabs").tabs();
+        tabIndex = $tabs.tabs('option', 'selected');
+    }
+    
+    // Firmware tab
+    if (tabIndex == 1) {
+        $.get("/skymote/listFirmware", {}, 
+            function(data) {
+                $("#sm-firmware-tab").html(data.html);
+                $("#sm-firmware-tab .firmware-list a").button();
+            }
+        );
+    }
+    
+    console.log(tabIndex);
+}
+
+function smSetupFirmwareButtons() {
+    $("#sm-firmware-tab .firmware-list a").live("click", function() {
+        stopScanning();
+        showTopMessage("Upgrading firmware");
+        $("#scan-bar").text("");
+        
+        return false;
+    });
 }
 
 function smHandleBridgeList(data) {
@@ -226,9 +263,8 @@ function smHandleBridgeList(data) {
     }
 }  
 
-function setupConfigureMoteLinks() {
+function smSetupConfigureMoteLinks() {
     $(".configure-mote").live("click", function() {
-        //console.log("setupConfigureMoteLinks");
         var targetUrl = $(this).attr("href");
         $.get(targetUrl, function(returnJson) {
             $("#dialog").html(returnJson.html);

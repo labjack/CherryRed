@@ -286,6 +286,13 @@ width:20%;
     margin-left:56%;
 }
 
+#sm-firmware-tab .firmware-list {
+    list-style: none;
+}
+
+#sm-firmware-tab .firmware-list li {
+    margin: 20px 20px 20px 30px;
+}
 
 .ui-jqgrid tr.ui-row-ltr td .test-panel-sparkline canvas { 
 margin-top:3px;
