@@ -1176,7 +1176,7 @@ class SkyMotePage(object):
             print "No serial specified."
             return {}
     
-    @exposeRawFunction
+    @exposeJsonFunction
     def doFirmwareUpgrade(self, serial, unitId = 0, fwFile = None):
         """
         For rendering
@@ -1189,9 +1189,9 @@ class SkyMotePage(object):
         result = self.smm.doFirmwareUpgrade(int(serial), int(unitId), str(fwFile))
         
         if result:
-            return "Firmware upgrade started"
+            return { "string" : "Firmware upgrade started", "error" : 0}
         else:
-            return "An error has occurred."
+            return { "string" : "An error has occurred.", "error" : 1}
         
         
     def listFirmwareFiles(self):
@@ -1219,7 +1219,10 @@ class SkyMotePage(object):
     def firmwareUpgradeStatus(self, serial):
         returnDict = dict()
         
-        returnDict['message'] = self.smm.getFirmwareStatus(serial)
+        msg, inProgress = self.smm.getFirmwareStatus(serial)
+        
+        returnDict['message'] = msg
+        returnDict['inProgress'] = inProgress
         
         return returnDict
 
@@ -1424,6 +1427,10 @@ if __name__ == '__main__':
         # Ensure there is a configfiles directory
         if not os.path.isdir("./configfiles"):
             os.mkdir("./configfiles")
+            
+        # Ensure there is a firmware directory
+        if not os.path.isdir("./firmware"):
+            os.mkdir("./firmware")
         
         if not IS_FROZEN:
             # not frozen: in regular python interpreter

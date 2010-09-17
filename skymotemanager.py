@@ -252,12 +252,12 @@ class SkyMoteManager(object):
                 except:
                     pass
                 
-                return line
+                return line, True
             else:
                 b.statusList = None
-                return "Firmware update finished."
+                return "Firmware update finished.", False
         except AttributeError:
-            return "Couldn't find a firmware upgrade thread."  
+            return "Couldn't find a firmware upgrade thread.", False
        
 
 class PlaceMoteInRapidModeThread(threading.Thread):
