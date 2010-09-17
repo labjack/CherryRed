@@ -479,3 +479,8 @@ a.digital-out-toggle-link.toggling {
 .hide-at-start {
     display: none;
 }
+
+#exit-grounded {
+    text-align:center;
+    margin-top: 2em;
+}
