@@ -10,6 +10,7 @@ from devicemanager import DeviceManager
 from skymotemanager import SkyMoteManager
 from fio import FIO, UE9FIO
 from groundedutils import *
+from skymotefirmwareutils import FirmwareFile, BRIDGE_PRODUCT_ID
 
 # Required Packages Imports
 # - CherryPy
@@ -1175,15 +1176,6 @@ class SkyMotePage(object):
             print "No serial specified."
             return {}
     
-    @exposeJsonFunction    
-    def firmwareUpgrade(self, serial):
-        """ For rendering /skymote/firmwareUpgrade/<serial>
-            The content for the firmware upgrade tab.
-            
-            Must list all the firmware files in ./firmware/
-        """
-        #TODO: Functionality
-    
     @exposeRawFunction
     def doFirmwareUpgrade(self, serial, unitId = 0, fwFile = None):
         """
@@ -1202,11 +1194,39 @@ class SkyMotePage(object):
             return "An error has occurred."
         
         
+    def listFirmwareFiles(self):
+        firmwareDir = os.path.join(current_dir,"firmware")
+        
+        files = os.listdir(firmwareDir)
+        
+        bridgeFiles = list()
+        moteFiles = list()
+        
+        print "Checking files:", files
+        
+        for f in files:
+            try:
+                fwFile = FirmwareFile(os.path.join(firmwareDir, f))
+            except:
+                continue
+            
+            if fwFile.productId == BRIDGE_PRODUCT_ID:
+                bridgeFiles.append(fwFile)
+            else:
+                moteFiles.append(fwFile)
+        
+        return bridgeFiles, moteFiles
+            
 
     @exposeJsonFunction
     def listFirmware(self):
         returnDict = dict()
+        
         t = serve_file2("templates/skymote/list-firmware.tmpl")
+        bridgeFiles, moteFiles = self.listFirmwareFiles()
+        t.bridgeFiles = bridgeFiles
+        t.moteFiles = moteFiles
+        
         returnDict["html"] = t.respond()
         return returnDict
 
