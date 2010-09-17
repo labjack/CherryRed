@@ -1174,6 +1174,34 @@ class SkyMotePage(object):
         else:
             print "No serial specified."
             return {}
+    
+    @exposeJsonFunction    
+    def firmwareUpgrade(self, serial):
+        """ For rendering /skymote/firmwareUpgrade/<serial>
+            The content for the firmware upgrade tab.
+            
+            Must list all the firmware files in ./firmware/
+        """
+        #TODO: Functionality
+    
+    @exposeRawFunction
+    def doFirmwareUpgrade(self, serial, unitId = 0, fwFile = None):
+        """
+        For rendering
+        
+        /skymote/doFirmwareUpgrade/<serial>?unitId=<unitId>?fwFile=<fileNo>
+            
+        Tells the Skymote Manager to start the firmware upgrade process.
+        """
+        
+        result = self.smm.doFirmwareUpgrade(int(serial), int(unitId), str(fwFile))
+        
+        if result:
+            return "Firmware upgrade started"
+        else:
+            return "An error has occurred."
+        
+        
 
 class RootPage:
     """ The RootPage class handles showing index.html. If we can't connect to

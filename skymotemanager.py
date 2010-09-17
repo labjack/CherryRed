@@ -1,5 +1,6 @@
 # SkyMote Manager
 from groundedutils import *
+from skymotefirmwareupgrader import SkymoteFirmwareUpgraderThread
 import threading
 import LabJackPython, skymote
 
@@ -139,6 +140,15 @@ class SkyMoteManager(object):
         else:
             return self.bridges[str(serial)]
     
+    def getMote(self, b, moteId):
+        moteId = int(moteId)
+        m = None
+        for mote in b.motes:
+            if mote.unitId == unitId:
+                m = mote
+                break
+        return m
+    
     def scanBridge(self, serial):
         results = dict()
         
@@ -187,13 +197,7 @@ class SkyMoteManager(object):
         
         b = self.getBridge(serial)
         
-        m = None
-        
-        for mote in b.motes:
-            print "Checking mote with id %s for %s" % (mote.unitId, unitId)
-            if mote.unitId == unitId:
-                m = mote
-                break
+        m = self.getMote(b, unitId)
         
         if m is None:
             return False
@@ -217,7 +221,27 @@ class SkyMoteManager(object):
         
         return True
         
-           
+    def doFirmwareUpgrade(self, serial, unitId, fwFile):
+        """
+        Starts the thread that will upgrade the firmware of a Skymote device
+        """
+        
+        b = self.getBridge(serial)
+        
+        fwFile = "./firmware/%s" % fwFile
+        
+        if unitId != 0:
+            # We are going to upgrade the motes
+            b.upgradeThread = SkymoteFirmwareUpgraderThread(b, fwFile, upgradeMotes = True, recovery = False)
+        else:
+            # We are going to upgrade the bridge
+            b.upgradeThread = SkymoteFirmwareUpgraderThread(b, fwFile, upgradeMotes = False, recovery = False)
+        
+        b.upgradeThread.start()
+        
+        return True
+        
+       
 
 class PlaceMoteInRapidModeThread(threading.Thread):
     def __init__(self, mote):
