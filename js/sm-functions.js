@@ -90,6 +90,11 @@ function smHandleScan(data) {
             var count = 0;
             // Do we have a place for this mote?
             $("#overview-" + unitId + " .name").text(data["Connected Motes"][unitId]["name"]);
+            if (data["Connected Motes"][unitId]["inRapidMode"]) {
+                $("#overview-" + unitId + " .rapid-mode").text("(Rapid mode, updating once per second)");            
+            } else {
+                $("#overview-" + unitId + " .rapid-mode").text("");            
+            }
             var moteData = data["Connected Motes"][unitId]["tableData"];
             if ($("#overview-" + unitId).length == 0) {
                 $("#sm-overview-tab").append(data["Connected Motes"][unitId]["html"]);
@@ -244,6 +249,24 @@ function smSetupFirmwareButtons() {
         stopScanning();
         showTopMessage("Upgrading firmware");
         $("#scan-bar").text("");
+        $.ajax({
+            url : "/skymote/doFirmwareUpgrade",
+            dataType: 'json',
+            data : { serial : currentSerialNumber, fwFile : $(this).attr("fwFile") },
+            success: function(returnJson) {
+                if (returnJson.error == 0) {
+                    showTopMessage("Firmware upgraded successfully.");
+                } else {
+                    showTopMessage("Received error " +  returnJson.error + " when upgrading firmware.");
+                }
+            },
+            error: function() {
+                showTopMessage("Error when upgrading firmware.");
+            },
+            type: "GET",
+        });
+
+        
         
         return false;
     });
