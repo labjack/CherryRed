@@ -132,7 +132,7 @@ class SkymoteFirmwareUpgraderThread(threading.Thread):
                     success = True
                 except LabJackException:
                     self.log("Write failed, retrying...")
-        self.log("Writing Flash bytes %s of %s" % (bytesWritten, imageLength))
+        self.log("Writing Flash bytes %s of %s" % (imageLength, imageLength))
         self.log("Done.")
         
         self.log("Setting start, length, and SHA-1...")
