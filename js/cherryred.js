@@ -1,5 +1,6 @@
     
 var refreshId = null;
+var latestMessageRefreshId = null;
 var logFileRefreshId = null;
 var currentSerialNumber = null;
 
@@ -118,7 +119,19 @@ function restartScanning() {
 }
 
 function showTopMessage(message) {
-    $("#latest-message-bar").html(message).show().delay(10000).hide("fast");
+    $("#latest-message-bar").html(message).show();
+    restartLatestMessageClear();
+}
+
+function restartLatestMessageClear() {
+    if (latestMessageRefreshId != null) {
+        clearTimeout(latestMessageRefreshId);
+    }
+    latestMessageRefreshId = setTimeout(latestMessageClear, 10000);
+}
+
+function latestMessageClear() {
+    $("#latest-message-bar").hide("fast");
 }
 
 function setupDialog() {
