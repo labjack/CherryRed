@@ -1263,12 +1263,12 @@ class RootPage:
         print "Stop bus called."
         cherrypy.process.bus.exit()
     
-    @exposeRawFunction
+    @exposeJsonFunction
     def stop(self):
         print "Trying to stop."
         t = threading.Timer(1.0, self.stopBus)
         t.start()
-        return "Done"
+        return { 'error' : 0, 'string' : "Done." }
         
         
 
