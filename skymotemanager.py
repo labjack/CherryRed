@@ -228,8 +228,6 @@ class SkyMoteManager(object):
         
         b = self.getBridge(serial)
         
-        fwFile = "./firmware/%s" % fwFile
-        
         if unitId != 0:
             # We are going to upgrade the motes
             b.upgradeThread = SkymoteFirmwareUpgraderThread(b, fwFile, upgradeMotes = True, recovery = False)
@@ -240,7 +238,26 @@ class SkyMoteManager(object):
         b.upgradeThread.start()
         
         return True
+
+    def getFirmwareStatus(self, serial):
+        b = self.getBridge(serial)
         
+        try:
+            t = b.upgradeThread
+            if t.running:
+                line = ""
+                try:
+                    while True:
+                        line += (t.statusList.pop() + "\n")
+                except:
+                    pass
+                
+                return line
+            else:
+                b.statusList = None
+                return "Firmware update finished."
+        except AttributeError:
+            return "Couldn't find a firmware upgrade thread."  
        
 
 class PlaceMoteInRapidModeThread(threading.Thread):

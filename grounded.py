@@ -1202,8 +1202,6 @@ class SkyMotePage(object):
         bridgeFiles = list()
         moteFiles = list()
         
-        print "Checking files:", files
-        
         for f in files:
             try:
                 fwFile = FirmwareFile(os.path.join(firmwareDir, f))
@@ -1217,6 +1215,13 @@ class SkyMotePage(object):
         
         return bridgeFiles, moteFiles
             
+    @exposeJsonFunction
+    def firmwareUpgradeStatus(self, serial):
+        returnDict = dict()
+        
+        returnDict['message'] = self.smm.getFirmwareStatus(serial)
+        
+        return returnDict
 
     @exposeJsonFunction
     def listFirmware(self):
