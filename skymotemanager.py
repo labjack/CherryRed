@@ -248,7 +248,7 @@ class SkyMoteManager(object):
                 line = ""
                 try:
                     while True:
-                        line += (t.statusList.pop() + "\n")
+                        line += (t.statusList.pop() + "<br/>")
                 except:
                     pass
                 
