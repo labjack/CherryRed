@@ -384,10 +384,15 @@ a.digital-out-toggle-link.toggling {
     position: absolute;
     left: 100px;
 }
-#dialog .more-info {
+#dialog .more-info, .more-info {
     font-size: 10px;
     color: #555555;
     margin: 5px 0;
+}
+
+.rapid-mode.more-info {
+    float: right;
+    margin-right: 200px;
 }
 
 /* CSS for the "Couldn't Connect" page */
