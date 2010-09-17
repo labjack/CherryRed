@@ -104,8 +104,8 @@ class SkymoteFirmwareUpgraderThread(threading.Thread):
         # Erase Flash blocks
         self.log("Erasing Flash...")
         for i in range(23):
-            self.log(str(i)+" ")
-            sys.stdout.flush()
+            #self.log(str(i)+" ")
+            #sys.stdout.flush()
             try:
                 device.writeRegister(59074, [0xAA55, 0xC33C, 0x0, i])
             except LabJackException:
@@ -115,16 +115,24 @@ class SkymoteFirmwareUpgraderThread(threading.Thread):
         self.log("\nDone.")
         
         self.log("Writing Flash...")
+        imageLength = len(fwFile.fwImage)
+        bytesWritten = 0
+        timesThrough = 0
         for address, data in fwFile.image():
-            self.log(str(address)+" ")
-            sys.stdout.flush()
+            if timesThrough % 10 == 0:
+                self.log("Writing Flash bytes %s of %s" % (bytesWritten, imageLength))
+            #self.log(str(address)+" ")
+            #sys.stdout.flush()
             success = False
             while not success:
                 try:
                     device.writeRegister(59020, [0xAA55, 0xC33C, 0x0, address] + data)
+                    bytesWritten += 32
+                    timesThrough += 1
                     success = True
                 except LabJackException:
                     self.log("Write failed, retrying...")
+        self.log("Writing Flash bytes %s of %s" % (bytesWritten, imageLength))
         self.log("Done.")
         
         self.log("Setting start, length, and SHA-1...")
