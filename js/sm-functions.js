@@ -241,7 +241,7 @@ function updateSmTabContent(tabIndex) {
         );
     }
     
-    console.log(tabIndex);
+    //console.log(tabIndex);
 }
 
 function smSetupFirmwareButtons() {
