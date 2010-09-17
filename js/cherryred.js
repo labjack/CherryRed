@@ -49,6 +49,7 @@ $(document).ready(function() {
     setupConfigureMoteLinks();
     getDeviceList();
     updateLogBar();
+    setupExitButton();
 });
 
 function setupHashChange() {
@@ -1273,4 +1274,27 @@ function checkApikeyValidity() {
     }
     
     return false;
+}
+
+function setupExitButton() {
+    $("#exit-grounded a .ui-icon.ui-icon-circle-close").css({float : "left", "margin" : "2px 3px" });
+    $("#exit-grounded a .ui-button-text").css({ "width" : "220px" });
+    $("#exit-grounded a").button().bind("click", function() {
+        $(this).text("Exiting");
+       $.ajax({
+            url : "/stop",
+            dataType: 'json',
+            success: function(returnJson) {
+                if (returnJson.error == 0) {
+                    showTopMessage("Exiting CloudDot Grounded.");
+                } else {
+                    showTopMessage("Got error " + returnJson.error + " when exiting CloudDot Grounded.");
+                }
+            },
+            error: function() {
+                //console.log("error");
+            },
+            type: "GET",
+        });
+    });
 }
