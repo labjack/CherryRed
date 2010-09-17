@@ -1280,21 +1280,30 @@ function setupExitButton() {
     $("#exit-grounded a .ui-icon.ui-icon-circle-close").css({float : "left", "margin" : "2px 3px" });
     $("#exit-grounded a .ui-button-text").css({ "width" : "220px" });
     $("#exit-grounded a").button().bind("click", function() {
-        $(this).text("Exiting");
+        $(this).find(".exit-grounded-text").text("Exiting");
        $.ajax({
             url : "/stop",
             dataType: 'json',
             success: function(returnJson) {
                 if (returnJson.error == 0) {
-                    showTopMessage("Exiting CloudDot Grounded.");
+                    showTopMessage("Exiting CloudDot Grounded. You may close this browser window.");
+                    setTimeout(
+                        finalCloseFunction, 2000);
                 } else {
                     showTopMessage("Got error " + returnJson.error + " when exiting CloudDot Grounded.");
                 }
             },
             error: function() {
-                //console.log("error");
+                showTopMessage("Error when exiting CloudDot Grounded.");
             },
             type: "GET",
         });
     });
+}
+
+function finalCloseFunction() {
+    // window.close doesn't work on Firefox
+    window.close();
+    $("#exit-grounded a .exit-grounded-text").text("You may now close this browser window");
+    $("#exit-grounded a .ui-icon").hide();
 }
