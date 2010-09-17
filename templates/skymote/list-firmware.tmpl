@@ -1,13 +1,13 @@
 <h3>Bridge Firmware</h3>
 <ul class="firmware-list">
     #for $f in $bridgeFiles
-    <li><a class="bridge firmware" href="#" fwFile="${f.filename}">Install $f.intendedDevice version $f.providedVersion</a></li>
+    <li><a class="bridge firmware" href="#" unitId="0" fwFile="${f.filename}">Install $f.intendedDevice version $f.providedVersion</a></li>
     #end for
 </ul>
 
 <h3>Mote Firmware</h3>
 <ul class="firmware-list">
     #for $f in $moteFiles
-    <li><a class="mote firmware" href="#" fwFile="${f.filename}">Install $f.intendedDevice version $f.providedVersion</a></li>
+    <li><a class="mote firmware" href="#" unitId="1" fwFile="${f.filename}">Install $f.intendedDevice version $f.providedVersion</a></li>
     #end for
 </ul>

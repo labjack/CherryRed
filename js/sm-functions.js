@@ -250,27 +250,45 @@ function smSetupFirmwareButtons() {
         showTopMessage("Upgrading firmware");
         $("#scan-bar").text("");
         $.ajax({
-            url : "/skymote/doFirmwareUpgrade",
+            url : "/skymote/doFirmwareUpgrade/" + currentSerialNumber,
             dataType: 'json',
-            data : { serial : currentSerialNumber, fwFile : $(this).attr("fwFile") },
+            data : { unitId : $(this).attr("unitId"), fwFile : $(this).attr("fwFile") },
             success: function(returnJson) {
                 if (returnJson.error == 0) {
-                    showTopMessage("Firmware upgraded successfully.");
+                    showTopMessage(returnJson.string);
+                    setTimeout(smFirmwareStatusCheck, 1000);
                 } else {
-                    showTopMessage("Received error " +  returnJson.error + " when upgrading firmware.");
+                    showTopMessage("Received error " +  returnJson.error + " when upgrading firmware: " + returnJson.string);
                 }
             },
             error: function() {
                 showTopMessage("Error when upgrading firmware.");
             },
-            type: "GET",
+            type: "GET"
         });
-
-        
-        
         return false;
     });
 }
+
+function smFirmwareStatusCheck() {
+        $.ajax({
+            url : "/skymote/firmwareUpgradeStatus/" + currentSerialNumber,
+            dataType: 'json',
+            success: function(returnJson) {
+                showTopMessage(returnJson.message);
+                if (returnJson.inProgress) {
+                    setTimeout(smFirmwareStatusCheck, 1000);
+                } else {
+                    smCallScan();
+                }
+            },
+            error: function() {
+                showTopMessage("Error when upgrading firmware.");
+            },
+            type: "GET"
+        });
+}
+
 
 function smHandleBridgeList(data) {
     $("#device-name-list").append(data.html);
