@@ -140,8 +140,8 @@ class SkyMoteManager(object):
         else:
             return self.bridges[str(serial)]
     
-    def getMote(self, b, moteId):
-        moteId = int(moteId)
+    def getMote(self, b, unitId):
+        unitId = int(unitId)
         m = None
         for mote in b.motes:
             if mote.unitId == unitId:

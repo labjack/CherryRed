@@ -70,7 +70,7 @@ class SkymoteFirmwareUpgraderThread(threading.Thread):
             
         else:
             for mote in b.motes:
-                self.log("Doing firmware upgrade on mote with unit id = %s" % selectedUnitId)
+                self.log("Doing firmware upgrade on mote with unit id = %s" % mote.unitId)
                 selectedMote = mote
                 
                 selectedMote.bridge.debug = False
