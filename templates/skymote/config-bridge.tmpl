@@ -1,0 +1,26 @@
+<form id="bridge-config-form">
+  <div class="single-setting">
+    <label>Name: <input type="text" id="edit-name" size="20" value="$bridge.nameCache"></input></label>
+    <div class="more-info">Give your bridge a descriptive name (perhaps based on its location) to you can use to identify it.</div>
+  </div>
+
+  <div class="single-setting">
+    <label>Unit ID: 0</label>
+    <div class="more-info">All bridges have a Unit ID of zero. This cannot be changed.</div>
+  </div>
+
+  <div class="single-setting">
+  #if $netpassDict.enabled
+    <label for="network-password-enabled">Network Password Enabled: <input type="checkbox" id="network-password-enabled" checked="true" style="left: 200px;"></input></label>
+  #else
+    <label for="network-password-enabled">Network Password Enabled: <input type="checkbox" id="network-password-enabled" style="left: 200px;"></input></label>
+  #end if
+    <div class="more-info">If enabled, only motes with matching passwords will be allowed on the network.</div>
+  </div>
+  
+  <div class="single-setting">
+    <label for="network-password">Password: <input type="text" id="network-password" size="20" value="$netpassDict.password"></input></label>
+  
+    <div class="more-info">The network password is a string of 15 characters that will prevent your motes from joining other networks.</div>
+  </div>
+</form>

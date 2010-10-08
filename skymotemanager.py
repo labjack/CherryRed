@@ -221,6 +221,29 @@ class SkyMoteManager(object):
         
         return True
         
+    def updateBridgeSettings(self, serial, settings):
+        b = self.getBridge(serial)
+        
+        if settings['name'] != b.nameCache:
+            print "Updating name to %s from %s." % (settings['name'], b.nameCache)
+            b.name = settings['name']
+            b.nameCache = settings['name']
+        
+        netpassDict = b.getNetworkPassword()
+        
+        if settings['enable'] != netpassDict['enabled'] or settings['password'] != netpassDict['password']:
+            
+            e = settings['enable']
+            pw = settings['password']
+            
+            for m in b.listMotes():
+                m.setNetworkPassword(pw, enable = e)
+            
+            b.setNetworkPassword(pw, enable = e)
+        
+        return True
+            
+        
     def doFirmwareUpgrade(self, serial, unitId, fwFile):
         """
         Starts the thread that will upgrade the firmware of a Skymote device

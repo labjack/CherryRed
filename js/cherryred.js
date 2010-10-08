@@ -49,6 +49,7 @@ $(document).ready(function() {
     setupCloudDotLinks();
     smSetupTabSelect();
     smSetupConfigureMoteLinks();
+    smSetupConfigureBridgeLinks();
     smSetupFirmwareButtons();
     getDeviceList();
     updateLogBar();

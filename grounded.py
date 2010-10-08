@@ -1125,30 +1125,62 @@ class SkyMotePage(object):
             return settings
         else:
             return { 'Failure' : "Couldn't find mote" }
+            
+    @exposeJsonFunction
+    def updateBridgeSettings(self, serial, name = None, enablePassword = None, password = None):
+        settings = dict()
         
+        if name is not None:
+            settings['name'] = str(name)
+            
+        if enablePassword is not None:
+            settings['enable'] = bool(int(enablePassword))
+            
+        if password is not None:
+            settings['password'] = str(password)
+            
+        
+        if self.smm.updateBridgeSettings(str(serial), settings):
+            return settings
+        else:
+            return { 'Failure' : "Couldn't find mote" }  
 
     @exposeJsonFunction
     def config(self, serial, unitId = 0):
         ''' /skymote/config/<serial number>?unitId=<unit id> '''
         b = self.smm.getBridge(serial)
-        
         unitId = int(unitId)
-        for m in b.motes:
-            if unitId == m.unitId:
-                break
-
-        returnDict = dict(serial = serial)
-
-        t = serve_file2("templates/skymote/config-mote.tmpl")
-        t.bridge = b
-        t.mote = m
-
-        returnDict['bridgeSerial'] = serial
-        returnDict['moteName'] = m.nickname
-        returnDict['moteUnitId'] = m.unitId
-        returnDict['moteCheckinInterval'] = m.checkinInterval
-        returnDict['formTitle'] = "Configure " + m.nickname
-        returnDict['html'] = t.respond()
+        
+        if unitId != 0:
+            for m in b.motes:
+                if unitId == m.unitId:
+                    break
+    
+            returnDict = dict(serial = serial)
+    
+            t = serve_file2("templates/skymote/config-mote.tmpl")
+            t.bridge = b
+            t.mote = m
+    
+            returnDict['bridgeSerial'] = serial
+            returnDict['moteName'] = m.nickname
+            returnDict['moteUnitId'] = m.unitId
+            returnDict['moteCheckinInterval'] = m.checkinInterval
+            returnDict['formTitle'] = "Configure " + m.nickname
+            returnDict['html'] = t.respond()
+        else:
+            returnDict = dict()
+            
+            netpassDict = b.getNetworkPassword()
+        
+            t = serve_file2("templates/skymote/config-bridge.tmpl")
+            t.bridge = b
+            t.netpassDict = netpassDict
+            
+            returnDict['bridgeSerial'] = serial
+            returnDict['formTitle'] = "Configure " + b.nameCache
+            returnDict['html'] = t.respond()
+            
 
         return returnDict
 

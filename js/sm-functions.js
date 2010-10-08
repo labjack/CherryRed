@@ -370,3 +370,46 @@ function smSetupConfigureMoteLinks() {
     });
 }
 
+function smSetupConfigureBridgeLinks() {
+    $(".configure-bridge").live("click", function() {
+        var targetUrl = $(this).attr("href");
+        $.get(targetUrl, function(returnJson) {
+            $("#dialog").html(returnJson.html);
+
+            $("#bridge-config-form").submit(function() {
+                var newName = $("#edit-name").val();
+                var enabled = 0;
+                
+                if( $("#network-password-enabled").is(':checked') ) {
+                    enabled = 1;
+                }
+                
+                var password = $("#network-password").val();
+                
+                $.get("/skymote/updateBridgeSettings", 
+                    {
+                        serial    : returnJson.bridgeSerial, 
+                        name      : newName,
+                        enablePassword : enabled,
+                        password: password
+                    }, function (data) { return true;}, "json");
+                
+                smDialogDone();
+                return false;
+            });
+            
+            $("#dialog").dialog('option', 'title', returnJson.formTitle);
+            $("#dialog").dialog('option', 'width', 525);
+            $("#dialog").dialog('option', 'height', 375);
+            $("#dialog").dialog('option', 'buttons', { 
+                "Save": function() {
+                    $("#bridge-config-form").submit();
+                },
+                "Cancel": smDialogDone
+            });
+            $("#dialog").dialog('open');
+        });
+        return false;
+    });
+}
+
