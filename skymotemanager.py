@@ -4,6 +4,8 @@ from skymotefirmwareupgrader import SkymoteFirmwareUpgraderThread
 import threading
 import LabJackPython, skymote
 
+from groundedlogger import log
+
 import csv, os
 from datetime import datetime
 from time import time as floattime
@@ -70,7 +72,6 @@ class SkyMoteManager(object):
             thread.stop()
     
     def findBridges(self):
-        print "self.bridges:", self.bridges
         devs = []
         ljsocketAddress = "localhost:6000"
         
@@ -79,26 +80,20 @@ class SkyMoteManager(object):
         except:
             return {}
         
-        #print "devsObj" = 
-        
-        #for dev in devsObj.values():
-        #    devs.append({"serial" : dev["serialNumber"], "prodId" : dev["devType"]})
         
         for dev in devs:
-            print "Got dev: serial = %s, prodId = 0x%X" % (dev['serial'], dev['prodId'])
+            #print "Got dev: serial = %s, prodId = 0x%X" % (dev['serial'], dev['prodId'])
             if dev['prodId'] != 0x501:
                 continue
             elif str(dev['serial']) in self.bridges:
                 d = self.bridges[str(dev['serial'])]
                 if d.numMotes() != len(d.motes):
-                    print "Found new motes"
                     d.motes = d.listMotes()
                     for mote in d.motes:
                         t = PlaceMoteInRapidModeThread(mote)
                         t.start()
                 continue
             
-            print "Got a bridge... opening."
             d = skymote.Bridge(LJSocket = ljsocketAddress, serial = dev['serial'])
             try:
                 d.ethernetFirmwareVersion()
@@ -209,14 +204,16 @@ class SkyMoteManager(object):
         print "settings =", settings
         
         if "name" in settings and settings['name'] != m.nickname:
-            print "Updating name to %s from %s." % (settings['name'], m.nickname)
+            log("Updating name to %s from %s." % (settings['name'], m.nickname))
             m.name = settings['name']
             m.nickname = settings['name']
             
         if "unitId" in settings and settings['unitId'] != m.unitId:
+            log("Updating mote's Unit ID from %s to %s" % (m.unitId, settings['unitId']))
             m.setUnitId(settings['unitId'])
         
         if "checkinInterval" in settings and settings['checkinInterval'] != m.checkinInterval:
+            log("Updating mote's Check-In interval from %s to %s seconds" % (m.checkinInterval, settings['checkinInterval']))
             m.setCheckinInterval(settings['checkinInterval']*1000)
         
         return True
@@ -225,7 +222,7 @@ class SkyMoteManager(object):
         b = self.getBridge(serial)
         
         if settings['name'] != b.nameCache:
-            print "Updating name to %s from %s." % (settings['name'], b.nameCache)
+            log("Updating name to %s from %s." % (settings['name'], b.nameCache))
             b.name = settings['name']
             b.nameCache = settings['name']
         
@@ -243,7 +240,12 @@ class SkyMoteManager(object):
         
         return True
             
+    def readRegister(self, serial, addr, numReg, format, unitId):
         
+        b = self.getBridge(serial)
+        
+        return b.readRegister(addr, numReg = numReg, format = format, unitId = unitId)
+    
     def doFirmwareUpgrade(self, serial, unitId, fwFile):
         """
         Starts the thread that will upgrade the firmware of a Skymote device
@@ -292,8 +294,10 @@ class PlaceMoteInRapidModeThread(threading.Thread):
         self.mote.lastCommunication = None
 
     def run(self):
+        log("Trying to place mote %s into high powered mode. This might take some time." % self.mote.unitId)
         self.mote.nickname = "Placeholder SkyMote Name"
         self.mote.startRapidMode()
+        log("Mote %s successfully placed into high powered mode." % self.mote.unitId)
         self.mote.inRapidMode = True
         self.mote.nickname = self.mote.name
         self.mote.mainFirmwareVersion()
@@ -334,7 +338,7 @@ class SpontaneousDataLoggingThread(threading.Thread):
         self.running = False
         
     def run(self):
-        print "Spontaneous Data Logger for %s started." % (self.name)
+        log("Spontaneous Data Logger for %s started." % (self.name))
         self.running = True
         
         while self.running:
@@ -351,14 +355,14 @@ class SpontaneousDataLoggingThread(threading.Thread):
             if m is not None:
                 hasLast = m.lastCommunication is not None
                 if m.inRapidMode and hasLast and (data['timevalue'] - m.lastCommunication) > 1.5:
-                    print "Communication has slowed. Mote %s is not in rapid mode anymore." % m.unitId
+                    log("Communication has slowed. Mote %s is not in rapid mode anymore." % m.unitId)
                     m.inRapidMode = False
                     
                 m.lastCommunication = data['timevalue']
             
             data['timestamp'] = str(now)
             self.bridge.spontaneousDataCache[str(data['unitId'])] = data
-            print "Logging spontaneous data from %s." % data['unitId']
+            log("Logging spontaneous data from %s." % data['unitId'])
             
             results = [ now, data['unitId'], data['Temp'], data['Light'], data['Bump'], data['RxLQI'], data['TxLQI'], data['Battery']]
             self.csvWriter.writerow(results)

@@ -240,8 +240,39 @@ function updateSmTabContent(tabIndex) {
             }
         );
     }
+    else if (tabIndex == 2) {
+        stopScanning();
+        $.get("/skymote/support", {}, 
+            function(data) {
+                $("#sm-support-tab").html(data.html);
+                $("#read-modbus-register-form").submit(smSubmitReadRegisterForm);
+            }
+        );
+    } else if (tabIndex == 0) {
+        smRestartScanning();
+    }
     
     //console.log(tabIndex);
+}
+
+function smSubmitReadRegisterForm() {
+    var addr = $("#addr").val();
+    var numReg = $("#numReg").val();
+    var format = $("#format").val();
+    var unitId = $("#unitId").val();
+    
+    $.get("/skymote/readRegister/"+currentSerialNumber, 
+          { addr : addr, numReg : numReg, format : format, unitId : unitId },
+          function(data) {
+            if(data.error != undefined) {
+                $("#read-results-list").prepend(data.error);
+            } else {
+                $("#read-results-list").prepend(data.html);
+            }
+          }
+    );
+    
+    return false;
 }
 
 function smSetupFirmwareButtons() {

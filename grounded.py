@@ -20,7 +20,7 @@ from cherrypy.lib.static import serve_file
 from Cheetah.Template import Template
 
 # - LabJackPython
-import LabJackPython
+import LabJackPython, Modbus
 
 # - gdata
 import gdata.docs.service
@@ -1105,7 +1105,42 @@ class SkyMotePage(object):
         returnDict['htmlScanning'] = tScanning.respond()
 
         return returnDict
+    
+    @exposeJsonFunction
+    def support(self):
+        returnDict = dict()
+        t = serve_file2("templates/skymote/support.tmpl")
+        returnDict['html'] = t.respond()
+        return returnDict
+    
+    @exposeJsonFunction
+    def readRegister(self, serial, addr = None, numReg = None, format = None, unitId = None):
         
+        if "" in (addr, numReg, format, unitId):
+            return { 'error' : "<li>Field missing.</li>"}
+        
+        try:
+            result = self.smm.readRegister(serial, int(addr), int(numReg), format, int(unitId))
+        except ValueError:
+            return { 'error' : "<li>Couldn't convert field into int.</li>"}
+        except Modbus.ModbusException, e:
+            if e.exceptCode.find("Modbus error 2") != -1:
+                return { 'error' : "<li>Device returned invalid register. (Modbus Error 2)</li>"}
+            elif e.exceptCode.find("Modbus error 10") != -1:
+                return { 'error' : "<li>Target device timed out. (Modbus Error 10)</li>"}
+            else:
+                return { 'error' : "<li>%s</li>" % e}
+        
+        returnDict = dict()
+        t = serve_file2("templates/skymote/readResult.tmpl")
+        t.addr = addr
+        t.numReg = numReg
+        t.unitId = unitId
+        t.result = str(result)
+        returnDict['html'] = t.respond()
+        
+        return returnDict
+    
     @exposeJsonFunction
     def updateMoteSettings(self, serial, unitId, name = None, newUnitId = None, checkinInterval = None):
         # /skymote/updateMoteSettings/<serial number>/<unit id>?name=&unitId&checkinInterval
@@ -1472,7 +1507,7 @@ if __name__ == '__main__':
             # py2exe:
             current_dir = os.path.dirname(os.path.abspath(sys.executable))
             configfile = ZIP_FILE.open("cherryred.conf")
-    
+            
         root = RootPage(dm, smm)
         root._cp_config = {'tools.staticdir.root': current_dir, 'tools.renderFromZipFile.on': IS_FROZEN}
         quickstartWithBrowserOpen(root, config=configfile, portOverride = portOverride)
