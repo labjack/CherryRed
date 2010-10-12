@@ -390,6 +390,17 @@ a.digital-out-toggle-link.toggling {
     margin: 5px 0;
 }
 
+/* CSS for modbus command form */
+.modbus-single-setting {
+    margin-bottom: 1em;
+    position: relative;
+}
+
+.modbus-single-setting input {
+    position: absolute;
+    left: 170px;
+}
+
 .rapid-mode.more-info {
     float: right;
     margin-right: 200px;

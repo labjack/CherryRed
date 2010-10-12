@@ -246,6 +246,7 @@ function updateSmTabContent(tabIndex) {
             function(data) {
                 $("#sm-support-tab").html(data.html);
                 $("#read-modbus-register-form").submit(smSubmitReadRegisterForm);
+                $(".resend-link").live("click", resendCommand);
             }
         );
     } else if (tabIndex == 0) {
@@ -268,9 +269,21 @@ function smSubmitReadRegisterForm() {
                 $("#read-results-list").prepend(data.error);
             } else {
                 $("#read-results-list").prepend(data.html);
+                
             }
           }
     );
+    
+    return false;
+}
+
+function resendCommand(){
+    $("#addr").val( $(this).attr('addr') );
+    $("#numReg").val( $(this).attr('numReg') );
+    $("#format").val( $(this).attr('format') );
+    $("#unitId").val( $(this).attr('unitId') );
+    
+    smSubmitReadRegisterForm();
     
     return false;
 }

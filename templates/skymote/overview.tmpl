@@ -1,7 +1,8 @@
 <div id="overview-$device.serialNumber">
-  <h3><a class="configure-bridge name" href="/skymote/config/$device.serialNumber?unitId=0">$device.nameCache</a></h3>
+  <h3><a class="configure-bridge name" href="/skymote/config/$device.serialNumber?unitId=0">$device.nameCache</a> <span style="font-size: 8pt; color: rgb(153, 153, 153); padding-top: 5px;">(Click to change settings)</span></h3>
   <table class="data-table"></table>
 </div>
+<div style="font-size: 8pt; color: rgb(153, 153, 153); padding-top: 5px;">Click a mote's name to change its settings.</div>
 #for $m in $device.motes
 <div id="overview-$m.unitId" class="moteoverview" unitid="$m.unitId">
   <div class="rapid-mode more-info"></div>

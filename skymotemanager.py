@@ -88,6 +88,7 @@ class SkyMoteManager(object):
             elif str(dev['serial']) in self.bridges:
                 d = self.bridges[str(dev['serial'])]
                 if d.numMotes() != len(d.motes):
+                    log("Number of motes changed. Placing all motes into rapid mode.")
                     d.motes = d.listMotes()
                     for mote in d.motes:
                         t = PlaceMoteInRapidModeThread(mote)
@@ -149,14 +150,17 @@ class SkyMoteManager(object):
         
         b = self.getBridge(serial)
         
-        numMotes = b.numMotes()
-        
-        if numMotes != len(b.motes):
-            b.motes = b.listMotes()
+        # Check if the device is free, if we're blocked just keep moving.
+        if b.deviceLock.acquire(0):
+            b.deviceLock.release()
+            numMotes = b.numMotes()
             
-            for mote in b.motes:
-                t = PlaceMoteInRapidModeThread(mote)
-                t.start()
+            if numMotes != len(b.motes):
+                b.motes = b.listMotes()
+                
+                for mote in b.motes:
+                    t = PlaceMoteInRapidModeThread(mote)
+                    t.start()
         
         results['Number of Connected Motes'] = len(b.motes)
         
@@ -357,6 +361,8 @@ class SpontaneousDataLoggingThread(threading.Thread):
                 if m.inRapidMode and hasLast and (data['timevalue'] - m.lastCommunication) > 1.5:
                     log("Communication has slowed. Mote %s is not in rapid mode anymore." % m.unitId)
                     m.inRapidMode = False
+                elif hasLast and (data['timevalue'] - m.lastCommunication) < 1.5:
+                    m.inRapidMode = True
                     
                 m.lastCommunication = data['timevalue']
             

@@ -1136,8 +1136,13 @@ class SkyMotePage(object):
         t.addr = addr
         t.numReg = numReg
         t.unitId = unitId
+        t.strFormat = format
         t.result = str(result)
         returnDict['html'] = t.respond()
+        returnDict['addr'] = addr
+        returnDict['numReg'] = numReg
+        returnDict['unitId'] = unitId
+        returnDict['format'] = format
         
         return returnDict
     

@@ -3,14 +3,28 @@
 <div id="read-modbus-register-wrapper">
   
   <form id="read-modbus-register-form">
-    <div><label>Address: <input type="text" id="addr" size="20"></input></label></div>
-    <div><label>Number of Registers: <input type="text" id="numReg", size="20"></input></label></div>
-    <div><label>Format: <input type="text" id="format" size="65"></input></label></div>
-    <div><label>Unit ID: <input type="text" id="unitId" size="20" value="0"></input></label></div>
-    <input type="submit"></input>
+    <div class="modbus-single-setting">
+      <label>Address: <input type="text" id="addr" size="20"></input></label>
+      <div class="more-info">The address to start reading from.</div>
+    </div>
+    
+    <div class="modbus-single-setting">
+      <label>Number of Registers: <input type="text" id="numReg", size="20"></input></label>
+      <div class="more-info">The number of registers to read.</div>
+    </div>
+    <div class="modbus-single-setting">
+      <label>Format: <input type="text" id="format" size="20"></input></label>
+      <div class="more-info">The format the registers will come back in. Float = >f, Integer = >I, Short = >H</div>
+    </div>
+    <div class="modbus-single-setting">
+      <label>Unit ID: <input type="text" id="unitId" size="20" value="0"></input></label>
+      <div class="more-info">The unit ID to send the command to. The bridge is always unit ID 0.</div>
+    </div>
+    
+    <input type="submit" value="Send Command"></input>
   </form>
   
-  <div id="read-results-wrapper">
+  <div id="read-results-wrapper" style="padding-top: 10px;">
     Result:
     <ul id="read-results-list">
     </ul>
