@@ -286,6 +286,11 @@ width:20%;
     margin-left:56%;
 }
 
+.test-panel-state {
+    padding-right: 3px;
+    padding-left: 3px;
+}
+
 #sm-firmware-tab .firmware-list {
     list-style: none;
 }
@@ -475,6 +480,23 @@ a.digital-out-toggle-link.toggling {
     position: absolute;
     left: 100px;
 }
+
+
+/*
+Connection colors
+*/
+.good-quality {
+    background-color: rgba(0, 150, 0, 0.3);
+}
+
+.warn-quality {
+    background-color: rgba(255, 255, 0, 0.5);
+}
+
+.bad-quality {
+    background-color: rgba(255, 0, 0, 0.8);
+}
+
 /*
  Weak Style
 */

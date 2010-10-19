@@ -10,6 +10,10 @@ import csv, os
 from datetime import datetime
 from time import time as floattime
 
+# We are going to keep names based on unit ids, so that we don't show the
+# placeholder name stuff.
+MOTE_CACHE = dict()
+
 def moteAsDict(mote):
     returnDict = dict()
     
@@ -181,6 +185,16 @@ class SkyMoteManager(object):
 
                 moteDict['tableData'] = tableData
                 moteDict['transId'] = data['transId']
+                
+                try:
+                    moteDict['missed'] = int((floattime() - m.lastCommunication) / m.checkinInterval)
+                except:
+                    moteDict['missed'] = 0
+                    
+                if m.lastCommunication is not None:
+                    moteDict['lastComm'] = m.lastCommunication
+                else:
+                    moteDict['lastComm'] = -1
             
             moteDict['inRapidMode'] = m.inRapidMode
             motes[str(m.unitId)] = moteDict
@@ -299,11 +313,12 @@ class PlaceMoteInRapidModeThread(threading.Thread):
 
     def run(self):
         log("Trying to place mote %s into high powered mode. This might take some time." % self.mote.unitId)
-        self.mote.nickname = "Placeholder SkyMote Name"
+        self.mote.nickname = MOTE_CACHE.get(str(self.mote.unitId) ,"Placeholder SkyMote Name")
         self.mote.startRapidMode()
         log("Mote %s successfully placed into high powered mode." % self.mote.unitId)
         self.mote.inRapidMode = True
         self.mote.nickname = self.mote.name
+        MOTE_CACHE[str(self.mote.unitId)] = self.mote.nickname
         self.mote.mainFirmwareVersion()
         self.mote.devType = self.mote.readRegister(65000)
         if self.mote.devType == 2000:

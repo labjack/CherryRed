@@ -1,7 +1,41 @@
-<h3>Support Tab</h3>
+<h3>Need help with your SkyMote Devices?</h3>
 
-<div id="read-modbus-register-wrapper">
-  
+<div id="support-info-wrapper">
+  <p>Please include the following information when contacting us:</p>
+  <pre><code>
+#for $bridge in $bridges.values()
+[SkyMote Bridge Information]
+Name: $bridge.nameCache
+Main (Jennic) Firmware Version: $bridge.mainFWVersion
+USB Firmware Version: $bridge.usbFWVersion
+Ethernet Firmware Version: $bridge.ethernetFWVersion
+
+  #for $mote in $bridge.motes
+[$mote.productName Unit $mote.unitId Information]
+Name: $mote.nickname
+Serial Number: $mote.serialNumber
+Check-In Interval: $mote.checkinInterval
+Main Firmware Version: $mote.mainFWVersion
+  #end for
+#end for
+
+[CloudDotGrounded Information]
+CloudDotGrounded Version: $groundedVersion
+LabJackPython Version: $ljpVersion
+
+[System Information]
+OS: $os
+#if $isWindows
+UD Driver Version: $driverVersion
+#else
+Exodriver Version: $driverVersion
+#end if
+User Agent: $userAgent
+  </code></pre>
+</div>
+
+<div id="read-modbus-register-wrapper" style="padding-top: 20px;">
+  <h3>Modbus Debugging Form</h3>
   <form id="read-modbus-register-form">
     <div class="modbus-single-setting">
       <label>Address: <input type="text" id="addr" size="20"></input></label>

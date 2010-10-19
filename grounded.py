@@ -53,7 +53,7 @@ mimetypes.types_map['.csv']='text/plain'
 
 
 # Global Constants
-CLOUDDOT_GROUNDED_VERSION = "0.01"
+CLOUDDOT_GROUNDED_VERSION = "0.11"
 
 CLOUDDOT_GROUNDED_CONF = "./clouddotgrounded.conf"
 
@@ -1110,6 +1110,20 @@ class SkyMotePage(object):
     def support(self):
         returnDict = dict()
         t = serve_file2("templates/skymote/support.tmpl")
+        t.bridges = self.smm.bridges
+        
+        t.groundedVersion = CLOUDDOT_GROUNDED_VERSION
+        t.ljpVersion = LabJackPython.LABJACKPYTHON_VERSION
+        
+        userAgent = cherrypy.request.headers['User-Agent']
+        os = userAgent.split("(")[1]
+        os = os.split(")")[0]
+        os = os.split(";")[2].strip()
+        t.os = os
+        t.isWindows = (LabJackPython.os.name == 'nt')
+        t.driverVersion = LabJackPython.GetDriverVersion()
+        t.userAgent = userAgent
+        
         returnDict['html'] = t.respond()
         return returnDict
     

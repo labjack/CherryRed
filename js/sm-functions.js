@@ -1,3 +1,24 @@
+function formatMyDate(date){
+    //return ""+date;
+    var dateStr = date.getMonth()+"/"+date.getDay()+"/"+date.getFullYear()+" ";
+    
+    var timeStr = date.getHours()+":";
+    
+    if(date.getMinutes() < 10) {
+        timeStr = timeStr+"0"+date.getMinutes()+":";
+    } else {
+        timeStr = timeStr+date.getMinutes()+":";
+    }
+    Converting the OpenSSH private key to Putty format
+    if (date.getSeconds() < 10) {
+        timeStr = timeStr+"0"+date.getSeconds();
+    } else {
+        timeStr = timeStr+date.getSeconds();
+    }
+    
+    return dateStr+timeStr;
+}
+
 function smRestartScanning() {
     if (refreshId != null) {
         clearTimeout(refreshId);
@@ -86,15 +107,39 @@ function smHandleScan(data) {
     else {
 
         $("#overview-" + currentSerialNumber + " .data-table tr#0 .test-panel-state").text(data["Number of Connected Motes"]);
+        
+        // Set the text "(Disconnected)" for lost motes.
+        if(data["Number of Connected Motes"] == 0) {
+            $(".rapid-mode").text("(Disconnected)");
+        } else {
+            var t;
+            $(".rapid-mode").each( function(index, elem) {
+                t = $(elem).parent().attr('unitid');
+                if( data["Connected Motes"][t] == undefined ) {
+                    $(elem).text("(Disconnected)");
+                }
+            });
+        }
+        
         for (var unitId in data["Connected Motes"]) {
             var count = 0;
             // Do we have a place for this mote?
             $("#overview-" + unitId + " .name").text(data["Connected Motes"][unitId]["name"]);
             if (data["Connected Motes"][unitId]["inRapidMode"]) {
                 $("#overview-" + unitId + " .rapid-mode").text("(Rapid mode, updating once per second)");            
+            } else if( data["Connected Motes"][unitId]["missed"] && data["Connected Motes"][unitId]["missed"] != 0 ) {
+                $("#overview-" + unitId + " .rapid-mode").text("(mote missed "+data["Connected Motes"][unitId]["missed"]+" communications.)");
             } else {
                 $("#overview-" + unitId + " .rapid-mode").text("");            
             }
+            
+            if(data["Connected Motes"][unitId]["lastComm"] == -1) {
+                $("#overview-" + unitId + " .last-comm-text").text("Never");
+            } else {
+                var d = new Date( data["Connected Motes"][unitId]["lastComm"]*1000 );
+                $("#overview-" + unitId + " .last-comm-text").text(formatMyDate(d));
+            }
+            
             var moteData = data["Connected Motes"][unitId]["tableData"];
             if ($("#overview-" + unitId).length == 0) {
                 $("#sm-overview-tab").append(data["Connected Motes"][unitId]["html"]);
@@ -111,13 +156,20 @@ function smHandleScan(data) {
                 });
                 $('#sm-overview-tab .ui-jqgrid-hdiv').hide();
                 for (var k in moteData) {
-                    obj = { label : moteData[k].connection, state :  "<span class='test-panel-sparkline " + moteData[k].chType + "' rowIndex='" + count + "'></span>" + "<span class='test-panel-state'>" + moteData[k].state  + "</span>"};
+                    var connectionClass = ""
+                    if( moteData[k].connection == "Tx Link Quality" || moteData[k].connection == "Tx Link Quality") {
+                        if(moteData[k].value > 100) {
+                            connectionClass = "good-quality"
+                        } else if(moteData[k].value <= 100 && moteData[k].value >= 60) {
+                            connectionClass = "warn-quality"
+                        } else {
+                            connectionClass = "bad-quality"
+                        }
+                    }
+                    obj = { label : moteData[k].connection, state :  "<span class='test-panel-sparkline " + moteData[k].chType + "' rowIndex='" + count + "'></span>" + "<span class='test-panel-state "+connectionClass+"'>" + moteData[k].state  + "</span>"};
                     $("#overview-" + unitId + " .data-table").jqGrid('addRowData', count, obj);
                     count++;
                 }
-
-
-
             }
             else {
                 for (var k in moteData) {
@@ -136,9 +188,20 @@ function smHandleScan(data) {
                         sparklineDataMap[mapKey].splice(0,1);
                     }
 
+                    var connectionClass = ""
+                    if( moteData[k].connection == "Tx Link Quality" || moteData[k].connection == "Rx Link Quality") {
+                        if(moteData[k].value > 100) {
+                            connectionClass = "good-quality"
+                        } else if(moteData[k].value <= 100 && moteData[k].value >= 60) {
+                            connectionClass = "warn-quality"
+                        } else {
+                            connectionClass = "bad-quality"
+                        }
+                    }
 
                     var selectorCount = "tr#" + count;
                     $("#overview-" + unitId + " " + selectorCount + " .test-panel-state").html(moteData[k].state);
+                    $("#overview-" + unitId + " " + selectorCount + " .test-panel-state").attr("class", "test-panel-state "+connectionClass);
                     count++;
                 }
             }
