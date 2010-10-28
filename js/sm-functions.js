@@ -9,7 +9,7 @@ function formatMyDate(date){
     } else {
         timeStr = timeStr+date.getMinutes()+":";
     }
-    Converting the OpenSSH private key to Putty format
+    
     if (date.getSeconds() < 10) {
         timeStr = timeStr+"0"+date.getSeconds();
     } else {
