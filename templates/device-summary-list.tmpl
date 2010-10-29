@@ -13,7 +13,11 @@
         <img src="/img/${device.productName}.jpg" alt="$device.productName" />
         <h3 class="current-name">$device.name</h3>
         <p class="product-name">$device.productName</p>
+        #if $device.devType == 1281
+        <p class="serial">$device.serialString</p>
+        #else
         <p class="serial">$device.serial</p>
+        #end if
         #if $device.devType == 9
         <p class="firmware-version">Control Firmware: $device.firmware[1]</p>
         <p class="firmware-version">Communication Firmware: $device.firmware[0]</p>
@@ -48,7 +52,11 @@
       <img src="/img/${device.productName}.jpg" alt="$device.productName" />
       <h3 class="current-name">$device.name</h3>
       <p class="product-name">$device.productName</p>
+      #if $device.devType == 1281
+      <p class="serial">$device.serialString</p>
+      #else
       <p class="serial">$device.serial</p>
+      #end if
       #if $device.devType == 9
       <p class="firmware-version">Control Firmware: $device.firmware[1] </p>
       <p class="firmware-version">Communication Firmware: $device.firmware[0]</p>

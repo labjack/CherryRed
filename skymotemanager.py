@@ -105,6 +105,7 @@ class SkyMoteManager(object):
             except:
                 d.ethernetFWVersion = "(No Ethernet)"
             d.nameCache = d.getName()
+            d.readSerialNumber()
             d.usbFirmwareVersion()
             d.mainFirmwareVersion()
             d.productName = "SkyMote Bridge"
@@ -115,11 +116,11 @@ class SkyMoteManager(object):
                 t = PlaceMoteInRapidModeThread(mote)
                 t.start()
             
-            self.bridges["%s" % dev['serial']] = d
+            self.bridges["%s" % d.serialNumber] = d
             
             t = SpontaneousDataLoggingThread(d)
             t.start()
-            self.loggingThreads["%s" % dev['serial']] = t
+            self.loggingThreads["%s" % d.serialNumber] = t
         
         return self.bridges
 

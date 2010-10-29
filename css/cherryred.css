@@ -77,7 +77,7 @@ a.rename-link:hover,
 #device-summary-list .serial, #more-info-pane .serial, 
 #device-summary-list .product-name, #more-info-pane .product-name,
 #device-summary-list .firmware-version, #more-info-pane .firmware-version, 
-#device-summary-list .localId, #more-info-pane .localId,
+#device-summary-list .localId, #more-info-pane .localId, #device-summary-list .number-connected-motes,
 #more-info-pane p  { 
     padding-left: 25px; 
 }

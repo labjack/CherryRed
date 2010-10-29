@@ -53,7 +53,7 @@ mimetypes.types_map['.csv']='text/plain'
 
 
 # Global Constants
-CLOUDDOT_GROUNDED_VERSION = "0.11"
+CLOUDDOT_GROUNDED_VERSION = "0.12"
 
 CLOUDDOT_GROUNDED_CONF = "./clouddotgrounded.conf"
 

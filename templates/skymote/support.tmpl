@@ -6,6 +6,7 @@
 #for $bridge in $bridges.values()
 [SkyMote Bridge Information]
 Name: $bridge.nameCache
+Serial Number: $bridge.serialString
 Main (Jennic) Firmware Version: $bridge.mainFWVersion
 USB Firmware Version: $bridge.usbFWVersion
 Ethernet Firmware Version: $bridge.ethernetFWVersion
@@ -16,6 +17,7 @@ Name: $mote.nickname
 Serial Number: $mote.serialNumber
 Check-In Interval: $mote.checkinInterval
 Main Firmware Version: $mote.mainFWVersion
+
   #end for
 #end for
 

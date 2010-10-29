@@ -131,6 +131,7 @@ def deviceAsDict(dev):
         firmware = [dev.ethernetFWVersion, dev.usbFWVersion, dev.mainFWVersion]
         returnDict['unitId'] = dev.unitId
         returnDict['numMotes'] = len(dev.motes)
+        returnDict['serialString'] = dev.serialString
         name = dev.nameCache
     else:
         name = dev.getName()
